@@ -352,6 +352,11 @@ class Sequence:
         return [segment_keys.index(name) for name, repeat in self._segment_repeats]
 
     @property
+    def segment_next(self) -> List[int]:
+        num_of_steps = len(segment_steps)
+        return list(np.linspace(1, num_of_steps - 1, num_of_steps - 1).astype(int)) + [0]
+
+    @property
     def segment_durations(self) -> List[float]:
         return [self._segments[name].duration for name, repeat in self._segment_repeats]
 
@@ -380,6 +385,10 @@ class Sequence:
                 segment.fill_all_channels()
             value.append(segment.ttl_function(self._ttl_channels))
         return value
+
+    @property
+    def ttl_out_on(self) -> bool:
+        return len(self._ttl_channels) > 0
 
     @property
     def total_duration(self) -> float:
