@@ -3,13 +3,13 @@ import os
 
 import numpy as np
 
-os.chdir("/home/onix/gdrive/code/onix_control/new")
-os.environ["DATAFOLDER"] = "/home/onix/Desktop/data"
+os.chdir("/home/onix/Documents/code")
+os.environ["DATAFOLDER"] = "/home/onix/Documents/data"
 
-from data_tools import save_experiment_data
+from onix.data_tools import save_experiment_data
 
-from headers.digitizer import Digitizer
-from headers.highfinesse_wavemeter_v4.wavemeter import WM
+from onix.headers.digitizer import Digitizer
+from onix.headers.wavemeter.wavemeter import WM
 
 wavemeter = WM()
 dg = Digitizer("192.168.0.125")
