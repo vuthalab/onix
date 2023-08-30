@@ -4,6 +4,8 @@ import contextlib
 import io
 import sys
 
+import numpy as np
+
 os.chdir("/home/onix/Documents/code")
 os.environ["DATAFOLDER"] = "/home/onix/Documents/data"
 
@@ -30,7 +32,11 @@ def wavemeter_frequency():
     return freq
 
 wavemeter = WM()
-dg = Digitizer("192.168.0.125")
+try:
+    dg = Digitizer("192.168.0.125")
+    dg.list_errors()
+except Exception:
+    dg = Digitizer("192.168.0.125")
 
 ## experiment parameters
 excitation_aom_channel = 0
@@ -40,14 +46,14 @@ excitation_time = 0.1 * ureg.s
 
 measurement_delay = 10 * ureg.us
 pmt_gate_ttl_channel = 0  # also used to trigger the digitizer.
-measurement_time = 0.1 * ureg.s
+measurement_time = 0.1 * ureg.s  # with ttl trigger, something happens after ~87 ms. Readings on the two channels flip.
 
 time_between_repeat = 1  # s
 repeats = 1
 sampling_rate = 1e5
 
 ## setup sequence
-sequence = Sequence(dds_channel_num=4, ttl_channels=[0])
+sequence = Sequence(awg_channel_num=4, ttl_channels=[0])
 
 segment_excitation = Segment("excite")
 pulse_excitation = AWGSinePulse(
@@ -60,7 +66,7 @@ segment_excitation.add_awg_function(excitation_aom_channel, pulse_excitation)
 sequence.add_segment("excite", segment_excitation)
 
 segment_measure = Segment("measure")
-ttl_measure = TTLPulses([[measurement_delay, measurement_delay + measurement_time]])
+ttl_measure = TTLPulses([[measurement_delay.to("s").magnitude, (measurement_delay + measurement_time).to("s").magnitude]])
 segment_measure.add_ttl_function(pmt_gate_ttl_channel, ttl_measure)
 sequence.add_segment("measure", segment_measure)
 
@@ -82,15 +88,16 @@ m4i = M4i6622(
 m4i.setSoftwareBuffer()
 m4i.configSequenceReplay(
     segFunctions=sequence.segment_awg_functions,
+    steps=sequence.segment_steps,
     ttlFunctionList=sequence.segment_ttl_functions,
 )
 
 ## setup the digitizer
 params_dict = {
-    "num_samples": int(measurement_time / sampling_rate),
+    "num_samples": int(measurement_time.to("s").magnitude * sampling_rate),
     "sampling_rate": int(sampling_rate),
-    "ch1_voltage_range": 2,
-    "ch2_voltage_range": 2,
+    "ch1_voltage_range": 10,
+    "ch2_voltage_range": 10,
     "trigger_channel": 0,
     "data_format": "float32",
     "coupling": "DC",
@@ -115,6 +122,7 @@ for kk in range(repeats):
     pmt_voltages.append(V1)
     time.sleep(time_between_repeat)
 
+m4i.stop()
 pmt_times = [kk / sampling_rate for kk in range(len(V1))]
 
 ## save data

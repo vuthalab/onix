@@ -3,8 +3,8 @@ from typing import List, Dict, Tuple, Optional, Union, Callable, Any
 
 import numpy as np
 
-from headers.awg_header.M4i6622 import SPCSEQ_ENDLOOPALWAYS, SPCSEQ_END
-from units import Q_
+from onix.headers.awg.M4i6622 import SPCSEQ_ENDLOOPALWAYS, SPCSEQ_END
+from onix.units import Q_
 
 sample_rate = 625e6
 
@@ -18,10 +18,10 @@ class Segment:
             duration = duration.to("s").magnitude
         self._duration = duration
 
-    def add_awg_function(self, channel: int, function: AWGFunction):
+    def add_awg_function(self, channel: int, function):
         self._awg_pulses[channel] = function
 
-    def add_ttl_function(self, channel: int, function: TTLFunction):
+    def add_ttl_function(self, channel: int, function):
         self._ttl_pulses[channel] = function
 
     def fill_all_channels(self, awg_channel_num: int, ttl_channels: List[int]):
@@ -55,11 +55,11 @@ class Segment:
             max_min_duration = 0
             for channel in self._awg_pulses:
                 max_min_duration = np.max(
-                    max_min_duration, self._awg_pulses[channel].min_duration
+                    [max_min_duration, self._awg_pulses[channel].min_duration]
                 )
             for channel in self._ttl_pulses:
                 max_min_duration = np.max(
-                    max_min_duration, self._ttl_pulses[channel].min_duration
+                    [max_min_duration, self._ttl_pulses[channel].min_duration]
                 )
             if max_min_duration > 0:
                 return max_min_duration
@@ -79,7 +79,7 @@ class AWGFunction:
 
 class AWGZero(AWGFunction):
     def output(self, sample_indices):
-        return np.zeros(sample_indices)
+        return np.zeros(len(sample_indices))
 
 
 class AWGSinePulse(AWGFunction):
@@ -236,7 +236,7 @@ class AWGSineTrain(AWGFunction):
             return amplitude * np.sin(2 * np.pi * frequency * times + phase)
 
         def zero(times):
-            return np.zeros(times)
+            return np.zeros(len(times))
 
         times = sample_indices / sample_rate
         funclist = []
@@ -266,27 +266,27 @@ class TTLFunction:
 
 class TTLOff(TTLFunction):
     def output(self, sample_indices):
-        return np.zeros(sample_indices)
+        return np.zeros(len(sample_indices))
 
 
 class TTLOn(TTLFunction):
     def output(self, sample_indices):
-        return np.ones(sample_indices)
+        return np.ones(len(sample_indices))
 
 
 class TTLPulses(TTLFunction):
     def __init__(self, on_times: Union[List[List[float]], Q_]):
         super().__init__()
-        if isinstance(on_times, Q_):
+        if isinstance(on_times, Q_):  # type detection does not cover list of quantities
             on_times = on_times.to("s").magnitude
         self._on_times = on_times
 
     def output(self, sample_indices):
         def on(times):
-            return np.ones(times)
+            return np.ones(len(times))
 
         def off(times):
-            return np.zeros(times)
+            return np.zeros(len(times))
 
         times = sample_indices / sample_rate
         funclist = []
@@ -314,11 +314,11 @@ class SegmentEmpty(Segment):
 class Sequence:
     def __init__(
         self,
-        dds_channel_num: int,
+        awg_channel_num: int,
         ttl_channels: List[int],
         fill_channels_with_zero: Optional[bool] = True
     ):
-        self._dds_channel_num = dds_channel_num
+        self._awg_channel_num = awg_channel_num
         self._ttl_channels = ttl_channels
         self._fill_channels_with_zero = fill_channels_with_zero
         self._segments = {"__last_step": SegmentEmpty()}
@@ -353,7 +353,7 @@ class Sequence:
 
     @property
     def segment_next(self) -> List[int]:
-        num_of_steps = len(segment_steps)
+        num_of_steps = len(self.segment_steps)
         return list(np.linspace(1, num_of_steps - 1, num_of_steps - 1).astype(int)) + [0]
 
     @property
@@ -363,7 +363,7 @@ class Sequence:
     @property
     def segment_conditions(self) -> List[int]:
         conditions = []
-        for kk in range(len(self._segment_repeats)) - 1:
+        for kk in range(len(self._segment_repeats) - 1):
             conditions.append(SPCSEQ_ENDLOOPALWAYS)
         conditions.append(SPCSEQ_END)
         return conditions
@@ -373,16 +373,16 @@ class Sequence:
         value = []
         for segment in self._segments.values():
             if self._fill_channels_with_zero or segment.name == "empty":
-                segment.fill_all_channels()
-            value.append(segment.awg_functions(self._dds_channel_num))
+                segment.fill_all_channels(self._awg_channel_num, self._ttl_channels)
+            value.append(segment.awg_functions(self._awg_channel_num))
         return value
-    
+
     @property
     def segment_ttl_functions(self) -> List[Callable[..., Any]]:
         value = []
         for segment in self._segments.values():
             if self._fill_channels_with_zero or segment.name == "empty":
-                segment.fill_all_channels()
+                segment.fill_all_channels(self._awg_channel_num, self._ttl_channels)
             value.append(segment.ttl_function(self._ttl_channels))
         return value
 
