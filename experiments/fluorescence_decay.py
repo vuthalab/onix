@@ -54,7 +54,7 @@ pmt_gate_ttl_channel = 0  # also used to trigger the digitizer.
 measurement_time = 10 * ureg.ms
 
 time_between_repeat = 0.1  # s
-repeats = 100
+repeats = 1000
 sampling_rate = 1e6
 
 ## setup sequence
