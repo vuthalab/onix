@@ -358,7 +358,7 @@ class Sequence:
 
     @property
     def segment_durations(self) -> List[float]:
-        return [self._segments[name].duration for name, repeat in self._segment_repeats]
+        return [self._segments[name].duration for name in self._segments]
 
     @property
     def segment_conditions(self) -> List[int]:
