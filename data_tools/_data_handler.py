@@ -43,6 +43,15 @@ def _save_data(
     np.savez(file_path, **data)
 
 
+def _save_data_info(
+    info_file_path: str,
+    data_number: int,
+    data_file_path: str,
+    info: Dict[str, Any],
+):
+    if 
+
+
 def _get_data(file_path: str) -> Tuple[Dict[Any, Any], Dict[Any, Any]]:
     """Loads the npz file and unpickles the headers.
 

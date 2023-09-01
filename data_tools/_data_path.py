@@ -108,3 +108,11 @@ def get_exist_analysis_folder(data_number: int) -> str:
     """Gets the folder for existing analysis data."""
     parent, folder = _locate_anly_data_number(data_number)
     return op.join(parent, folder)
+
+
+def get_analysis_info_path() -> str:
+    return op.join(anly_folder, "data_info")
+
+
+def get_experiment_info_path() -> str:
+    return op.join(expt_folder, "data_info")
