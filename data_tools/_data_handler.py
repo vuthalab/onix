@@ -1,4 +1,5 @@
 import io
+import os
 import pickle
 import os.path as op
 from datetime import datetime
@@ -13,6 +14,12 @@ from ._data_path import (
     get_exist_analysis_folder,
     get_exist_experiment_path,
     get_exist_persistent_path,
+    get_analysis_info_path,
+    get_experiment_info_path,
+)
+from ._data_info import (
+    get_data_info,
+    save_data_info,
 )
 
 
@@ -43,13 +50,29 @@ def _save_data(
     np.savez(file_path, **data)
 
 
+def _get_date_from_path(data_file_path: str):
+    day_folder = os.path.dirname(data_file_path)
+    day = os.path.basename(day_folder)
+    year_month = os.path.basename(os.path.dirname(day_folder))
+    year, month = year_month.split("_")
+    return (int(year), int(month), int(day))
+
+
 def _save_data_info(
     info_file_path: str,
     data_number: int,
     data_file_path: str,
     info: Dict[str, Any],
 ):
-    if 
+    data_info = get_data_info(info_file_path)
+    year, month, day = _get_date_from_path(data_file_path)
+    data_info[data_number] = {
+        "year": year,
+        "month": month,
+        "day": day,
+    }
+    data_info[data_number].update(info)
+    save_data_info(info_file_path, data_info)
 
 
 def _get_data(file_path: str) -> Tuple[Dict[Any, Any], Dict[Any, Any]]:
