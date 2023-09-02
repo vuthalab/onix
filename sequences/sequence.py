@@ -1,9 +1,8 @@
 from functools import partial
-from typing import List, Dict, Tuple, Optional, Union, Callable, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
-from onix.headers.awg.M4i6622 import SPCSEQ_ENDLOOPALWAYS, SPCSEQ_END
+from onix.headers.awg.M4i6622 import SPCSEQ_END, SPCSEQ_ENDLOOPALWAYS
 from onix.units import Q_
 
 sample_rate = 625e6
@@ -156,7 +155,7 @@ class AWGSineSweep(AWGFunction):
         times = sample_indices / sample_rate
         duration = self._end_time - self._start_time
         frequency_scan = self._stop_frequency - self._start_frequency
-        instant_frequencies = (times - self._start_time) / duration * frequency_scan + self._start_frequency
+        instant_frequencies = (times - self._start_time) / duration * frequency_scan / 2 + self._start_frequency
         sine_sweep = self._amplitude * np.sin(2 * np.pi * instant_frequencies * times + self._phase)
         mask_start = np.heaviside(times - self._start_time, 0)
         mask_end = np.heaviside(self._end_time - times, 1)
