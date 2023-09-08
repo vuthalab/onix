@@ -18,12 +18,6 @@ from onix.headers.awg.M4i6622 import M4i6622
 
 from onix.sequences.sequence import Sequence, Segment, AWGSinePulse, TTLPulses
 
-@contextlib.contextmanager
-def nostdout():
-    save_stdout = sys.stdout
-    sys.stdout = io.StringIO()
-    yield
-    sys.stdout = save_stdout
 
 def wavemeter_frequency():
     freq = wavemeter.read_frequency(5)
@@ -39,13 +33,13 @@ except Exception:
     dg = Digitizer("192.168.0.125")
 
 ## experiment parameters
-excitation_aom_channel = 0
+excitation_aom_channel = 2
 excitation_aom_frequency = 78 * ureg.MHz
 excitation_aom_amplitude = 2800
 excitation_time = 5 * ureg.ms
 excitation_delay = 10 * ureg.us
 
-test_aom_channel = 0
+test_aom_channel = 2
 test_aom_frequency = 78 * ureg.MHz
 test_aom_amplitude = 300
 test_time = 10 * ureg.us
@@ -53,7 +47,7 @@ test_time = 10 * ureg.us
 pmt_gate_ttl_channel = 0  # also used to trigger the digitizer.
 measurement_time = 10 * ureg.ms
 
-time_between_repeat = 0.1  # s
+time_between_repeat = 10e-3  # s
 repeats = 1000
 sampling_rate = 1e6
 
