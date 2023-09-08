@@ -1,4 +1,7 @@
+import contextlib
 import fractions as _frac
+import io
+import sys
 
 import numpy as _np
 
@@ -106,6 +109,17 @@ def sort_y_with_x(x, *args):
     for kk in range(len(args)):
         sorted_y.append([ll[kk + 1] for ll in sorted_zipped])
     return (sorted_x, *tuple(sorted_y))
+
+
+@contextlib.contextmanager
+def nostdout():
+    """Hides the standard output from the decorated function."""
+    save_stdout = sys.stdout
+    try:
+        sys.stdout = io.StringIO()
+        yield
+    finally:
+        sys.stdout = save_stdout
 
 
 class _FormatParameter:
