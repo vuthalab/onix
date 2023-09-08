@@ -27,6 +27,7 @@ class AntiholeEO(Sequence):
         switch_aom_amplitude: int,
         repeats: int,
     ):
+        super().__init__(4, [0])
         self._probe_transition = probe_transition
         self._all_transitions = ["ac", "cb", "bb"]
         if probe_transition not in self._all_transitions:
@@ -47,16 +48,23 @@ class AntiholeEO(Sequence):
         )
 
     def add_burns(self, burn_width: Union[float, Q_], burn_time: Union[float, Q_], burn_amplitude: int):
+        if isinstance(burn_time, Q_):
+            burn_time = burn_time.to("s").magnitude
+        burn_piecewise_time = 0.1
+        self._burn_counts = 1
+        if burn_time > burn_piecewise_time:
+            self._burn_counts = int(burn_time / burn_piecewise_time) + 1
+            burn_time = burn_piecewise_time
         for name in self._all_transitions:
             F_state = name[0]
             D_state = name[1]
             frequency = states["5D0"][D_state] - states["7F0"][F_state] + self._eo_offset_frequency
+            print(name, "burn", frequency)
             lower_limit = frequency - burn_width / 2
             upper_limit = frequency + burn_width / 2
             segment = Segment(f"burn_{name}", burn_time)
             segment.add_awg_function(self._switch_aom_channel, self._switch_aom_pulse)
-            segment.add_awg_function(self._probe_transition, AWGSineSweep(lower_limit, upper_limit, burn_amplitude, 0, burn_time))
-            segment.fill_all_channels()
+            segment.add_awg_function(self._eo_channel, AWGSineSweep(lower_limit, upper_limit, burn_amplitude, 0, burn_time))
             self.add_segment(segment.name, segment)
 
     def add_pumps(self, pump_time: Union[float, Q_], pump_amplitude: int):
@@ -64,10 +72,10 @@ class AntiholeEO(Sequence):
             F_state = name[0]
             D_state = name[1]
             frequency = states["5D0"][D_state] - states["7F0"][F_state] + self._eo_offset_frequency
+            print(name, "burn", frequency)
             segment = Segment(f"pump_{name}", pump_time)
             segment.add_awg_function(self._switch_aom_channel, self._switch_aom_pulse)
-            segment.add_awg_function(self._probe_transition, AWGSinePulse(frequency, pump_amplitude))
-            segment.fill_all_channels()
+            segment.add_awg_function(self._eo_channel, AWGSinePulse(frequency, pump_amplitude))
             self.add_segment(segment.name, segment)
 
     def add_probe(
@@ -105,6 +113,7 @@ class AntiholeEO(Sequence):
         eo_function = AWGSineTrain(
             on_time, off_time, probe_frequencies, probe_amplitude, start_time=start_time
         )
+        print("probe", probe_frequencies)
         segment.add_awg_function(self._eo_channel, eo_function)
 
         ao_function = AWGSineTrain(
@@ -112,7 +121,8 @@ class AntiholeEO(Sequence):
         )
         segment.add_awg_function(self._switch_aom_channel, ao_function)
         segment._duration = segment.duration + ttl_probe_offset_time
-        segment.fill_all_channels()
+        self.add_segment(segment.name, segment)
+
         self.probe_read_time = segment.duration - ttl_start_time
 
     def add_break(self, break_time: Optional[Union[float, Q_]] = 10e-6):
@@ -120,19 +130,20 @@ class AntiholeEO(Sequence):
         self.add_segment("break", segment)
 
     def setup_sequence(self, probe_repeats: int = 1):
+        self._probe_repeats = probe_repeats
         segment_repeats = []
         segment_repeats.append(("probe", probe_repeats))
         segment_repeats.append(("break", 1))
 
-        for name in self._all_transitions:
-            segment_repeats.append((f"{name}_burn", 1))
-            segment_repeats.append(("break", 1))
+        for kk in range(self._burn_counts):
+            for name in self._all_transitions:
+                segment_repeats.append((f"burn_{name}", 1))
 
         segment_repeats.append(("probe", probe_repeats))
         segment_repeats.append(("break", 1))
 
         for name in self._pump_transitions:
-            segment_repeats.append((f"{name}_pump", 1))
+            segment_repeats.append((f"pump_{name}", 1))
             segment_repeats.append(("break", 1))
 
         segment_repeats.append(("probe", probe_repeats))
@@ -141,7 +152,7 @@ class AntiholeEO(Sequence):
 
     def setup_m4i(self):
         self.m4i = M4i6622(
-            channelNum=4,
+            channelNum=self._awg_channel_num,
             sequenceReplay=True,
             loop_list=self.segment_loops,
             next=self.segment_next,
@@ -159,18 +170,18 @@ class AntiholeEO(Sequence):
             ttlFunctionList=self.segment_ttl_functions,
         )
 
-    @nostdout
     def setup_digitizer(
         self,
         ip: str,
         sampling_rate: int = 1e7,
     ):
         self.sampling_rate = int(sampling_rate)
-        try:
-            self.dg = Digitizer(ip)
-            self.dg.list_errors()
-        except Exception:
-            self.dg = Digitizer(ip)
+        with nostdout():
+            try:
+                self.dg = Digitizer(ip)
+                self.dg.list_errors()
+            except Exception:
+                self.dg = Digitizer(ip)
 
         params_dict = {
             "num_samples": int(self.probe_read_time * self.sampling_rate),
@@ -180,8 +191,8 @@ class AntiholeEO(Sequence):
             "trigger_channel": 0,
             "data_format": "float32",
             "coupling": "DC",
-            "num_records": self._repeats + 1,
-            "triggers_per_arm": self._repeats + 1,
+            "num_records": (1 + self._repeats) * self._probe_repeats * 3,
+            "triggers_per_arm": (1 + self._repeats) * self._probe_repeats * 3,
         }
         self.dg.set_parameters(params_dict)
         self.dg.configure()

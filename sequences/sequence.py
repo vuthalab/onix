@@ -172,7 +172,7 @@ class AWGSineTrain(AWGFunction):
         on_time: Union[float, Q_],
         off_time: Union[float, Q_],
         frequencies: Union[float, List[float], Q_],
-        amplitudes: Union[float, List[float], Q_],
+        amplitudes: Union[float, List[float]],
         phases: Union[float, List[float]] = 0,
         start_time: Union[float, Q_] = 0,
     ):
@@ -183,8 +183,12 @@ class AWGSineTrain(AWGFunction):
         if isinstance(off_time, Q_):
             off_time = off_time.to("s").magnitude
         self._off_time = off_time
+        try:
+            frequencies = Q_.from_list(frequencies)
+        except Exception as e:
+            pass
         if isinstance(frequencies, Q_):
-            frequencies = frequencies.to("s").magnitude
+            frequencies = frequencies.to("Hz").magnitude
         self._frequencies = frequencies
         self._amplitudes = amplitudes
         self._phases = phases
@@ -227,7 +231,7 @@ class AWGSineTrain(AWGFunction):
         if not is_list_phase:
             self._phases = np.repeat(self._phases, length)
 
-        if len(self._frequencies) != len(self._amplitudes) or len(self._frequencies) != len(self.phases):
+        if len(self._frequencies) != len(self._amplitudes) or len(self._frequencies) != len(self._phases):
             raise ValueError("Frequencies, amplitudes, and phases must be of the same length.")
 
     def output(self, sample_indices):
