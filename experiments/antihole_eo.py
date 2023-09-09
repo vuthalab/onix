@@ -30,12 +30,12 @@ params = {
     "burn_width": 0.5 * ureg.MHz,
     "burn_time": 2 * ureg.s,
 
-    "pump_time": 1 * ureg.s,
+    "pump_time": 0.5 * ureg.s,
 
     "probe_detunings": np.linspace(-0.25, 0.25, 20) * ureg.MHz,
-    "probe_on_time": 12 * ureg.us,
+    "probe_on_time": 16 * ureg.us,
     "probe_off_time": 8 * ureg.us,
-    "probe_repeats": 1,
+    "probe_repeats": 20,
     "ttl_probe_offset_time": 4 * ureg.us,
 
     "repeats": 1,
@@ -93,7 +93,7 @@ for kk in range(params["repeats"]):
 sequence.dg.get_two_channel_waveform(1)
 
 for kk in range(params["repeats"] * 3 * params["probe_repeats"]):
-    V1, _ = sequence.dg.get_two_channel_waveform(kk + 1)
+    V1, _ = sequence.dg.get_two_channel_waveform(kk + 2)
     photodiode_voltages.append(V1)
 
 photodiode_times = [kk / sequence.sampling_rate for kk in range(len(V1))]
@@ -115,5 +115,7 @@ headers = {
     "wavemeter_frequency": wavemeter_frequency(),
 }
 name = "Antihole EO"
-data_id = save_experiment_data(name, data)
+data_id = save_experiment_data(name, data, headers)
 print(data_id)
+
+## empty
