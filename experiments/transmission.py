@@ -8,39 +8,40 @@ os.environ["DATAFOLDER"] = "/home/onix/Documents/data"
 
 from onix.data_tools import save_experiment_data
 
-from onix.headers.digitizer import Digitizer
+from onix.headers.digitizer import DigitizerVisa
 from onix.headers.wavemeter.wavemeter import WM
 
 wavemeter = WM()
-dg = Digitizer("192.168.0.125")
+dg = DigitizerVisa("192.168.0.125")
+dg_channels = [1, 2]
 
 
 import contextlib
 import io
 import sys
 
-@contextlib.contextmanager
-def nostdout():
-    save_stdout = sys.stdout
-    sys.stdout = io.StringIO()
-    yield
-    sys.stdout = save_stdout
+import pyttsx3
+reader = pyttsx3.init()
 
+
+## calibration at zero optical power
+dg.autozero(dg_channels)
 
 ## set digitizer parameters
-params_dict = {
-    "num_samples": 1e3, #will be coerced up to multiple of 4
-    "sampling_rate": 1e3,
-    "ch1_voltage_range": 2,
-    "ch2_voltage_range": 2,
-    "trigger_channel": 3, # 1 -> ch1, 2 -> ch2, 0 -> ext, else -> immediate
-    "data_format": "float32",# "float32" or "adc16"
-    "coupling": "DC",
-    "num_records": 1,
-    "triggers_per_arm": 1,
-}
-dg.set_parameters(params_dict)
-dg.configure()
+duration = 0.5
+sample_rate = 1e3
+voltage_range = 4
+
+dg.configure_acquisition(
+    sample_rate=sample_rate,
+    samples_per_record=int(duration*sample_rate),
+)
+dg.configure_channels(
+    channels=dg_channels,
+    voltage_range=voltage_range,
+)
+dg.set_trigger_source_immediate()
+dg.set_arm(triggers_per_arm=1)
 
 def wavemeter_frequency():
     freq = wavemeter.read_frequency(5)
@@ -55,33 +56,46 @@ V_monitor = []
 frequency_after_GHz = []
 times = []
 
+
 ## take data manually
-with nostdout():
-    dg.crude_trigger()
+dg.initiate_data_acquisition()
 times.append(time.time())
 frequency_before_GHz.append(wavemeter_frequency())
-time.sleep(1)
-V1, V2 = dg.get_two_channel_waveform()
+time.sleep(duration)
+voltages = dg.get_waveforms(dg_channels)
+V1 = voltages[0]
+V2 = voltages[1]
 V_transmission.append(V1)
 V_monitor.append(V2)
 frequency_after_GHz.append(wavemeter_frequency())
-print(frequency_before_GHz[-1], np.average(V1), np.average(V2), np.average(V1 + V2), np.average(V1 / V2))
+print(frequency_before_GHz[-1], np.average(V1), np.average(V2), np.average(V1 + V2), np.average(V1) / np.average(V2))
 
 
 ## take data loop
 try:
     while True:
-        with nostdout():
-            dg.crude_trigger()
+        dg.initiate_data_acquisition()
         freq_before = wavemeter_frequency()
-        time.sleep(1)
-        V1, V2 = dg.get_two_channel_waveform()
         frequency_before_GHz.append(freq_before)
         times.append(time.time())
+        time.sleep(duration)
+        voltages = dg.get_waveforms(dg_channels)
+        V1 = voltages[0]
+        V2 = voltages[1]
+        # if np.average(V1) < 0.5 or np.average(V2) < 0.5:
+        #     text = "Power too low."
+        #     reader.say(text)
+        #     reader.runAndWait()
+        #     reader.stop()
+        # elif np.average(V1) > 3.5 or np.average(V2) > 3.5:
+        #     text = "Power too high."
+        #     reader.say(text)
+        #     reader.runAndWait()
+        #     reader.stop()
         V_transmission.append(V1)
         V_monitor.append(V2)
         frequency_after_GHz.append(wavemeter_frequency())
-        print(f"{frequency_before_GHz[-1]:.3f}", f"{np.average(V1):.3f}", f"{np.average(V2):.3f}", f"{np.average(V1 + V2):.3f}", f"{np.average(V1 / V2):.3f}")
+        print(f"{frequency_before_GHz[-1]:.3f}", f"{np.average(V1):.5f}", f"{np.average(V2):.5f}", f"{np.average(V1 + V2):.3f}", f"{np.average(V1) / np.average(V2):.4f}")
 except KeyboardInterrupt:
     pass
 

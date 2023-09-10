@@ -76,12 +76,12 @@ sequence.add_probe(
 sequence.add_break()
 sequence.setup_sequence(probe_repeats=params["probe_repeats"])
 
-## setup the awg
+## setup the awg and digitizer
 sequence.setup_m4i()
-
-## take data
 sequence.setup_digitizer("192.168.0.125")
 
+## take data
+sequence.dg.initiate_data_acquisition()
 epoch_times = []
 photodiode_voltages = []
 
@@ -90,13 +90,9 @@ for kk in range(params["repeats"]):
     epoch_times.append(time.time())
     time.sleep(sequence.total_duration)
 
-sequence.dg.get_two_channel_waveform(1)
+photodiode_voltages = sequence.dg.get_waveforms([1], records=(1, params["repeats"] * 3 * params["probe_repeats"]))
 
-for kk in range(params["repeats"] * 3 * params["probe_repeats"]):
-    V1, _ = sequence.dg.get_two_channel_waveform(kk + 2)
-    photodiode_voltages.append(V1)
-
-photodiode_times = [kk / sequence.sampling_rate for kk in range(len(V1))]
+photodiode_times = [kk / sequence.sampling_rate for kk in range(len(photodiode_voltages[0]))]
 
 ## plot
 plt.plot(photodiode_times, np.transpose(photodiode_voltages)); plt.legend(); plt.show();

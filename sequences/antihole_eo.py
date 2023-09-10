@@ -12,8 +12,7 @@ from onix.sequences.sequence import (
 from onix.models.hyperfine import states
 from onix.units import Q_, ureg
 from onix.headers.awg.M4i6622 import M4i6622
-from onix.headers.digitizer import Digitizer
-from onix.helpers import nostdout
+from onix.headers.digitizer import DigitizerVisa
 
 
 class AntiholeEO(Sequence):
@@ -191,24 +190,15 @@ class AntiholeEO(Sequence):
         sampling_rate: int = 1e7,
     ):
         self.sampling_rate = int(sampling_rate)
-        with nostdout():
-            try:
-                self.dg = Digitizer(ip)
-                self.dg.list_errors()
-            except Exception:
-                self.dg = Digitizer(ip)
-
-        params_dict = {
-            "num_samples": int(self.probe_read_time * self.sampling_rate),
-            "sampling_rate": self.sampling_rate,
-            "ch1_voltage_range": 1,
-            "ch2_voltage_range": 1,
-            "trigger_channel": 0,
-            "data_format": "float32",
-            "coupling": "DC",
-            "num_records": self._repeats * self._probe_repeats * 3 + 1,
-            "triggers_per_arm": self._repeats * self._probe_repeats * 3 + 1,
-        }
-        self.dg.set_parameters(params_dict)
-        self.dg.configure()
-        self.dg.set_two_channel_waitForTrigger()
+        self.dg = DigitizerVisa(ip)
+        self.dg.configure_acquisition(
+            sample_rate=self.sampling_rate,
+            samples_per_record=int(self.probe_read_time*self.sampling_rate),
+            num_records=self._repeats*self._probe_repeats*3,
+        )
+        self.dg.configure_channels(
+            channels=[1],
+            voltage_range=1.0,
+        )
+        self.dg.set_trigger_source_external()
+        self.dg.set_arm(triggers_per_arm=self._repeats * self._probe_repeats * 3)

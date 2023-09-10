@@ -31,6 +31,7 @@ class Digitizer:
         self._verbose = verbose
         self._open_connection()
         self.clear_errors(verbose)
+        self.set_clock_source_internal()
         self.set_byteorder()
         self.set_integer_data_format()
         self.set_float_data_format()
@@ -66,7 +67,7 @@ class Digitizer:
         raise NotImplementedError()
 
     # helper functions
-    def _channel_list_to_str(channels: List[int]) -> str:
+    def _channel_list_to_str(self, channels: List[int]) -> str:
         result = "(@"
         for channel in channels:
             result += f"{channel},"
@@ -74,7 +75,7 @@ class Digitizer:
 
     def _adc16_to_volt(self, data: np.ndarray, voltage_range: float):
         err_indices = data == -32768
-        voltage = np.float64(data) * voltage_range
+        voltage = data.astype(float) / 32767 * voltage_range
         voltage[err_indices] = np.nan
         return voltage
 
@@ -155,7 +156,7 @@ class Digitizer:
         )
 
     def get_channel_range(self, channel: int) -> float:
-        return float(self._query(f"CONF:CHAN:RANG (@{channel})?"))
+        return float(self._query(f"CONF:CHAN:RANG? (@{channel})"))
 
     def set_trigger_source_external(self, use_positive_slope: bool = True):
         self._write("CONF:TRIG:SOUR EXT")
@@ -234,7 +235,7 @@ class Digitizer:
         self._write("TRIG:IMM")
 
     def get_waveforms(
-        self, channels: List[int], records: Union[int, Tuple[int, int]]
+        self, channels: List[int], records: Union[int, Tuple[int, int]] = 1
     ) -> np.ndarray:
         """Gets the waveform data.
 
@@ -251,7 +252,7 @@ class Digitizer:
         command += f",{pre_trigger_samples},{post_trigger_samples}"
         if isinstance(records, tuple):
             command += f",(@{records[0]}:{records[1]})"
-            record_numbers = list(range(*records))
+            record_numbers = list(range(*records)) + [records[1]]
         elif isinstance(records, int):
             command += f",(@{records})"
             record_numbers = [records]
@@ -259,11 +260,12 @@ class Digitizer:
             raise ValueError(f"Records {records} is not a valid value.")
         data = self._query_binary_values_adc16(command)
         data = np.reshape(data, (len(record_numbers), samples, len(channels)))
-        data = np.transpose(data, axis=(2, 0, 1))
+        data = np.transpose(data, axes=(2, 0, 1)).astype(float)
         channels = sorted(channels)
         for kk in range(len(channels)):
             voltage_range = self.get_channel_range(channels[kk])
             data[kk] = self._adc16_to_volt(data[kk], voltage_range)
+        return data
 
 
 class DigitizerVisa(Digitizer):
