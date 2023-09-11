@@ -1,16 +1,240 @@
 import math
-import numpy as np
-import time
 import os
-import matplotlib.pyplot as plt
+import time
+from typing import List, Literal, Tuple
 
-abspath = os.path.abspath(__file__)
-dname = os.path.dirname(abspath)
-os.chdir(dname)
+import numpy as np
+import onix.headers.awg.pyspcm as pyspcm
 
-from pyspcm import *
-from spcm_tools import *
-from Functions.functions import *
+CHANNEL_TYPE = Literal[0, 1, 2, 3]
+MAX_SAMPLE_RATE = 62500000
+
+
+class M4i6622:
+    def __init__(
+        self,
+        address: str = "/dev/spcm0",
+    ):
+        self._hcard = pyspcm.spcm_hOpen(
+            pyspcm.create_string_buffer(address.encode("ascii"))
+        )
+
+    def _select_channels(self, channels: List[CHANNEL_TYPE]):
+        if len(channels) == 3:
+            raise ValueError("Cannot enable 3 channels. Enable 4 channels instead.")
+        value = 0
+        for channel in channels:
+            value = value | getattr(pyspcm, f"CHANNEL{channel}")
+        pyspcm.spcm_dwSetParam_i64(self._hcard, pyspcm.SPC_CHENABLE, value)
+
+    def _enable_channel(self, channel: CHANNEL_TYPE, enabled: bool = True):
+        if enabled:
+            value = pyspcm.int64(1)
+        else:
+            value = pyspcm.int64(0)
+        pyspcm.spcm_dwSetParam_i64(
+            self._hcard, getattr(pyspcm, f"SPC_ENABLEOUT{channel}"), value
+        )
+
+    def _set_channel_amplitude(self, channel: CHANNEL_TYPE, amplitude_mV: int = 2500):
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, getattr(pyspcm, f"SPC_AMP{channel}"), pyspcm.int32(amplitude_mV)
+        )
+
+    def _set_channel_filter(self, channel: CHANNEL_TYPE, filter: int = 0):
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, getattr(pyspcm, f"SPC_FILTER{channel}"), pyspcm.int32(filter)
+        )
+
+    def _set_mode(
+        self,
+        mode: Literal[
+            "single",
+            "multiple",
+            "single_restart",
+            "sequence",
+        ],
+    ):
+        """See replay modes in the manual. Not all modes are implemented here."""
+        if mode == "single":
+            value = pyspcm.SPC_REP_STD_SINGLE
+        elif mode == "multiple":
+            value = pyspcm.SPC_REP_STD_MULTI
+        elif mode == "single_restart":
+            value = pyspcm.SPC_REP_STD_SINGLERESTART
+        elif mode == "sequence":
+            value = pyspcm.SPC_REP_STD_SEQUENCE
+        else:
+            raise ValueError(f"The replay mode {mode} is invalid or not implemented.")
+        pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_CARDMODE, value)
+
+    def _reset(self):
+        """Resets the card."""
+        pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_RESET)
+
+    def _write_setup(self):
+        """Writes the setup without starting the card."""
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_WRITESETUP
+        )
+
+    def _start(self):
+        """Writes the setup and starts the card."""
+        pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_START)
+
+    def _enable_triggers(self):
+        """Enables detecting triggers."""
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_ENABLETRIGGER
+        )
+
+    def _force_trigger(self):
+        """Sends a software trigger."""
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_FORCETRIGGER
+        )
+
+    def _disable_triggers(self):
+        """Disables detecting triggers."""
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_DISABLETRIGGER
+        )
+
+    def _stop(self):
+        """Stops the current run of the card."""
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_STOP
+        )
+
+    def _wait_for_trigger(self):
+        """Waits until the first trigger event has been detected by the card."""
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_WAITTRIGGER
+        )
+
+    def _wait_for_complete(self):
+        """Waits until the card has completed the current run."""
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_WAITREADY
+        )
+
+    def _define_transfer_buffer(
+        self,
+        data_buffer: np.ndarray,
+        transfer_offset: int,
+    ):
+        data_buffer = data_buffer.astype(np.uint16).tobytes()
+        pyspcm.spcm_dwDefTransfer_i64(
+            self._hcard,
+            pyspcm.SPCM_BUF_DATA,
+            pyspcm.SPCM_DIR_PCTOCARD,
+            pyspcm.uint32(0),
+            data_buffer,
+            pyspcm.uint64(transfer_offset),
+            pyspcm.uint64(len(data_buffer)),
+        )
+
+    def _start_dma_transfer(self):
+        pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_DATA_STARTDMA)
+
+    def _wait_dma_transfer(self):
+        pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_DATA_WAITDMA)
+
+    def _stop_dma_transfer(self):
+        pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_DATA_STOPDMA)
+
+    def _set_memory_size(self, samples_per_channel: int):
+        pyspcm.spcm_dwSetParam_i64(self._hcard, pyspcm.SPC_MEMSIZE, pyspcm.int64(samples_per_channel))
+
+    def _set_segment_size(self, samples_per_segment: int):
+        pyspcm.spcm_dwSetParam_i64(
+            self._hcard, pyspcm.SPC_SEGMENTSIZE, pyspcm.int64(samples_per_segment)
+        )
+
+    def _set_number_of_loops(self, loops: int):
+        pyspcm.spcm_dwSetParam_i64(self._hcard, pyspcm.SPC_LOOPS, pyspcm.int64(loops))
+
+    def _set_clock_mode(
+        self,
+        clock_mode: Literal[
+            "internal_pll", "quartz2", "external_reference", "pxi_reference"
+        ],
+    ):
+        if clock_mode == "internal_pll":
+            value = pyspcm.SPC_CM_INTPLL
+        elif clock_mode == "quartz2":
+            value = pyspcm.SPC_CM_QUARTZ2
+        elif clock_mode == "external_reference":
+            value = pyspcm.SPC_CM_EXTREFCLOCK
+        elif clock_mode == "pxi_reference":
+            value = pyspcm.SPC_CM_PXIREFCLOCK
+        else:
+            raise ValueError(f"Clock mode {clock_mode} is not valid.")
+        pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_CLOCKMODE, value)
+
+    def _set_sample_rate(self, sample_rate: int = MAX_SAMPLE_RATE):
+        pyspcm.spcm_dwSetParam_i64(self._hcard, pyspcm.SPC_SAMPLERATE, pyspcm.int64(sample_rate))
+
+    def _set_external_clock_frequency(self, clock_frequency: int):
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_REFERENCECLOCK, pyspcm.int32(clock_frequency)
+        )
+
+    def _set_trigger_or_mask(self, trigger_mask: int):
+        pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_TRIG_ORMASK, pyspcm.int32(trigger_mask))
+
+    def _set_trigger_and_mask(self, trigger_mask: int):
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_TRIG_ANDMASK, pyspcm.int32(trigger_mask)
+        )
+
+    # TODO: implement external trigger EXT0 and EXT1 functions
+
+    def _set_multi_propose_io_mode(self, line_number: Literal[0, 1, 2], mode: int):
+        pyspcm.spcm_dwSetParam_i32(
+            self._hcard,
+            getattr(pyspcm, f"SPCM_X{line_number}_MODE"),
+            pyspcm.int32(mode),
+        )
+
+    def _get_multiple_propose_io_output(self) -> Tuple[bool, bool, bool]:
+        mode = pyspcm.int32(0)
+        pyspcm.spcm_dwGetParam_i32(self._hcard, pyspcm.SPCM_XX_ASYNCIO, pyspcm.byref(mode))
+        return (mode.value & 1 != 0, mode.value & 2 != 0, mode.value & 4 != 0)
+
+    def _set_multiple_propose_io_output(self, x0_state: bool, x1_state: bool, x2_state: bool):
+        mode = 0
+        if x0_state:
+            mode += 1
+        if x1_state:
+            mode += 2
+        if x2_state:
+            mode += 4
+        pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPCM_XX_ASYNCIO, pyspcm.int32(mode))
+
+    def 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #Put the sample rate in MHz when using this header
 
