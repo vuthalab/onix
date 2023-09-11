@@ -41,10 +41,8 @@ class M4i6622:
 
         self._set_sample_rate()
 
-    def setup_sequence(
-        self,
-        sequence: 
-    ):
+    def setup_sequence(self, sequence: Sequence):
+        # TODO
 
     def _get_bytes_per_sample(self) -> int:
         value = pyspcm.int32(0)
@@ -392,8 +390,6 @@ class M4i6622:
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get sequence current step failed with code {ret}.")
         return value.value
-
-    def 
 
 
 # Put the sample rate in MHz when using this header
