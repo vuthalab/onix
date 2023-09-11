@@ -231,6 +231,9 @@ class Digitizer:
     def initiate_data_acquisition(self):
         self._write("INIT")
 
+    def abort_data_acquisition(self):
+        self._write("ABOR")
+
     def send_immediate_trigger(self):
         self._write("TRIG:IMM")
 
