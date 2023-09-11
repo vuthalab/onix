@@ -63,8 +63,8 @@ times.append(time.time())
 frequency_before_GHz.append(wavemeter_frequency())
 time.sleep(duration)
 voltages = dg.get_waveforms(dg_channels)
-V1 = voltages[0]
-V2 = voltages[1]
+V1 = voltages[0][0]
+V2 = voltages[1][0]
 V_transmission.append(V1)
 V_monitor.append(V2)
 frequency_after_GHz.append(wavemeter_frequency())
@@ -76,12 +76,10 @@ try:
     while True:
         dg.initiate_data_acquisition()
         freq_before = wavemeter_frequency()
-        frequency_before_GHz.append(freq_before)
-        times.append(time.time())
         time.sleep(duration)
         voltages = dg.get_waveforms(dg_channels)
-        V1 = voltages[0]
-        V2 = voltages[1]
+        V1 = voltages[0][0]
+        V2 = voltages[1][0]
         # if np.average(V1) < 0.5 or np.average(V2) < 0.5:
         #     text = "Power too low."
         #     reader.say(text)
@@ -92,6 +90,8 @@ try:
         #     reader.say(text)
         #     reader.runAndWait()
         #     reader.stop()
+        times.append(time.time())
+        frequency_before_GHz.append(freq_before)
         V_transmission.append(V1)
         V_monitor.append(V2)
         frequency_after_GHz.append(wavemeter_frequency())
