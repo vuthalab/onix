@@ -1,20 +1,60 @@
 import math
 import os
 import time
-from typing import List, Literal, Tuple
+from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 import onix.headers.awg.pyspcm as pyspcm
+from onix.sequences.sequence import Sequence
 
 CHANNEL_TYPE = Literal[0, 1, 2, 3]
 MAX_SAMPLE_RATE = 62500000
 
 
 class M4i6622:
-    def __init__(self, address: str = "/dev/spcm0"):
+    """Driver for the M4i6622 arbitrary waveform generator.
+
+    Mostly it focuses on the sequence replay mode of the card. When not running a user-defined
+    sequence, it can output sine waves with user-defined frequency and amplitude on all channels.
+
+    Code is written for a PCI-e M4i6622 card. It may work for other M4i cards with modification.
+    """
+    def __init__(
+        self,
+        address: str = "/dev/spcm0",
+        external_clock_frequency: Optional[int] = None,
+    ):
         self._hcard = pyspcm.spcm_hOpen(
             pyspcm.create_string_buffer(address.encode("ascii"))
         )
+        if self._hcard is None:
+            raise Exception("No card is found.")
+
+        self._reset()
+        self._bytes_per_sample = self._get_bytes_per_sample()
+
+        if external_clock_frequency is not None:
+            self._set_clock_mode("external_reference")
+            self._set_external_clock_frequency(external_clock_frequency)
+        else:
+            self._set_clock_mode("internal_pll")
+
+        self._set_sample_rate()
+
+    def setup_sequence(
+        self,
+        sequence: 
+    ):
+
+    def _get_bytes_per_sample(self) -> int:
+        value = pyspcm.int32(0)
+        ret = pyspcm.spcm_dwGetParam_i32(
+            pyspcm.SPC_MIINST_BYTESPERSAMPLE, pyspcm.byref(value)
+        )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Get bytes per sample failed with code {ret}.")
+        return value.value
+        
 
     def _select_channels(self, channels: List[CHANNEL_TYPE]):
         if len(channels) == 3:
@@ -352,6 +392,8 @@ class M4i6622:
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get sequence current step failed with code {ret}.")
         return value.value
+
+    def 
 
 
 # Put the sample rate in MHz when using this header
