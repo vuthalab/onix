@@ -339,12 +339,12 @@ class TTLFunction:
 
 class TTLOff(TTLFunction):
     def output(self, times):
-        return np.zeros(len(times), dtype=int)
+        return np.zeros(len(times), dtype=np.int16)
 
 
 class TTLOn(TTLFunction):
     def output(self, times):
-        return np.ones(len(times), dtype=int)
+        return np.ones(len(times), dtype=np.int16)
 
 
 class TTLPulses(TTLFunction):
@@ -365,10 +365,10 @@ class TTLPulses(TTLFunction):
 
     def output(self, times):
         def on(times):
-            return np.ones(len(times), dtype=int)
+            return np.ones(len(times), dtype=np.int16)
 
         def off(times):
-            return np.zeros(len(times), dtype=int)
+            return np.zeros(len(times), dtype=np.int16)
 
         funclist = []
         condlist = []
@@ -408,7 +408,7 @@ class Sequence:
         """This function should only be called by the awg device directly."""
         for name in segments:
             if name in self._segments:
-                raise ValueError(f"Segment {name} already exists in the sequence.")
+                self._segments.pop(name)
         self._segments = segments.update(self._segments)
 
     def setup_sequence(self, segment_steps: List[Tuple[str, int]]):

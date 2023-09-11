@@ -1,7 +1,7 @@
 from ctypes import *
 
 # load registers for easier access
-from py_header.regs import *
+from onix.headers.awg.py_header.regs import *
 
 #
 # **************************************************************************
