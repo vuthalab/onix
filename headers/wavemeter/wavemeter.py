@@ -24,11 +24,11 @@
 #
 # Added support for laser locking by SJ (Apr 2021)
 import os 
-os.chdir('/home/onix/gdrive/code/onix_control/headers/highfinesse_wavemeter_v4/')
+#os.chdir('/home/onix/gdrive/code/onix_control/headers/highfinesse_wavemeter_v4/')
 
 # wlmData.dll related imports
-from wlmData import LoadDLL
-import wlmConst
+from onix.headers.wavemeter.wlmData import LoadDLL
+import onix.headers.wavemeter.wlmConst as wlmConst
 
 
 # others
