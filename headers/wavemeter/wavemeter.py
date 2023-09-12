@@ -38,7 +38,7 @@ import zmq
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-from zmq_publisher import zmqPublisher
+from onix.headers.wavemeter.zmq_publisher import zmqPublisher
 import matplotlib.animation as animation
     
 ##
