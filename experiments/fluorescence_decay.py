@@ -3,9 +3,6 @@ import os
 
 import numpy as np
 
-os.chdir("/home/onix/Documents/code")
-os.environ["DATAFOLDER"] = "/home/onix/Documents/data"
-
 from onix.data_tools import save_experiment_data
 from onix.units import ureg
 
@@ -35,7 +32,7 @@ excitation_delay = 10 * ureg.us
 
 test_aom_channel = 2
 test_aom_frequency = 78 * ureg.MHz
-test_aom_amplitude = 300
+test_aom_amplitude = 500
 test_time = 10 * ureg.us
 
 pmt_gate_ttl_channel = 0  # also used to trigger the digitizer.
@@ -67,7 +64,7 @@ pulse_excitation = AWGSinePulse(
     frequency=excitation_aom_frequency,
     amplitude=excitation_aom_amplitude,
     start_time=excitation_delay,
-    end_time=excitation_delay + excitation_time,
+    end_time=excitation_delay+excitation_time,
 )
 segment_excitation.add_awg_function(excitation_aom_channel, pulse_excitation)
 ttl_gate = TTLPulses([[0, 2 * excitation_delay + excitation_time]])
@@ -84,7 +81,7 @@ dg.configure_acquisition(
     samples_per_record=int(measurement_time.to("s").magnitude * sampling_rate),
     num_records=repeats,
 )
-dg.configure_channels(channels=[1], voltage_range=4.0)
+dg.configure_channels(channels=[1], voltage_range=2)
 dg.set_trigger_source_external()
 dg.set_arm(triggers_per_arm=repeats)
 
@@ -114,3 +111,5 @@ data = {
 name = "Fluorescence Decay"
 data_id = save_experiment_data(name, data)
 print(data_id)
+
+##
