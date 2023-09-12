@@ -1,11 +1,9 @@
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple, Union
+import numbers
 
 import numpy as np
-from onix.headers.awg.M4i6622 import SPCSEQ_END, SPCSEQ_ENDLOOPALWAYS
-from onix.units import Q_
-
-sample_rate = 625e6
+from onix.units import Q_, ureg
 
 
 class Segment:
@@ -13,18 +11,22 @@ class Segment:
         self.name = name
         self._awg_pulses: Dict[int, AWGFunction] = {}
         self._ttl_pulses: Dict[int, TTLFunction] = {}
-        if isinstance(duration, Q_):
-            duration = duration.to("s").magnitude
-        self._duration = duration
+        if isinstance(duration, numbers.Number):
+            duration = duration * ureg.s
+        self._duration: Union[Q_, None] = duration
 
     def add_awg_function(self, channel: int, function):
+        if not isinstance(channel, int):
+            raise ValueError(f"Channel {channel} must be an integer.")
         self._awg_pulses[channel] = function
 
     def add_ttl_function(self, channel: int, function):
+        if not isinstance(channel, int):
+            raise ValueError(f"Channel {channel} must be an integer.")
         self._ttl_pulses[channel] = function
 
-    def fill_all_channels(self, awg_channel_num: int, ttl_channels: List[int]):
-        for channel in range(awg_channel_num):
+    def _fill_all_channels(self, awg_channels: List[int], ttl_channels: List[int]):
+        for channel in awg_channels:
             if channel not in self._awg_pulses:
                 self.add_awg_function(channel, AWGZero())
 
@@ -32,53 +34,96 @@ class Segment:
             if channel not in self._ttl_pulses:
                 self.add_ttl_function(channel, TTLOff())
 
-    def awg_functions(self, channel_num: int):
+    def _awg_functions(self, awg_channels: List[int]):
         functions = []
-        for channel in range(channel_num):
+        for channel in awg_channels:
             try:
                 functions.append(self._awg_pulses[channel].output)
             except KeyError:
-                raise KeyError(f"AWG channel {channel} is not defined in the {self.name} segment.")
-        if len(self._awg_pulses) > channel_num:
-            raise Exception(f"More AWG channels are defined than used in the {self.name} segment.")
+                raise KeyError(
+                    f"AWG channel {channel} is not defined in the {self.name} segment."
+                )
+        if len(self._awg_pulses) > len(awg_channels):
+            raise Exception(
+                f"More AWG channels are defined than used in the {self.name} segment."
+            )
         return functions
 
-    def ttl_function(self, channels: List[int]):
-        if len(channels) > 1:
-            raise NotImplementedError("Needs to figure out how multiple TTL channels work with `configSequenceReplay`.")
-        return self._ttl_pulses[channels[0]].output
+    def _ttl_functions(self, ttl_channels: List[int]):
+        functions = []
+        for channel in ttl_channels:
+            try:
+                functions.append(self._ttl_pulses[channel].output)
+            except KeyError:
+                raise KeyError(
+                    f"TTL channel {channel} is not defined in the {self.name} segment."
+                )
+        if len(self._ttl_pulses) > len(ttl_channels):
+            raise Exception(
+                f"More TTL channels are defined than used in the {self.name} segment."
+            )
+        return functions
+
+    def get_sample_data(
+        self,
+        awg_channels: List[int],
+        ttl_channels_map_to_awg_channels: Dict[int, int],
+        sample_indices: np.ndarray,
+        sample_rate: float,
+    ):
+        """Returns data that is compatible with the M4i6622 AWG."""
+        all_awg_indices = list(ttl_channels_map_to_awg_channels.values())
+        if len(set(all_awg_indices)) < len(all_awg_indices):
+            raise ValueError("Only supports TTL using the 16th bit.")
+        ttl_channels = list(ttl_channels_map_to_awg_channels.keys())
+        self._fill_all_channels(awg_channels, ttl_channels)
+        awg_functions = self._awg_functions(awg_channels)
+        ttl_functions = self._ttl_functions(ttl_channels)
+
+        times = sample_indices / sample_rate
+        awg_data = [awg_function(times).astype(np.int16) for awg_function in awg_functions]
+        ttl_data = [ttl_function(times).astype(np.int16) for ttl_function in ttl_functions]
+        for kk, ttl_channel in enumerate(ttl_channels_map_to_awg_channels):
+            awg_index = awg_channels.index(
+                ttl_channels_map_to_awg_channels[ttl_channel]
+            )
+            awg_data[awg_index] = np.bitwise_or(
+                np.right_shift(awg_data[awg_index], 1),
+                np.left_shift(ttl_data[kk], 15)
+            )
+        return np.array(awg_data).flatten("F")
 
     @property
-    def duration(self) -> float:
+    def duration(self) -> Q_:
         if self._duration is None:
-            max_min_duration = 0
+            max_min_duration = 0 * ureg.s
             for channel in self._awg_pulses:
-                max_min_duration = np.max(
-                    [max_min_duration, self._awg_pulses[channel].min_duration]
-                )
+                if self._awg_pulses[channel].min_duration > max_min_duration:
+                    max_min_duration = self._awg_pulses[channel].min_duration
             for channel in self._ttl_pulses:
-                max_min_duration = np.max(
-                    [max_min_duration, self._ttl_pulses[channel].min_duration]
-                )
-            if max_min_duration > 0:
+                if self._ttl_pulses[channel].min_duration > max_min_duration:
+                    max_min_duration = self._ttl_pulses[channel].min_duration
+            if max_min_duration > 0 * ureg.s:
                 return max_min_duration
             else:
-                raise Exception(f"The duration of the {self.name} segment must be defined.")
+                raise Exception(
+                    f"The duration of the {self.name} segment must be defined."
+                )
         return self._duration
 
 
 class AWGFunction:
-    def output(self, sample_indices):
+    def output(self, times):
         raise NotImplementedError()
 
     @property
-    def min_duration(self) -> float:
-        return 0
+    def min_duration(self) -> Q_:
+        return 0 * ureg.s
 
 
 class AWGZero(AWGFunction):
-    def output(self, sample_indices):
-        return np.zeros(len(sample_indices))
+    def output(self, times):
+        return np.zeros(len(times))
 
 
 class AWGSinePulse(AWGFunction):
@@ -91,38 +136,40 @@ class AWGSinePulse(AWGFunction):
         end_time: Optional[Union[float, Q_]] = None,
     ):
         super().__init__()
-        if isinstance(frequency, Q_):
-            frequency = frequency.to("Hz").magnitude
-        self._frequency = frequency
+        if isinstance(frequency, numbers.Number):
+            frequency = frequency * ureg.Hz
+        self._frequency: Q_ = frequency
         self._amplitude = amplitude
         self._phase = phase
-        if isinstance(start_time, Q_):
-            start_time = start_time.to("s").magnitude
-        self._start_time = start_time
-        if isinstance(end_time, Q_):
-            end_time = end_time.to("s").magnitude
-        self._end_time = end_time
+        if isinstance(start_time, numbers.Number):
+            start_time = start_time * ureg.s
+        self._start_time: Union[Q_, None] = start_time
+        if isinstance(end_time, numbers.Number):
+            end_time = end_time * ureg.s
+        self._end_time: Union[Q_, None] = end_time
 
-    def output(self, sample_indices):
-        times = sample_indices / sample_rate
-        sine = self._amplitude * np.sin(2 * np.pi * self._frequency * times + self._phase)
+    def output(self, times):
+        frequency = self._frequency.to("Hz").magnitude
+        sine = self._amplitude * np.sin(2 * np.pi * frequency * times + self._phase)
         if self._start_time is not None:
-            mask_start = np.heaviside(times - self._start_time, 0)
+            start_time = self._start_time.to("s").magnitude
+            mask_start = np.heaviside(times - start_time, 0)
         else:
             mask_start = 1
         if self._end_time is not None:
-            mask_end = np.heaviside(self._end_time - times, 1)
+            end_time = self._end_time.to("s").magnitude
+            mask_end = np.heaviside(end_time - times, 1)
         else:
             mask_end = 1
         return sine * mask_start * mask_end
 
     @property
-    def min_duration(self) -> float:
+    def min_duration(self) -> Q_:
         if self._end_time is not None:
             return self._end_time
         if self._start_time is not None:
             return self._start_time
-        return 0
+        return 0 * ureg.s
 
 
 class AWGSineSweep(AWGFunction):
@@ -136,33 +183,41 @@ class AWGSineSweep(AWGFunction):
         phase: float = 0,
     ):
         super().__init__()
-        if isinstance(start_frequency, Q_):
-            start_frequency = start_frequency.to("Hz").magnitude
-        self._start_frequency = start_frequency
-        if isinstance(stop_frequency, Q_):
-            stop_frequency = stop_frequency.to("Hz").magnitude
-        self._stop_frequency = stop_frequency
+        if isinstance(start_frequency, numbers.Number):
+            start_frequency = start_frequency * ureg.Hz
+        self._start_frequency: Q_ = start_frequency
+        if isinstance(stop_frequency, numbers.Number):
+            stop_frequency = stop_frequency * ureg.Hz
+        self._stop_frequency: Q_ = stop_frequency
         self._amplitude = amplitude
-        if isinstance(start_time, Q_):
-            start_time = start_time.to("s").magnitude
-        self._start_time = start_time
-        if isinstance(end_time, Q_):
-            end_time = end_time.to("s").magnitude
-        self._end_time = end_time
+        if isinstance(start_time, numbers.Number):
+            start_time = start_time * ureg.s
+        self._start_time: Q_ = start_time
+        if isinstance(end_time, numbers.Number):
+            end_time = end_time * ureg.s
+        self._end_time: Q_ = end_time
         self._phase = phase
 
-    def output(self, sample_indices):
-        times = sample_indices / sample_rate
-        duration = self._end_time - self._start_time
-        frequency_scan = self._stop_frequency - self._start_frequency
-        instant_frequencies = (times - self._start_time) / duration * frequency_scan / 2 + self._start_frequency
-        sine_sweep = self._amplitude * np.sin(2 * np.pi * instant_frequencies * times + self._phase)
-        mask_start = np.heaviside(times - self._start_time, 0)
-        mask_end = np.heaviside(self._end_time - times, 1)
+    def output(self, times):
+        """Scanning half of the frequency is actually scanning the full range."""
+        start_frequency = self._start_frequency.to("Hz").magnitude
+        stop_frequency = self._stop_frequency.to("Hz").magnitude
+        start_time = self._start_time.to("s").magnitude
+        end_time = self._end_time.to("s").magnitude
+        duration = end_time - start_time
+        frequency_scan = stop_frequency - start_frequency
+        instant_frequencies = (
+            times - start_time
+        ) / duration * frequency_scan / 2 + start_frequency
+        sine_sweep = self._amplitude * np.sin(
+            2 * np.pi * instant_frequencies * times + self._phase
+        )
+        mask_start = np.heaviside(times - start_time, 0)
+        mask_end = np.heaviside(end_time - times, 1)
         return sine_sweep * mask_start * mask_end
 
     @property
-    def min_duration(self) -> float:
+    def min_duration(self) -> Q_:
         return self._end_time
 
 
@@ -171,30 +226,32 @@ class AWGSineTrain(AWGFunction):
         self,
         on_time: Union[float, Q_],
         off_time: Union[float, Q_],
-        frequencies: Union[float, List[float], Q_],
+        frequencies: Union[float, List[float], Q_, List[Q_]],
         amplitudes: Union[float, List[float]],
         phases: Union[float, List[float]] = 0,
         start_time: Union[float, Q_] = 0,
     ):
         super().__init__()
-        if isinstance(on_time, Q_):
-            on_time = on_time.to("s").magnitude
-        self._on_time = on_time
-        if isinstance(off_time, Q_):
-            off_time = off_time.to("s").magnitude
-        self._off_time = off_time
-        try:
-            frequencies = Q_.from_list(frequencies)
-        except Exception as e:
-            pass
-        if isinstance(frequencies, Q_):
-            frequencies = frequencies.to("Hz").magnitude
-        self._frequencies = frequencies
+        if isinstance(on_time, numbers.Number):
+            on_time = on_time * ureg.s
+        self._on_time: Q_ = on_time
+        if isinstance(off_time, numbers.Number):
+            off_time = off_time * ureg.s
+        self._off_time: Q_ = off_time
+        if isinstance(frequencies, numbers.Number):
+            frequencies = frequencies * ureg.Hz
+        elif not isinstance(frequencies, Q_):
+            new_frequencies = []
+            for frequency in frequencies:
+                if isinstance(frequency, numbers.Number):
+                    frequency = frequency * ureg.Hz
+            frequencies = Q_.from_list(new_frequencies)
+        self._frequencies: Q_ = frequencies
         self._amplitudes = amplitudes
         self._phases = phases
-        if isinstance(start_time, Q_):
-            start_time = start_time.to("s").magnitude
-        self._start_time = start_time
+        if isinstance(start_time, numbers.Number):
+            start_time = start_time * ureg.s
+        self._start_time: Q_ = start_time
         self._unify_lists()
 
     def _unify_lists(self):
@@ -222,79 +279,101 @@ class AWGSineTrain(AWGFunction):
             is_list_phase = False
 
         if length is None:
-            raise ValueError("At least one of the frequencies, amplitudes, and phases must be a list")
+            raise ValueError(
+                "At least one of the frequencies, amplitudes, and phases must be a list"
+            )
 
         if not is_list_freq:
-            self._frequencies = np.repeat(self._frequencies, length)
+            frequency_value = self._frequencies.to("Hz").magnitude
+            self._frequencies = np.repeat(frequency_value, length) * ureg.Hz
         if not is_list_amp:
             self._amplitudes = np.repeat(self._amplitudes, length)
         if not is_list_phase:
             self._phases = np.repeat(self._phases, length)
 
-        if len(self._frequencies) != len(self._amplitudes) or len(self._frequencies) != len(self._phases):
-            raise ValueError("Frequencies, amplitudes, and phases must be of the same length.")
+        if len(self._frequencies) != len(self._amplitudes) or len(
+            self._frequencies
+        ) != len(self._phases):
+            raise ValueError(
+                "Frequencies, amplitudes, and phases must be of the same length."
+            )
 
-    def output(self, sample_indices):
+    def output(self, times):
         def sine(frequency, amplitude, phase, times):
             return amplitude * np.sin(2 * np.pi * frequency * times + phase)
 
         def zero(times):
             return np.zeros(len(times))
 
-        times = sample_indices / sample_rate
         funclist = []
         condlist = []
-        start_time = self._start_time
-        for kk in range(len(self._frequencies)):
-            end_time = start_time + self._on_time
-            funclist.append(partial(sine, self._frequencies[kk], self._amplitudes[kk], self._phases[kk]))
+        start_time = self._start_time.to("s").magnitude
+        on_time = self._on_time.to("s").magnitude
+        off_time = self._off_time.to("s").magnitude
+        frequencies = self._frequencies.to("Hz").magnitude
+        for kk in range(len(frequencies)):
+            end_time = start_time + on_time
+            funclist.append(
+                partial(sine, frequencies[kk], self._amplitudes[kk], self._phases[kk])
+            )
             condlist.append(np.logical_and(times > start_time, times <= end_time))
-            start_time = end_time + self._off_time
+            start_time = end_time + off_time
         funclist.append(zero)
         return np.piecewise(times, condlist, funclist)
 
     @property
-    def min_duration(self) -> float:
-        return self._start_time + len(self._frequencies) * (self._on_time + self._off_time)
+    def min_duration(self) -> Q_:
+        return self._start_time + len(self._frequencies) * (
+            self._on_time + self._off_time
+        )
 
 
 class TTLFunction:
-    def output(self, sample_indices):
+    def output(self, times):
         raise NotImplementedError()
 
     @property
-    def min_duration(self) -> float:
-        return 0
+    def min_duration(self) -> Q_:
+        return 0 * ureg.s
 
 
 class TTLOff(TTLFunction):
-    def output(self, sample_indices):
-        return np.zeros(len(sample_indices))
+    def output(self, times):
+        return np.zeros(len(times), dtype=np.int16)
 
 
 class TTLOn(TTLFunction):
-    def output(self, sample_indices):
-        return np.ones(len(sample_indices))
+    def output(self, times):
+        return np.ones(len(times), dtype=np.int16)
 
 
 class TTLPulses(TTLFunction):
-    def __init__(self, on_times: Union[List[List[float]], Q_]):
+    def __init__(self, on_times: Union[List[Union[List[Union[float, Q_]], Q_]], Q_]):
         super().__init__()
-        if isinstance(on_times, Q_):  # type detection does not cover list of quantities
-            on_times = on_times.to("s").magnitude
-        self._on_times = on_times
+        if not isinstance(on_times, Q_):
+            new_on_times = []
+            for time_group in on_times:
+                start = time_group[0]
+                end = time_group[1]
+                if isinstance(start, Q_):
+                    start = start.to("s").magnitude
+                if isinstance(end, Q_):
+                    end = end.to("s").magnitude
+                new_on_times.append([start, end])
+            on_times = new_on_times * ureg.s
+        self._on_times: Q_ = on_times
 
-    def output(self, sample_indices):
+    def output(self, times):
         def on(times):
-            return np.ones(len(times))
+            return np.ones(len(times), dtype=np.int16)
 
         def off(times):
-            return np.zeros(len(times))
+            return np.zeros(len(times), dtype=np.int16)
 
-        times = sample_indices / sample_rate
         funclist = []
         condlist = []
-        for time_group in self._on_times:
+        on_times = self._on_times.to("s").magnitude
+        for time_group in on_times:
             start_time = time_group[0]
             end_time = time_group[1]
             funclist.append(on)
@@ -303,100 +382,74 @@ class TTLPulses(TTLFunction):
         return np.piecewise(times, condlist, funclist)
 
     @property
-    def min_duration(self) -> float:
-        return np.max([kk for pair in self._on_times for kk in pair])
+    def min_duration(self) -> Q_:
+        return np.max(self._on_times)
 
 
 class SegmentEmpty(Segment):
-    def __init__(self, name: str = "empty", duration: Union[float, Q_] = 10e-6):
-        if isinstance(duration, Q_):
-            duration = duration.to("s").magnitude
+    def __init__(self, name: str, duration: Union[float, Q_]):
+        if isinstance(duration, numbers.Number):
+            duration = duration * ureg.s
         super().__init__(name, duration)
 
 
 class Sequence:
-    def __init__(
-        self,
-        awg_channel_num: int,
-        ttl_channels: List[int],
-        fill_channels_with_zero: Optional[bool] = True
-    ):
-        self._awg_channel_num = awg_channel_num
-        self._ttl_channels = ttl_channels
-        self._fill_channels_with_zero = fill_channels_with_zero
-        self._segments = {"__last_step": SegmentEmpty()}
-        self._segment_repeats = []
+    def __init__(self):
+        self._segments: Dict[str, Segment] = {}
+        self._segment_steps: List[Tuple[str, int]] = []
 
-    def add_segment(self, name: str, segment: Segment):
+    def add_segment(self, segment: Segment):
+        name = segment.name
         if name in self._segments:
             raise ValueError(f"Segment {name} already exists in the sequence.")
         self._segments[name] = segment
 
-    def setup_sequence(self, segment_repeats: List[Tuple[str, int]]):
-        self._segment_repeats = []
-        for name, repeat in segment_repeats:
+    def insert_segments(self, segments: Dict[str, Segment]):
+        """This function should only be called by the awg device directly."""
+        segments = segments.copy()
+        for name in segments:
             if name in self._segments:
-                self._segment_repeats.append((name, repeat))
+                self._segments.pop(name)
+        segments.update(self._segments)
+        self._segments = segments
+
+    def setup_sequence(self, segment_steps: List[Tuple[str, int]]):
+        self._segment_steps = []
+        for name, repeat in segment_steps:
+            if name in self._segments:
+                self._segment_steps.append((name, repeat))
             else:
-                self._segment_repeats = []
+                self._segment_steps = []
                 raise ValueError(f"Segment {name} is not defined.")
-        if len(self._segment_repeats) > 0:
-            self._segment_repeats.append(("__last_step", 1))
-        else:
-            raise Exception(f"Must implement at least one segment.")
 
     @property
-    def segment_loops(self) -> List[int]:
-        return [repeat for (name, repeat) in self._segment_repeats]
+    def segments(self) -> List[Segment]:
+        return list(self._segments.values())
 
     @property
-    def segment_steps(self) -> List[int]:
-        segment_keys = list(self._segments)
-        return [segment_keys.index(name) for name, repeat in self._segment_repeats]
+    def steps(
+        self,
+    ) -> List[
+        Tuple[
+            int, int, int, int, Literal["end_loop", "end_loop_on_trig", "end_sequence"]
+        ]
+    ]:
+        segment_steps = []
+        for step_number, (name, loops) in enumerate(self._segment_steps):
+            segment_number = list(self._segments.keys()).index(name)
+            if step_number == len(self._segment_steps) - 1:
+                next_step = 0
+                end = "end_sequence"
+            else:
+                next_step = step_number + 1
+                end = "end_loop"
+            segment_steps.append((step_number, segment_number, next_step, loops, end))
+        return segment_steps
 
     @property
-    def segment_next(self) -> List[int]:
-        num_of_steps = len(self.segment_steps)
-        return list(np.linspace(1, num_of_steps - 1, num_of_steps - 1).astype(int)) + [0]
-
-    @property
-    def segment_durations(self) -> List[float]:
-        return [self._segments[name].duration for name in self._segments]
-
-    @property
-    def segment_conditions(self) -> List[int]:
-        conditions = []
-        for kk in range(len(self._segment_repeats) - 1):
-            conditions.append(SPCSEQ_ENDLOOPALWAYS)
-        conditions.append(SPCSEQ_END)
-        return conditions
-
-    @property
-    def segment_awg_functions(self) -> List[List[Callable[..., Any]]]:
-        value = []
-        for segment in self._segments.values():
-            if self._fill_channels_with_zero or segment.name == "empty":
-                segment.fill_all_channels(self._awg_channel_num, self._ttl_channels)
-            value.append(segment.awg_functions(self._awg_channel_num))
-        return value
-
-    @property
-    def segment_ttl_functions(self) -> List[Callable[..., Any]]:
-        value = []
-        for segment in self._segments.values():
-            if self._fill_channels_with_zero or segment.name == "empty":
-                segment.fill_all_channels(self._awg_channel_num, self._ttl_channels)
-            value.append(segment.ttl_function(self._ttl_channels))
-        return value
-
-    @property
-    def ttl_out_on(self) -> bool:
-        return len(self._ttl_channels) > 0
-
-    @property
-    def total_duration(self) -> float:
-        value = 0.0
-        for name, repeat in self._segment_repeats:
+    def total_duration(self) -> Q_:
+        value = 0 * ureg.s
+        for name, repeat in self._segment_steps:
             duration = self._segments[name].duration
             value += duration * repeat
         return value
