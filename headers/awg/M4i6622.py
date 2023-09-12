@@ -534,6 +534,7 @@ class M4i6622:
     def start_sequence(self):
         if self._sine_segment_running:
             self._stop()
+            self._sine_segment_running = False
         self._set_sequence_start_step(0)
         self._start()
         self._enable_triggers()
@@ -547,7 +548,6 @@ class M4i6622:
     def start_sine_outputs(self):
         if self._sine_segment_running:
             raise Exception("Sine outputs are already on.")
-        self._wait_for_complete()
         self._set_sequence_start_step(self._sine_segment_steps[self._next_sine_segment])
         self._start()
         self._sine_segment_running = True
@@ -571,7 +571,7 @@ class M4i6622:
         self._next_sine_segment = 1 - self._next_sine_segment
 
     def stop_sine_outputs(self):
-        if self._sine_segment_running:
-            raise Exception("Sine outputs are already on.")
+        if not self._sine_segment_running:
+            raise Exception("Sine outputs are already off.")
         self._sine_segment_running = False
         self._stop()
