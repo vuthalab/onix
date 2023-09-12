@@ -248,7 +248,7 @@ class M4i6622:
             self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_DATA_STARTDMA
         )
         if ret != pyspcm.ERR_OK:
-            raise Exception(f"Stop DMA transfer failed with code {ret}.")
+            raise Exception(f"Start DMA transfer failed with code {ret}.")
 
     def _wait_dma_transfer(self):
         ret = pyspcm.spcm_dwSetParam_i32(

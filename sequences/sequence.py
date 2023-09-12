@@ -89,7 +89,7 @@ class Segment:
             )
             awg_data[awg_index] = np.bitwise_or(
                 np.right_shift(awg_data[awg_index], 1),
-                np.left_shift(ttl_data[kk], 15)
+                np.left_shift(ttl_data[kk], 15),
             )
         return np.array(awg_data).flatten("F")
 
