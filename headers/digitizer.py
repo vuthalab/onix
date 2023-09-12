@@ -251,7 +251,7 @@ class Digitizer:
         samples = self.get_samples_per_record()
         pre_trigger_samples = self.get_pre_trig_samples_per_record()
         post_trigger_samples = samples - pre_trigger_samples
-        command = f"FETCH:WAV:ADC? {self._channel_list_to_str(channels)}"
+        command = f"FETC:WAV:ADC? {self._channel_list_to_str(channels)}"
         command += f",{pre_trigger_samples},{post_trigger_samples}"
         if isinstance(records, tuple):
             command += f",(@{records[0]}:{records[1]})"

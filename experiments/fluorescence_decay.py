@@ -23,6 +23,8 @@ def wavemeter_frequency():
     return freq
 
 wavemeter = WM()
+m4i = M4i6622()
+dg = DigitizerVisa("192.168.0.125")
 
 ## experiment parameters
 excitation_aom_channel = 2
@@ -39,8 +41,8 @@ test_time = 10 * ureg.us
 pmt_gate_ttl_channel = 0  # also used to trigger the digitizer.
 measurement_time = 10 * ureg.ms
 
-time_between_repeat = 10e-3  # s
 repeats = 1000
+time_between_repeat = measurement_time.to("s").magnitude
 sampling_rate = 1e6
 
 ## setup sequence
@@ -58,7 +60,7 @@ pulse_test = AWGSinePulse(
 )
 segment_test.add_awg_function(excitation_aom_channel, pulse_test)
 segment_test._duration = segment_test.duration + offset
-sequence.add_segment("test", segment_test)
+sequence.add_segment(segment_test)
 
 segment_excitation = Segment("excite")
 pulse_excitation = AWGSinePulse(
@@ -70,21 +72,19 @@ pulse_excitation = AWGSinePulse(
 segment_excitation.add_awg_function(excitation_aom_channel, pulse_excitation)
 ttl_gate = TTLPulses([[0, 2 * excitation_delay + excitation_time]])
 segment_excitation.add_ttl_function(pmt_gate_ttl_channel, ttl_gate)
-sequence.add_segment("excite", segment_excitation)
+sequence.add_segment(segment_excitation)
 
 sequence.setup_sequence([("test", 1), ("excite", 1)])
 
 ## setup the awg and digitizer
-m4i = M4i6622()
 m4i.setup_sequence(sequence)
 
-dg = DigitizerVisa("192.168.0.125")
 dg.configure_acquisition(
     sample_rate=sampling_rate,
     samples_per_record=int(measurement_time.to("s").magnitude * sampling_rate),
     num_records=repeats,
 )
-dg.configure_channels(channels=[1], voltage_range=2.0)
+dg.configure_channels(channels=[1], voltage_range=4.0)
 dg.set_trigger_source_external()
 dg.set_arm(triggers_per_arm=repeats)
 
@@ -92,10 +92,13 @@ dg.set_arm(triggers_per_arm=repeats)
 epoch_times = []
 pmt_voltages = []
 
+dg.initiate_data_acquisition()
+time.sleep(0.5)
 for kk in range(repeats):
     m4i.start_sequence()
     epoch_times.append(time.time())
     m4i.wait_for_sequence_complete()
+    time.sleep(time_between_repeat)
 
 m4i.stop_sequence()
 

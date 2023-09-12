@@ -1,14 +1,16 @@
+import time
 from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import onix.headers.awg.pyspcm as pyspcm
+
 from onix.headers.awg.spcm_tools import pvAllocMemPageAligned
 from onix.sequences.sequence import (AWGSinePulse, Segment, Sequence, TTLOff,
                                      TTLOn)
 from onix.units import Q_, ureg
 
 CHANNEL_TYPE = Literal[0, 1, 2, 3]
-MAX_SAMPLE_RATE = 62500000
+MAX_SAMPLE_RATE = 625000000
 
 
 class M4i6622:
@@ -32,7 +34,7 @@ class M4i6622:
             raise Exception("No card is found.")
 
         self._reset()
-        self._bytes_per_sample = self._get_bytes_per_sample()
+        #self._bytes_per_sample = self._get_bytes_per_sample()
 
         if external_clock_frequency is not None:
             self._set_clock_mode("external_reference")
@@ -227,8 +229,8 @@ class M4i6622:
         transfer_offset: int = 0,
     ):
         aligned_buffer = pvAllocMemPageAligned(len(data) * 2)  # 2 bytes per sample.
-        data_buffer = data_buffer.astype(np.int16).tobytes()
-        aligned_buffer[:] = data_buffer
+        data = data.astype(np.int16).tobytes()
+        aligned_buffer[:] = data
         ret = pyspcm.spcm_dwDefTransfer_i64(
             self._hcard,
             pyspcm.SPCM_BUF_DATA,
@@ -236,7 +238,7 @@ class M4i6622:
             pyspcm.uint32(0),
             aligned_buffer,
             pyspcm.uint64(transfer_offset),
-            pyspcm.uint64(len(data_buffer)),
+            pyspcm.uint64(len(aligned_buffer)),
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Define transfer buffer failed with code {ret}.")
@@ -305,11 +307,11 @@ class M4i6622:
 
     def _get_sample_rate(self) -> int:
         value = pyspcm.int64(0)
-        ret = pyspcm.spcm_dwSetParam_i64(
+        ret = pyspcm.spcm_dwGetParam_i64(
             self._hcard, pyspcm.SPC_SAMPLERATE, pyspcm.byref(value)
         )
         if ret != pyspcm.ERR_OK:
-            raise Exception(f"Set sample rate failed with code {ret}.")
+            raise Exception(f"Get sample rate failed with code {ret}.")
         return value.value
 
     def _set_sample_rate(self, sample_rate: int = MAX_SAMPLE_RATE):
@@ -406,8 +408,14 @@ class M4i6622:
         end: Literal["end_loop", "end_loop_on_trig", "end_sequence"] = "end_loop",
     ):
         register = pyspcm.SPC_SEQMODE_STEPMEM0 + step_number
+        if end == "end_loop":
+            end = pyspcm.SPCSEQ_ENDLOOPALWAYS
+        elif end == "end_loop_on_trig":
+            end = pyspcm.SPCSEQ_ENDLOOPONTRIG
+        elif end == "end_sequence":
+            end = pyspcm.SPCSEQ_END
         value = ((end | loops) << 32) | (next_step << 16) | segment_number
-        ret = pyspcm.spcm_dwSetParam_i64(self._hcard, register, value)
+        ret = pyspcm.spcm_dwSetParam_i64(self._hcard, register, pyspcm.int64(value))
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set sequence step memory failed with code {ret}.")
 
@@ -439,7 +447,7 @@ class M4i6622:
     # helper functions
     def _set_sine_segment(self):
         name = f"__sine_{self._next_sine_segment}"
-        segment = Segment(duration=self._sine_segment_duration)
+        segment = Segment(name, duration=self._sine_segment_duration)
         for awg_channel in self._awg_channels:
             frequency = self._awg_parameters[awg_channel]["frequency"]
             amplitude = self._awg_parameters[awg_channel]["amplitude"]
@@ -472,7 +480,7 @@ class M4i6622:
             )
 
     def _set_sequence_steps(self):
-        last_step = 0
+        last_step = -1
         for step_info in self._current_sequence.steps:
             self._set_sequence_step_memory(*step_info)
             last_step = step_info[0]
@@ -491,7 +499,7 @@ class M4i6622:
         self._set_sequence_write_segment(segment_number)
 
         duration = segment.duration
-        size = int(duration * self._sample_rate)
+        size = int(duration.to("s").magnitude * self._sample_rate)
         size = (size + 31) // 32 * 32  # the sample size must be a multiple of 32.
         if size < 96:
             size = 96  # minimum 96 samples for 4 channels.
@@ -522,13 +530,13 @@ class M4i6622:
 
         self._set_sequence_steps()
         self._write_setup()
-        self._enable_triggers()
 
     def start_sequence(self):
         if self._sine_segment_running:
             self._stop()
         self._set_sequence_start_step(0)
         self._start()
+        self._enable_triggers()
 
     def wait_for_sequence_complete(self):
         self._wait_for_complete()

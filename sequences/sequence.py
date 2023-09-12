@@ -72,6 +72,9 @@ class Segment:
         sample_rate: float,
     ):
         """Returns data that is compatible with the M4i6622 AWG."""
+        all_awg_indices = list(ttl_channels_map_to_awg_channels.values())
+        if len(set(all_awg_indices)) < len(all_awg_indices):
+            raise ValueError("Only supports TTL using the 16th bit.")
         ttl_channels = list(ttl_channels_map_to_awg_channels.keys())
         self._fill_all_channels(awg_channels, ttl_channels)
         awg_functions = self._awg_functions(awg_channels)
@@ -79,18 +82,15 @@ class Segment:
 
         times = sample_indices / sample_rate
         awg_data = [awg_function(times).astype(np.int16) for awg_function in awg_functions]
-        ttl_data = [ttl_function(times) for ttl_function in ttl_functions]
-        for ttl_channel in ttl_channels_map_to_awg_channels:
-            awg_index = awg_channels.index(
-                ttl_channels_map_to_awg_channels[ttl_channel]
-            )
-            awg_data[awg_index] = np.right_shift(awg_data[awg_index], 1)
+        ttl_data = [ttl_function(times).astype(np.int16) for ttl_function in ttl_functions]
         for kk, ttl_channel in enumerate(ttl_channels_map_to_awg_channels):
             awg_index = awg_channels.index(
                 ttl_channels_map_to_awg_channels[ttl_channel]
             )
-            awg_data[awg_index] = np.left_shift(awg_data[awg_index], 1)
-            awg_data[awg_index] = np.bitwise_or(awg_data[awg_index], ttl_data[kk])
+            awg_data[awg_index] = np.bitwise_or(
+                np.right_shift(awg_data[awg_index], 1),
+                np.left_shift(ttl_data[kk], 15)
+            )
         return np.array(awg_data).flatten("F")
 
     @property
@@ -406,10 +406,12 @@ class Sequence:
 
     def insert_segments(self, segments: Dict[str, Segment]):
         """This function should only be called by the awg device directly."""
+        segments = segments.copy()
         for name in segments:
             if name in self._segments:
                 self._segments.pop(name)
-        self._segments = segments.update(self._segments)
+        segments.update(self._segments)
+        self._segments = segments
 
     def setup_sequence(self, segment_steps: List[Tuple[str, int]]):
         self._segment_steps = []
@@ -439,7 +441,7 @@ class Sequence:
                 next_step = 0
                 end = "end_sequence"
             else:
-                next_step += step_number + 1
+                next_step = step_number + 1
                 end = "end_loop"
             segment_steps.append((step_number, segment_number, next_step, loops, end))
         return segment_steps
