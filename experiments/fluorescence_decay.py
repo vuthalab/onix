@@ -6,13 +6,10 @@ import sys
 
 import numpy as np
 
-os.chdir("/home/onix/Documents/code")
-os.environ["DATAFOLDER"] = "/home/onix/Documents/data"
-
 from onix.data_tools import save_experiment_data
 from onix.units import ureg
 
-from onix.headers.digitizer import Digitizer
+from onix.headers.digitizer import DigitizerVisa
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
 
@@ -26,22 +23,18 @@ def wavemeter_frequency():
     return freq
 
 wavemeter = WM()
-try:
-    dg = Digitizer("192.168.0.125")
-    dg.list_errors()
-except Exception:
-    dg = Digitizer("192.168.0.125")
+dg = DigitizerVisa("192.168.0.125")
 
 ## experiment parameters
 excitation_aom_channel = 2
 excitation_aom_frequency = 78 * ureg.MHz
 excitation_aom_amplitude = 2800
-excitation_time = 5 * ureg.ms
+excitation_time = 4 * ureg.ms
 excitation_delay = 10 * ureg.us
 
 test_aom_channel = 2
 test_aom_frequency = 78 * ureg.MHz
-test_aom_amplitude = 300
+test_aom_amplitude = 800
 test_time = 10 * ureg.us
 
 pmt_gate_ttl_channel = 0  # also used to trigger the digitizer.
@@ -103,45 +96,50 @@ m4i.configSequenceReplay(
 )
 
 ## setup the digitizer
-params_dict = {
-    "num_samples": int(measurement_time.to("s").magnitude * sampling_rate),
-    "sampling_rate": int(sampling_rate),
-    "ch1_voltage_range": 4,
-    "ch2_voltage_range": 4,
-    "trigger_channel": 0,
-    "data_format": "float32",
-    "coupling": "DC",
-    "num_records": repeats + 1,
-    "triggers_per_arm": repeats + 1,
-}
-dg.set_parameters(params_dict)
-dg.configure()
-dg.set_two_channel_waitForTrigger()
+dg.configure_acquisition(
+    sample_rate=sampling_rate,
+    samples_per_record=int(measurement_time.to("s").magnitude * sampling_rate),
+    num_records=repeats,
+)
+dg.configure_channels(channels=[1], voltage_range=1)
+dg.set_trigger_source_external()
+dg.set_arm(triggers_per_arm=repeats)
 
 ## take data
 epoch_times = []
 pmt_voltages = []
 
-for kk in range(repeats + 1):
+dg.initiate_data_acquisition()
+time.sleep(0.5)
+for kk in range(repeats):
     m4i.startCard(False)
     epoch_times.append(time.time())
     time.sleep(sequence.total_duration + measurement_time.to("s").magnitude)
     time.sleep(time_between_repeat)
 m4i.stop()
 
-for kk in range(repeats + 1):
-    V1, _ = dg.get_two_channel_waveform(kk + 1)
-    if kk != 0:
-        pmt_voltages.append(V1)  # first run data is always incorrect.
-
-pmt_times = [kk / sampling_rate for kk in range(len(V1))]
+pmt_voltages = dg.get_waveforms([1], records=(1, repeats))[0]
+pmt_times = [kk / sampling_rate for kk in range(len(pmt_voltages[0]))]
 
 ## save data
+headers = {
+    "params": {
+        "excitation_aom_amplitude": excitation_aom_amplitude,
+        "excitation_time": excitation_time,
+        "excitation_delay": excitation_delay,
+        "excitation_aom_amplitude": excitation_aom_amplitude,
+        "test_time": test_time,
+        "time_between_repeat": time_between_repeat,
+        "repeats": repeats,
+        "sampling_rate": sampling_rate,
+        "measurement_time": measurement_time,
+    }
+}
 data = {
     "pmt_times": pmt_times,
     "pmt_voltages": pmt_voltages,
     "epoch_times": epoch_times,
 }
 name = "Fluorescence Decay"
-data_id = save_experiment_data(name, data)
+data_id = save_experiment_data(name, data, headers)
 print(data_id)
