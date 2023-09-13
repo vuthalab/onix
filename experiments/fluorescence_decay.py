@@ -45,7 +45,7 @@ sampling_rate = 1e6
 ## setup sequence
 sequence = Sequence()
 
-segment_test = Segment("test", duration=1*ureg.ms)
+segment_test = Segment("test")
 offset = 100 * ureg.us
 ttl_gate = TTLPulses([[0, offset]])
 segment_test.add_ttl_function(pmt_gate_ttl_channel, ttl_gate)
