@@ -304,7 +304,7 @@ class TTLPulses(TTLFunction):
 
     @property
     def min_duration(self) -> float:
-        return np.max([kk for pair in self._on_times for kk in pair])
+        return np.max(self._on_times)
 
 
 class SegmentEmpty(Segment):
