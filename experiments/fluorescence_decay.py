@@ -36,7 +36,7 @@ test_aom_amplitude = 500
 test_time = 10 * ureg.us
 
 pmt_gate_ttl_channel = 0  # also used to trigger the digitizer.
-measurement_time = 10 * ureg.ms
+measurement_time = 8 * ureg.ms + excitation_time
 
 repeats = 1000
 time_between_repeat = measurement_time.to("s").magnitude
@@ -45,7 +45,7 @@ sampling_rate = 1e6
 ## setup sequence
 sequence = Sequence()
 
-segment_test = Segment("test")
+segment_test = Segment("test", duration=1*ureg.ms)
 offset = 100 * ureg.us
 ttl_gate = TTLPulses([[0, offset]])
 segment_test.add_ttl_function(pmt_gate_ttl_channel, ttl_gate)
@@ -103,13 +103,28 @@ pmt_voltages = dg.get_waveforms([1], records=(1, repeats))[0]
 pmt_times = [kk / sampling_rate for kk in range(len(pmt_voltages[0]))]
 
 ## save data
+header = {
+    "excitation_aom_channel": excitation_aom_channel,
+    "excitation_aom_frequency": excitation_aom_frequency,
+    "excitation_aom_amplitude": excitation_aom_amplitude,
+    "excitation_time": excitation_time,
+    "excitation_delay": excitation_delay,
+    "test_aom_channel": test_aom_channel,
+    "test_aom_frequency": test_aom_frequency,
+    "test_aom_amplitude": test_aom_amplitude,
+    "pmt_gate_ttl_channel": pmt_gate_ttl_channel,
+    "measurement_time": measurement_time,
+    "repeats": repeats,
+    "time_between_repeat": time_between_repeat,
+    "sampling_rate": sampling_rate,
+}
 data = {
     "pmt_times": pmt_times,
     "pmt_voltages": pmt_voltages,
     "epoch_times": epoch_times,
 }
 name = "Fluorescence Decay"
-data_id = save_experiment_data(name, data)
+data_id = save_experiment_data(name, data, header)
 print(data_id)
 
 ##
