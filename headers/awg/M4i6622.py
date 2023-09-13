@@ -34,7 +34,6 @@ class M4i6622:
             raise Exception("No card is found.")
 
         self._reset()
-        #self._bytes_per_sample = self._get_bytes_per_sample()
 
         if external_clock_frequency is not None:
             self._set_clock_mode("external_reference")
@@ -81,15 +80,6 @@ class M4i6622:
         self.setup_sequence(Sequence())
 
     # device methods
-    def _get_bytes_per_sample(self) -> int:
-        value = pyspcm.int32(0)
-        ret = pyspcm.spcm_dwGetParam_i32(
-            pyspcm.SPC_MIINST_BYTESPERSAMPLE, pyspcm.byref(value)
-        )
-        if ret != pyspcm.ERR_OK:
-            raise Exception(f"Get bytes per sample failed with code {ret}.")
-        return value.value
-
     def _select_channels(self, channels: List[CHANNEL_TYPE]):
         if len(channels) == 3:
             raise ValueError("Cannot enable 3 channels. Enable 4 channels instead.")
@@ -227,7 +217,7 @@ class M4i6622:
         self,
         data: np.ndarray,
         transfer_offset: int = 0,
-    ):
+    ) -> int:
         aligned_buffer = pvAllocMemPageAligned(len(data) * 2)  # 2 bytes per sample.
         data = data.astype(np.int16).tobytes()
         aligned_buffer[:] = data
@@ -242,10 +232,31 @@ class M4i6622:
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Define transfer buffer failed with code {ret}.")
+        return len(aligned_buffer)
 
-    def _start_dma_transfer(self):
+    def _get_data_ready_to_transfer(self) -> int:
+        value = pyspcm.int32(0)
+        ret = pyspcm.spcm_dwGetParam_i32(
+            self._hcard, pyspcm.SPC_DATA_AVAIL_USER_LEN, pyspcm.byref(value)
+        )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Get data ready to transfer failed with code {ret}.")
+        return value.value
+        
+    def _set_data_ready_to_transfer(self, data_bytes: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_DATA_STARTDMA
+            self._hcard, pyspcm.SPC_DATA_AVAIL_CARD_LEN, pyspcm.int32(data_bytes)
+        )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Set data ready to transfer failed with code {ret}.")
+
+    def _start_dma_transfer(self, wait: bool = False):
+        if wait:
+            value = pyspcm.M2CMD_DATA_STARTDMA | pyspcm.M2CMD_DATA_WAITDMA
+        else:
+            value = pyspcm.M2CMD_DATA_STARTDMA
+        ret = pyspcm.spcm_dwSetParam_i32(
+            self._hcard, pyspcm.SPC_M2CMD, value
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Start DMA transfer failed with code {ret}.")
@@ -414,7 +425,7 @@ class M4i6622:
             end = pyspcm.SPCSEQ_ENDLOOPONTRIG
         elif end == "end_sequence":
             end = pyspcm.SPCSEQ_END
-        value = ((end | loops) << 32) | (next_step << 16) | segment_number
+        value = (end << 32) | (loops << 32) | (next_step << 16) | segment_number
         ret = pyspcm.spcm_dwSetParam_i64(self._hcard, register, pyspcm.int64(value))
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set sequence step memory failed with code {ret}.")
@@ -443,6 +454,15 @@ class M4i6622:
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get sequence current step failed with code {ret}.")
         return value.value
+
+    def _get_error_information(self) -> (int, int, str):
+        error_register = pyspcm.uint32(0)
+        error_code = pyspcm.int32(0)
+        text = pyspcm.create_string_buffer(1000)
+        ret = pyspcm.spcm_dwGetErrorInfo_i32(
+            self._hcard, pyspcm.byref(error_register), pyspcm.byref(error_code), pyspcm.byref(text)
+        )
+        return (error_register.value, error_code.value, text.value.decode("utf-8"))
 
     # helper functions
     def _set_sine_segment(self):
@@ -511,7 +531,8 @@ class M4i6622:
             np.arange(size),
             self._sample_rate,
         )
-        self._define_transfer_buffer(data)
+        data_length = self._define_transfer_buffer(data)
+        self._set_data_ready_to_transfer(data_length)
         self._start_dma_transfer()
         self._wait_dma_transfer()
 
@@ -525,6 +546,7 @@ class M4i6622:
         min_num_segments = int(np.power(2, np.ceil(np.log2(len(segments)))))
         self._set_sequence_max_segments(min_num_segments)
 
+        segment_number = -1
         for segment_number in range(len(segments)):
             self._write_segment(segment_number, segments[segment_number])
 
@@ -550,6 +572,7 @@ class M4i6622:
             raise Exception("Sine outputs are already on.")
         self._set_sequence_start_step(self._sine_segment_steps[self._next_sine_segment])
         self._start()
+        self._enable_triggers()
         self._sine_segment_running = True
 
     def set_sine_output(
@@ -558,20 +581,25 @@ class M4i6622:
         frequency: Union[float, Q_],
         amplitude: int,
     ):
+        if self._sine_segment_running:
+            self._next_sine_segment = 1 - self._next_sine_segment
         self._awg_parameters[awg_channel]["frequency"] = frequency
         self._awg_parameters[awg_channel]["amplitude"] = amplitude
         self._set_sine_segment()
         self._update_sine_data()
-        self._next_sine_segment = 1 - self._next_sine_segment
 
     def set_ttl_output(self, ttl_channel: int, state: bool):
+        if self._sine_segment_running:
+            self._next_sine_segment = 1 - self._next_sine_segment
         self._ttl_parameters[ttl_channel] = state
         self._set_sine_segment()
         self._update_sine_data()
-        self._next_sine_segment = 1 - self._next_sine_segment
 
     def stop_sine_outputs(self):
         if not self._sine_segment_running:
             raise Exception("Sine outputs are already off.")
         self._sine_segment_running = False
         self._stop()
+
+    def get_and_clear_error(self):
+        print(self._get_error_information())

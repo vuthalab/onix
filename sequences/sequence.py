@@ -397,6 +397,7 @@ class Sequence:
     def __init__(self):
         self._segments: Dict[str, Segment] = {}
         self._segment_steps: List[Tuple[str, int]] = []
+        self.add_segment(SegmentEmpty("__empty", 1 * ureg.us))
 
     def add_segment(self, segment: Segment):
         name = segment.name
@@ -421,6 +422,7 @@ class Sequence:
             else:
                 self._segment_steps = []
                 raise ValueError(f"Segment {name} is not defined.")
+        self._segment_steps.append(("__empty", 1))
 
     @property
     def segments(self) -> List[Segment]:
@@ -438,7 +440,7 @@ class Sequence:
         for step_number, (name, loops) in enumerate(self._segment_steps):
             segment_number = list(self._segments.keys()).index(name)
             if step_number == len(self._segment_steps) - 1:
-                next_step = 0
+                next_step = step_number + 1
                 end = "end_sequence"
             else:
                 next_step = step_number + 1
