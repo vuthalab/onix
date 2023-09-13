@@ -34,6 +34,7 @@ class M4i6622:
             raise Exception("No card is found.")
 
         self._reset()
+        self._bytes_per_sample = self._get_bytes_per_sample()
 
         if external_clock_frequency is not None:
             self._set_clock_mode("external_reference")
@@ -79,7 +80,16 @@ class M4i6622:
         self._set_sine_segment()
         self.setup_sequence(Sequence())
 
-    # device methods
+    # device methods   
+    def _get_bytes_per_sample(self) -> int:
+        value = pyspcm.int32(0)
+        ret = pyspcm.spcm_dwGetParam_i32(
+            self._hcard, pyspcm.SPC_MIINST_BYTESPERSAMPLE, pyspcm.byref(value)
+        )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Get bytes per sample failed with code {ret}.")
+        return value.value
+
     def _select_channels(self, channels: List[CHANNEL_TYPE]):
         if len(channels) == 3:
             raise ValueError("Cannot enable 3 channels. Enable 4 channels instead.")
@@ -218,21 +228,22 @@ class M4i6622:
         data: np.ndarray,
         transfer_offset: int = 0,
     ) -> int:
-        aligned_buffer = pvAllocMemPageAligned(len(data) * 2)  # 2 bytes per sample.
+        self._aligned_buffer = pvAllocMemPageAligned(len(data) * self._bytes_per_sample)
+        # this variable must maintain a reference after exit.
         data = data.astype(np.int16).tobytes()
-        aligned_buffer[:] = data
+        self._aligned_buffer[:] = data
         ret = pyspcm.spcm_dwDefTransfer_i64(
             self._hcard,
             pyspcm.SPCM_BUF_DATA,
             pyspcm.SPCM_DIR_PCTOCARD,
             pyspcm.uint32(0),
-            aligned_buffer,
+            self._aligned_buffer,
             pyspcm.uint64(transfer_offset),
-            pyspcm.uint64(len(aligned_buffer)),
+            pyspcm.uint64(len(self._aligned_buffer)),
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Define transfer buffer failed with code {ret}.")
-        return len(aligned_buffer)
+        return len(self._aligned_buffer)
 
     def _get_data_ready_to_transfer(self) -> int:
         value = pyspcm.int32(0)
@@ -432,7 +443,7 @@ class M4i6622:
 
     def _get_sequence_start_step(self) -> int:
         value = pyspcm.int32(0)
-        ret = pyspcm.spcm_dwSetParam_i32(
+        ret = pyspcm.spcm_dwGetParam_i32(
             self._hcard, pyspcm.SPC_SEQMODE_STARTSTEP, pyspcm.byref(value)
         )
         if ret != pyspcm.ERR_OK:
