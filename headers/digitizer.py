@@ -27,6 +27,26 @@ import pyvisa
 
 
 class Digitizer:
+    """General function implementation of the Agilent L4532A digitizer.
+
+    This class must be inherited by a class that implements the communication protocals.
+    All methods that raises NotImplementedError needs to be implemented.
+
+    Example:
+        dg = Digitizer(...)  # replace with the implementation class, e.g. DigitizerVisa.
+        # setup
+        dg.configure_acquisition(...)  # configures the acquistion parameters.
+        dg.configure_channels(...)  # configures the channel parameters.
+        dg.set_trigger_source_internal()  # or external.
+        dg.set_arm(triggers_per_arm=num_of_triggers)
+        # data taking
+        dg.initialize_data_acquisition()
+        time.sleep(...)  # wait for all data to be taken.
+        # data reading
+        data = dg.get_waveforms(channels, records)
+        # the data taking and data reading code can be run in a loop
+        # without changing the setup parameters.
+    """
     def __init__(self, verbose: bool = False):
         self._verbose = verbose
         self._open_connection()
@@ -38,29 +58,34 @@ class Digitizer:
 
     # communication functions
     def _open_connection(self):
+        """Opens the connection to the digitizer."""
         raise NotImplementedError()
 
     def _close_connection(self):
+        """Closes the connection to the digitizer."""
         raise NotImplementedError()
 
     def _write(self, command: str):
+        """Writes an command to the digitizer."""
         raise NotImplementedError()
 
     def _read(self) -> str:
+        """Reads an command from the digitizer."""
         raise NotImplementedError()
 
     def _query(self, command: str) -> str:
+        """Writes an command to the digitizer and reads the response."""
         raise NotImplementedError()
 
     def _query_binary_values_adc16(self, command: str) -> np.ndarray:
-        """Query for a response that will give int16 binary values.
+        """Query for a response that will give int16 binary values with the IEEE header.
 
         Returns a numpy array with int16 elements.
         """
         raise NotImplementedError()
 
     def _query_binary_values_float32(self, command: str) -> np.ndarray:
-        """Query for a response that will give float32 binary values.
+        """Query for a response that will give float32 binary values with the IEEE header.
 
         Returns a numpy array with float32 elements.
         """
@@ -74,12 +99,14 @@ class Digitizer:
         return result[:-1] + ")"
 
     def _adc16_to_volt(self, data: np.ndarray, voltage_range: float):
+        """Converts the ADC int16 readings to voltages in volts."""
         err_indices = data == -32768
         voltage = data.astype(float) / 32767 * voltage_range
         voltage[err_indices] = np.nan
         return voltage
 
     def clear_errors(self, verbose: bool = False):
+        """Reads and clears all errors."""
         msg = ""
         while '+0,"No error"' not in msg:
             msg = self.get_error()
@@ -88,19 +115,27 @@ class Digitizer:
 
     # device method wrappers
     def get_name(self) -> str:
+        """Gets the device name."""
         return self._query("*IDN?")
 
     def get_error(self) -> str:
+        """Gets the first error."""
         return self._query("SYSTEM:ERROR?")
 
     def reset(self):
+        """Resets the digitizer."""
         self._write("*RST")
 
     def self_test(self):
+        """Runs a self test."""
         if int(self._query("*TST?")) != 0:
             raise Exception("Self-test failed.")
 
     def autozero(self, channels: List[int]):
+        """Auto-zero channels.
+        
+        Make sure the channels are selected to the desired ranges with zero volt input first.
+        """
         if (
             int(self._query(f"CAL:ZERO:AUTO? {self._channel_list_to_str(channels)}"))
             != 0
@@ -129,19 +164,32 @@ class Digitizer:
         pre_trig_samples_per_record: int = 0,
         num_records: int = 1,
         trigger_holdoff: int = 0,
-        trigger_delay: int = 0,
+        trigger_delay: float = 0,
     ):
+        """Configures the acquisition parameters.
+        
+        Args:
+            sample_rate: int between 1000 to 2000000. Only certain values in this range are valid.
+            samples_per_record: int, number of samples per record (trigger).
+            pre_trig_samples_per_record: int, number of samples to be saved before the trigger.
+                The rest of the samples are taken after the trigger.
+            num_records: int, number of records (triggers).
+            trigger_delay: float, seconds after the trigger before the first sample is taken.
+        """
         self._write(
             f"CONF:ACQ {sample_rate},{samples_per_record},{pre_trig_samples_per_record},{num_records},{trigger_holdoff},{trigger_delay}"
         )
 
     def get_sample_rate(self) -> int:
+        """Gets the sample rate."""
         return int(self._query("CONF:ACQ:SRAT?"))
 
     def get_samples_per_record(self) -> int:
+        """Gets samples per record."""
         return int(self._query("CONF:ACQ:SCO?"))
 
     def get_pre_trig_samples_per_record(self) -> int:
+        """Gets number of samples before the trigger."""
         return int(self._query("CONF:ACQ:SPR?"))
 
     def configure_channels(
@@ -151,14 +199,17 @@ class Digitizer:
         coupling: Literal["DC", "AC"] = "DC",
         filter: Literal["LP_200_KHZ", "LP_2_MHZ", "LP_20_MHZ"] = "LP_20_MHZ",
     ):
+        """Configure channel parameters."""
         self._write(
             f"CONF:CHAN {self._channel_list_to_str(channels)},{voltage_range},{coupling},{filter}"
         )
 
     def get_channel_range(self, channel: int) -> float:
+        """Gets the voltage range of a channel."""
         return float(self._query(f"CONF:CHAN:RANG? (@{channel})"))
 
     def set_trigger_source_external(self, use_positive_slope: bool = True):
+        """Sets the trigger to use an external trigger (0 to 5 V TTL)."""
         self._write("CONF:TRIG:SOUR EXT")
         if use_positive_slope:
             self._write("CONF:EXT POS")
@@ -166,11 +217,13 @@ class Digitizer:
             self._write("CONF:EXT NEG")
 
     def set_trigger_source_immediate(self):
+        """Sets the trigger source to immediate (continuous data taking)."""
         self._write("CONF:TRIG:SOUR IMM")
 
     def set_trigger_source_edge(
         self, channel: int, level: float, use_positive_slope: bool = True
     ):
+        """Sets the trigger to use an analog channel's input."""
         self._write("CONF:TRIG:SOUR CHAN")
         if use_positive_slope:
             self._write(f"CONF:TRIG:SOUR:CHAN:EDGE {channel},{level},POS")
@@ -178,12 +231,14 @@ class Digitizer:
             self._write(f"CONF:TRIG:SOUR:CHAN:EDGE {channel},{level},NEG")
 
     def set_byteorder(self, use_little_endian: bool = True):
+        """Sets the byte order."""
         if use_little_endian:
             self._write("FORM:BORD SWAP")
         else:
             self._write("FORM:BORD NORM")
 
     def set_integer_data_format(self, format: Literal["adc16", "int_ascii"] = "adc16"):
+        """Sets the data format when the digitizer returns integer data."""
         if format == "adc16":
             self._write("FORM:INT INT")
         elif format == "int_ascii":
@@ -194,6 +249,7 @@ class Digitizer:
     def set_float_data_format(
         self, format: Literal["real32", "real64", "real_ascii"] = "real32"
     ):
+        """Sets the data format when the digitizer returns float data."""
         if format == "real32":
             self._write("FORM:REAL REAL,32")
         elif format == "real64":
@@ -204,12 +260,14 @@ class Digitizer:
             raise ValueError(f"Format {format} is not valid.")
 
     def set_clock_source_internal(self, use_internal: bool = True):
+        """Sets the digitizer to use an internal or external clock."""
         if use_internal:
             self._write("CONF:ROSC INT")
         else:
             self._write("CONF:ROSC EXT")
 
     def get_clock_source_internal(self) -> int:
+        """Returns whether the digitizer uses the internal clock."""
         return "INT" in self._query("CONF:ROSC?")
 
     def set_arm(
@@ -217,6 +275,16 @@ class Digitizer:
         source: Literal["immediate", "external", "software", "timer"] = "immediate",
         triggers_per_arm: int = 1,
     ):
+        """Sets arming parameters of the digitizer.
+
+        The digitizer must be armed before it can take data.
+        This setting allows one to ignore some triggers.
+
+        Args:
+            source: str, typically should be "immediate" if no trigger should be ignored.
+            triggers_per_arm: int, number of triggers after each arm event. Typically
+                can be set to the number of records if the source is "immediate".
+        """
         if source == "immediate":
             self._write(f"CONF:ARM:SOUR IMM,{triggers_per_arm}")
         elif source == "external":
@@ -232,9 +300,15 @@ class Digitizer:
         self._write("INIT")
 
     def abort_data_acquisition(self):
+        """Aborts the data acquisition.
+        
+        This command does not work at least when using the VISA interface.
+        All SCPI commands do not work when the digitizer is waiting for triggers.
+        """
         self._write("ABOR")
 
     def send_immediate_trigger(self):
+        """Sends a trigger to the device."""
         self._write("TRIG:IMM")
 
     def get_waveforms(
@@ -247,6 +321,10 @@ class Digitizer:
             records: int or 2-tuple of ints. If int, it is the record number to read from.
                 If a tuple, it specifies the start and end record number range to read from.
                 The first record is number 1.
+
+        Returns:
+            np.ndarray of 3 dimensions. The first dimension represents channels. The second
+            dimension represents records. The third dimension represents samples in each record.
         """
         samples = self.get_samples_per_record()
         pre_trigger_samples = self.get_pre_trig_samples_per_record()
@@ -272,6 +350,7 @@ class Digitizer:
 
 
 class DigitizerVisa(Digitizer):
+    """PyVISA interface to the digitizer."""
     def __init__(self, ip_address: str, verbose: bool = False):
         self._ip_address = ip_address
         super().__init__(verbose)
