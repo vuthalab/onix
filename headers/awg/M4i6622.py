@@ -14,12 +14,46 @@ MAX_SAMPLE_RATE = 625000000
 
 
 class M4i6622:
-    """Driver for the M4i6622 arbitrary waveform generator.
+    """Header for the M4i6622 arbitrary waveform generator.
 
     Mostly it focuses on the sequence replay mode of the card. When not running a user-defined
     sequence, it can output sine waves with user-defined frequency and amplitude on all channels.
 
-    Code is written for a PCI-e M4i6622 card. It may work for other M4i cards with modification.
+    Code is written for a PCIe M4i6622 card. It may work for other M4i cards with modification.
+
+    When using the public functions of this header, all 4 AWG and 3 TTL channels are always used.
+    The amplitude accuracy of channels 0 to 2 is reduced from 16 bits to 15 bits to enable
+    the TTL channels. Highest sample rate of 625 M/s is used.
+
+    External clock is not tested.
+
+    Example for outputting sine waves:
+        m4i = M4i6622(...)
+        m4i.set_sine_output(channel, frequency, amplitude)  # sets a channel to output a sine wave.
+        m4i.set_ttl_output(channel, state)  # sets a TTL channel to be on or off.
+        m4i.start_sine_outputs()  # starts the output.
+        m4i.stop_sine_outputs()  # stops the output. 
+        # The set_sine_output and set_ttl_output functions can be called at any time.
+        # If called when the sine outputs are on, the output will change within a few ms.
+
+    Example for running a pulse sequence:
+        m4i = M4i6622(...)
+        m4i.setup_sequence(...)  # see onix.sequences.sequence.Sequence class.
+
+        # the code below can be run without setting up the sequence again.
+        for kk in range(repeats):
+            m4i.start_sequence()
+            m4i.wait_for_sequence_complete()
+        m4i.stop_sequence()
+
+    It can switch between the sine output mode and the pulse sequence mode.
+    It should remember the previous sequence loaded and the sine outputs set.
+    Therefore, the setup functions don't need to be called again unless the user
+    wants to change the sequence or the sine output.
+
+    When switching from sine output to a pulse sequence, it automatically turns off the
+    sine output if on, and will not turn the sine output back on automatically at the end
+    of the sequence.
     """
 
     def __init__(
@@ -429,6 +463,11 @@ class M4i6622:
         loops: int,
         end: Literal["end_loop", "end_loop_on_trig", "end_sequence"] = "end_loop",
     ):
+        """Sets the parameters for a sequence step.
+        
+        For some reason that the last "end_sequnce" step always don't output.
+        Adding a short, empty step at the end solves the problem.
+        """
         register = pyspcm.SPC_SEQMODE_STEPMEM0 + step_number
         if end == "end_loop":
             end = pyspcm.SPCSEQ_ENDLOOPALWAYS
@@ -549,6 +588,7 @@ class M4i6622:
 
     # public functions
     def setup_sequence(self, sequence: Sequence):
+        """Sets up a sequence """
         sequence.insert_segments(self._sine_segments)
         self._current_sequence = sequence
 
@@ -565,6 +605,7 @@ class M4i6622:
         self._write_setup()
 
     def start_sequence(self):
+        """Starts the sequence."""
         if self._sine_segment_running:
             self._stop()
             self._sine_segment_running = False
@@ -573,12 +614,15 @@ class M4i6622:
         self._enable_triggers()
 
     def wait_for_sequence_complete(self):
+        """Waits for the programmed sequence to be done."""
         self._wait_for_complete()
 
     def stop_sequence(self):
+        """Stops the sequence."""
         self._stop()
 
     def start_sine_outputs(self):
+        """Starts the sine output mode."""
         if self._sine_segment_running:
             raise Exception("Sine outputs are already on.")
         self._set_sequence_start_step(self._sine_segment_steps[self._next_sine_segment])
@@ -592,6 +636,7 @@ class M4i6622:
         frequency: Union[float, Q_],
         amplitude: int,
     ):
+        """Sets the sine output parameters on a channel."""
         if self._sine_segment_running:
             self._next_sine_segment = 1 - self._next_sine_segment
         self._awg_parameters[awg_channel]["frequency"] = frequency
@@ -600,6 +645,7 @@ class M4i6622:
         self._update_sine_data()
 
     def set_ttl_output(self, ttl_channel: int, state: bool):
+        """Sets the TTL output on a channel."""
         if self._sine_segment_running:
             self._next_sine_segment = 1 - self._next_sine_segment
         self._ttl_parameters[ttl_channel] = state
@@ -607,10 +653,12 @@ class M4i6622:
         self._update_sine_data()
 
     def stop_sine_outputs(self):
+        """Stops the sine output mode."""
         if not self._sine_segment_running:
             raise Exception("Sine outputs are already off.")
         self._sine_segment_running = False
         self._stop()
 
     def get_and_clear_error(self):
+        """Get and clear the error."""
         print(self._get_error_information())
