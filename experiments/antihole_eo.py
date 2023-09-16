@@ -2,14 +2,12 @@ import time
 import os
 
 import numpy as np
-
-os.chdir("/home/onix/Documents/code")
-os.environ["DATAFOLDER"] = "/home/onix/Documents/data"
-
 from onix.data_tools import save_experiment_data
 from onix.units import ureg
 
+from onix.headers.digitizer import DigitizerVisa
 from onix.headers.wavemeter.wavemeter import WM
+from onix.headers.awg.M4i6622 import M4i6622
 from onix.sequences.antihole_eo import AntiholeEO
 import matplotlib.pyplot as plt
 
@@ -47,6 +45,9 @@ def wavemeter_frequency():
         return -1
     return freq
 
+m4i = M4i6622()
+dg = DigitizerVisa("192.168.0.125")
+
 ## setup sequence
 sequence = AntiholeEO(
     probe_transition="bb",
@@ -77,28 +78,36 @@ sequence.add_break()
 sequence.setup_sequence(probe_repeats=params["probe_repeats"])
 
 ## setup the awg and digitizer
-sequence.setup_m4i()
-sequence.setup_digitizer("192.168.0.125")
+m4i.setup_sequence(sequence)
+
+sample_rate = 1e7
+dg.configure_acquisition(
+    sample_rate=sample_rate,
+    samples_per_record=int(sequence.probe_read_time.to("s").magnitude * sample_rate),
+    num_records=sequence.num_of_records(params["repeats"]),
+)
+dg.configure_channels(channels=[1], voltage_range=1)
+dg.set_trigger_source_external()
+dg.set_arm(triggers_per_arm=sequence.num_of_records(params["repeats"]))
 
 ## take data
-sequence.dg.initiate_data_acquisition()
 epoch_times = []
 photodiode_voltages = []
 
+dg.initiate_data_acquisition()
+time.sleep(0.1)
 for kk in range(params["repeats"]):
-    sequence.m4i.startCard(False)
+    m4i.start_sequence()
     epoch_times.append(time.time())
-    time.sleep(sequence.total_duration)
+    m4i.wait_for_sequence_complete()
+    time.sleep(0.1)
+m4i.stop_sequence()
 
-photodiode_voltages = sequence.dg.get_waveforms([1], records=(1, params["repeats"] * 3 * params["probe_repeats"]))
-
-photodiode_times = [kk / sequence.sampling_rate for kk in range(len(photodiode_voltages[0]))]
+photodiode_voltages = dg.get_waveforms([1], records=(1, sequence.num_of_records(params["repeats"])))[0]
+photodiode_times = [kk / sample_rate for kk in range(len(photodiode_voltages[0]))]
 
 ## plot
 plt.plot(photodiode_times, np.transpose(photodiode_voltages)); plt.legend(); plt.show();
-
-## stops the awg
-sequence.m4i.stop()
 
 ## save data
 data = {
