@@ -9,7 +9,7 @@ from onix.sequences.sequence import (
     AWGSineTrain,
     TTLPulses,
 )
-from onix.models.hyperfine import states
+from onix.models.hyperfine import energies
 from onix.units import Q_, ureg
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.digitizer import DigitizerVisa
@@ -52,7 +52,7 @@ class AntiholeEO(Sequence):
         for name in self._burn_transitions:
             F_state = name[0]
             D_state = name[1]
-            frequency = states["5D0"][D_state] - states["7F0"][F_state] + self._eo_offset_frequency
+            frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + self._eo_offset_frequency
             lower_limit = frequency - burn_width / 2
             upper_limit = frequency + burn_width / 2
             print(name, "burn", lower_limit, upper_limit)
@@ -70,7 +70,7 @@ class AntiholeEO(Sequence):
         for name in self._pump_transitions:
             F_state = name[0]
             D_state = name[1]
-            frequency = states["5D0"][D_state] - states["7F0"][F_state] + self._eo_offset_frequency
+            frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + self._eo_offset_frequency
             print(name, "pump", frequency)
             segment = Segment(f"pump_{name}", pump_piecewise_time)
             segment.add_awg_function(self._switch_aom_channel, self._switch_aom_pulse)
@@ -90,7 +90,7 @@ class AntiholeEO(Sequence):
     ):
         F_state = self._probe_transition[0]
         D_state = self._probe_transition[1]
-        probe_frequencies = states["5D0"][D_state] - states["7F0"][F_state] + self._eo_offset_frequency + probe_detunings
+        probe_frequencies = energies["5D0"][D_state] - energies["7F0"][F_state] + self._eo_offset_frequency + probe_detunings
         digitizer_channel = 0
 
         segment = Segment("probe")
