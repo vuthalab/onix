@@ -27,8 +27,8 @@ import os
 #os.chdir('/home/onix/gdrive/code/onix_control/headers/highfinesse_wavemeter_v4/')
 
 # wlmData.dll related imports
-from onix.headers.wavemeter.wlmData import LoadDLL
-import onix.headers.wavemeter.wlmConst as wlmConst
+from headers.wavemeter.wlmData import LoadDLL
+import headers.wavemeter.wlmConst as wlmConst
 
 
 # others
@@ -38,7 +38,7 @@ import zmq
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-from onix.headers.wavemeter.zmq_publisher import zmqPublisher
+from headers.wavemeter.zmq_publisher import zmqPublisher
 import matplotlib.animation as animation
     
 ##

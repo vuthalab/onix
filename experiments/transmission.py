@@ -1,31 +1,23 @@
 import time
 import os
-
 import numpy as np
 
-os.chdir("/home/onix/Documents/code")
-os.environ["DATAFOLDER"] = "/home/onix/Documents/data"
+os.chdir("/Users/angelax/ownCloud/Documents/University/atoms_and_water/onix")
+os.environ["DATAFOLDER"] = "/Users/angelax/ownCloud/Documents/University/atoms_and_water/data"
 
-from onix.data_tools import save_experiment_data
+from data_tools import save_experiment_data
 
-from onix.headers.digitizer import DigitizerVisa
-from onix.headers.wavemeter.wavemeter import WM
+from headers.digitizer import DigitizerVisa
+from headers.wavemeter.wavemeter import WM
 
 wavemeter = WM()
 dg = DigitizerVisa("192.168.0.125")
 dg_channels = [1, 2]
 
-
 import contextlib
 import io
 import sys
 
-import pyttsx3
-reader = pyttsx3.init()
-
-
-## calibration at zero optical power
-dg.autozero(dg_channels)
 
 ## set digitizer parameters
 duration = 0.5
@@ -56,6 +48,8 @@ V_monitor = []
 frequency_after_GHz = []
 times = []
 
+## calibration at zero optical power
+dg.autozero(dg_channels)
 
 ## take data manually
 dg.initiate_data_acquisition()
@@ -76,20 +70,10 @@ try:
     while True:
         dg.initiate_data_acquisition()
         freq_before = wavemeter_frequency()
-        time.sleep(duration)
+        time.sleep(3)
         voltages = dg.get_waveforms(dg_channels)
         V1 = voltages[0][0]
         V2 = voltages[1][0]
-        # if np.average(V1) < 0.5 or np.average(V2) < 0.5:
-        #     text = "Power too low."
-        #     reader.say(text)
-        #     reader.runAndWait()
-        #     reader.stop()
-        # elif np.average(V1) > 3.5 or np.average(V2) > 3.5:
-        #     text = "Power too high."
-        #     reader.say(text)
-        #     reader.runAndWait()
-        #     reader.stop()
         times.append(time.time())
         frequency_before_GHz.append(freq_before)
         V_transmission.append(V1)

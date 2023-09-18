@@ -3,14 +3,16 @@ import os
 
 import numpy as np
 
-from onix.data_tools import save_experiment_data
-from onix.units import ureg
+os.chdir("/Users/angelax/ownCloud/Documents/University/atoms_and_water/onix")
+os.environ["DATAFOLDER"] = "/Users/angelax/ownCloud/Documents/University/atoms_and_water/data"
 
-from onix.headers.digitizer import DigitizerVisa
-from onix.headers.wavemeter.wavemeter import WM
-from onix.headers.awg.M4i6622 import M4i6622
+from data_tools import save_experiment_data
+from units import ureg
+from headers.digitizer import DigitizerVisa
+from headers.wavemeter.wavemeter import WM
+from headers.awg.M4i6622 import M4i6622
 
-from onix.sequences.sequence import Sequence, Segment, AWGSinePulse, TTLPulses
+from sequences.sequence import Sequence, Segment, AWGSinePulse, TTLPulses
 
 
 def wavemeter_frequency():
@@ -18,6 +20,7 @@ def wavemeter_frequency():
     if isinstance(freq, str):
         return -1
     return freq
+
 
 wavemeter = WM()
 m4i = M4i6622()
@@ -52,8 +55,8 @@ segment_test.add_ttl_function(pmt_gate_ttl_channel, ttl_gate)
 pulse_test = AWGSinePulse(
     frequency=test_aom_frequency,
     amplitude=test_aom_amplitude,
-    start_time=offset*2+excitation_delay,
-    end_time=offset*2+excitation_delay+test_time,
+    start_time=offset * 2 + excitation_delay,
+    end_time=offset * 2 + excitation_delay + test_time,
 )
 segment_test.add_awg_function(excitation_aom_channel, pulse_test)
 segment_test._duration = segment_test.duration + offset
@@ -64,7 +67,7 @@ pulse_excitation = AWGSinePulse(
     frequency=excitation_aom_frequency,
     amplitude=excitation_aom_amplitude,
     start_time=excitation_delay,
-    end_time=excitation_delay+excitation_time,
+    end_time=excitation_delay + excitation_time,
 )
 segment_excitation.add_awg_function(excitation_aom_channel, pulse_excitation)
 ttl_gate = TTLPulses([[0, 2 * excitation_delay + excitation_time]])
