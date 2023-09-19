@@ -2,12 +2,12 @@ import time
 from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
-import onix.headers.awg.pyspcm as pyspcm
+import headers.awg.pyspcm as pyspcm
 
-from onix.headers.awg.spcm_tools import pvAllocMemPageAligned
-from onix.sequences.sequence import (AWGSinePulse, Segment, Sequence, TTLOff,
-                                     TTLOn)
-from onix.units import Q_, ureg
+from headers.awg.spcm_tools import pvAllocMemPageAligned
+from sequences.sequence import (AWGSinePulse, Segment, Sequence, TTLOff,
+                                TTLOn)
+from units import Q_, ureg
 
 CHANNEL_TYPE = Literal[0, 1, 2, 3]
 MAX_SAMPLE_RATE = 625000000
@@ -32,7 +32,7 @@ class M4i6622:
         m4i.set_sine_output(channel, frequency, amplitude)  # sets a channel to output a sine wave.
         m4i.set_ttl_output(channel, state)  # sets a TTL channel to be on or off.
         m4i.start_sine_outputs()  # starts the output.
-        m4i.stop_sine_outputs()  # stops the output. 
+        m4i.stop_sine_outputs()  # stops the output.
         # The set_sine_output and set_ttl_output functions can be called at any time.
         # If called when the sine outputs are on, the output will change within a few ms.
 
@@ -57,9 +57,9 @@ class M4i6622:
     """
 
     def __init__(
-        self,
-        address: str = "/dev/spcm0",
-        external_clock_frequency: Optional[int] = None,
+            self,
+            address: str = "/dev/spcm0",
+            external_clock_frequency: Optional[int] = None,
     ):
         self._hcard = pyspcm.spcm_hOpen(
             pyspcm.create_string_buffer(address.encode("ascii"))
@@ -114,7 +114,7 @@ class M4i6622:
         self._set_sine_segment()
         self.setup_sequence(Sequence())
 
-    # device methods   
+    # device methods
     def _get_bytes_per_sample(self) -> int:
         value = pyspcm.int32(0)
         ret = pyspcm.spcm_dwGetParam_i32(
@@ -162,13 +162,13 @@ class M4i6622:
             raise Exception(f"Set channel filter failed with code {ret}.")
 
     def _set_mode(
-        self,
-        mode: Literal[
-            "single",
-            "multiple",
-            "single_restart",
-            "sequence",
-        ],
+            self,
+            mode: Literal[
+                "single",
+                "multiple",
+                "single_restart",
+                "sequence",
+            ],
     ):
         """See replay modes in the manual. Not all modes are implemented here."""
         if mode == "single":
@@ -258,9 +258,9 @@ class M4i6622:
             raise Exception(f"Wait for complete failed with code {ret}.")
 
     def _define_transfer_buffer(
-        self,
-        data: np.ndarray,
-        transfer_offset: int = 0,
+            self,
+            data: np.ndarray,
+            transfer_offset: int = 0,
     ) -> int:
         self._aligned_buffer = pvAllocMemPageAligned(len(data) * self._bytes_per_sample)
         # this variable must maintain a reference after exit.
@@ -287,7 +287,7 @@ class M4i6622:
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get data ready to transfer failed with code {ret}.")
         return value.value
-        
+
     def _set_data_ready_to_transfer(self, data_bytes: int):
         ret = pyspcm.spcm_dwSetParam_i32(
             self._hcard, pyspcm.SPC_DATA_AVAIL_CARD_LEN, pyspcm.int32(data_bytes)
@@ -342,10 +342,10 @@ class M4i6622:
             raise Exception(f"Set number of loops failed with code {ret}.")
 
     def _set_clock_mode(
-        self,
-        clock_mode: Literal[
-            "internal_pll", "quartz2", "external_reference", "pxi_reference"
-        ],
+            self,
+            clock_mode: Literal[
+                "internal_pll", "quartz2", "external_reference", "pxi_reference"
+            ],
     ):
         if clock_mode == "internal_pll":
             value = pyspcm.SPC_CM_INTPLL
@@ -419,7 +419,7 @@ class M4i6622:
         return (mode.value & 1 != 0, mode.value & 2 != 0, mode.value & 4 != 0)
 
     def _set_multi_purpose_io_output(
-        self, x0_state: bool, x1_state: bool, x2_state: bool
+            self, x0_state: bool, x1_state: bool, x2_state: bool
     ):
         mode = 0
         if x0_state:
@@ -456,15 +456,15 @@ class M4i6622:
             raise Exception(f"Set sequence write segment size failed with code {ret}.")
 
     def _set_sequence_step_memory(
-        self,
-        step_number: int,
-        segment_number: int,
-        next_step: int,
-        loops: int,
-        end: Literal["end_loop", "end_loop_on_trig", "end_sequence"] = "end_loop",
+            self,
+            step_number: int,
+            segment_number: int,
+            next_step: int,
+            loops: int,
+            end: Literal["end_loop", "end_loop_on_trig", "end_sequence"] = "end_loop",
     ):
         """Sets the parameters for a sequence step.
-        
+
         For some reason that the last "end_sequnce" step always don't output.
         Adding a short, empty step at the end solves the problem.
         """
@@ -631,10 +631,10 @@ class M4i6622:
         self._sine_segment_running = True
 
     def set_sine_output(
-        self,
-        awg_channel: int,
-        frequency: Union[float, Q_],
-        amplitude: int,
+            self,
+            awg_channel: int,
+            frequency: Union[float, Q_],
+            amplitude: int,
     ):
         """Sets the sine output parameters on a channel."""
         if self._sine_segment_running:
