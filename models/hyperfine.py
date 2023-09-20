@@ -37,6 +37,14 @@ def Zeeman_tensor_own_frame(g_1, g_2, g_3):
 
 
 class HyperfineStates:
+    """Hyperfine and Zeeman states of Eu:YSO 7F0 or 5D0 electronic state.
+
+    Args:
+        state_labels: list of strs, labels of Zeeman states in increasing energies.
+        quadrupole_tensor: The electric quadrupole tensor in the dielectric frame in 2π MHz.
+        Zeeman_tensor: The quadrupole Zeeman tensor in the dielectric frame in 2π MHz / T.
+        B_field: float, magnetic field in T.
+    """
     def __init__(self, state_labels, quadrupole_tensor, Zeeman_tensor, B_field):
         self.I = 5/2
         self.states = state_labels
@@ -69,6 +77,17 @@ class HyperfineStates:
         return (eigenvector.dag() * self._I_z * eigenvector).tr()
 
     def m1_elements(self):
+        """Magnetic dipole transition matrix elements between different Zeeman levels.
+
+        Returns:
+            (m1_plus, m1_minus, m1_zero)
+            m1_plus: Dict[str, Dict[str, complex]], M1 matrix elements for sigma+ polarization.
+            m1_minus: Dict[str, Dict[str, complex]], M1 matrix elements for sigma- polarization.
+            m1_zero: Dict[str, Dict[str, complex]], M1 matrix elements for pi polarization.
+
+            The first key is the initial state label, and the second key is the final state label.
+            The unit is 2π MHz / T.
+        """
         # transformation into spherical tensor basis
         sph_tensor_transform = np.array(
             [
@@ -238,6 +257,7 @@ Zeeman_tensor_D = {
 
 # Hyperfine and Zeeman states
 small_B_field = 1e-5
+# The Zeeman state labels for both electronic states.
 state_labels = {
     "7F0": ["a", "a'", "b", "b'", "c", "c'"],
     "5D0": ["c", "c'", "b", "b'", "a", "a'"],
