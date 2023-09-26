@@ -15,7 +15,7 @@ from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.digitizer import DigitizerVisa
 
 
-class AntiholeEO(Sequence):
+class RabiEO(Sequence):
     def __init__(
         self,
         probe_transition: str,
@@ -24,6 +24,9 @@ class AntiholeEO(Sequence):
         switch_aom_channel: int,
         switch_aom_frequency: Q_,
         switch_aom_amplitude: int,
+        detect_aom_channel: int,
+        detect_aom_frequency: Q_,
+        detect_aom_amplitude: int,
         repeats: int,
     ):
         super().__init__()
@@ -35,12 +38,18 @@ class AntiholeEO(Sequence):
         self._switch_aom_channel = switch_aom_channel
         self._switch_aom_frequency = switch_aom_frequency
         self._switch_aom_amplitude = switch_aom_amplitude
+        self._detect_aom_channel = detect_aom_channel
+        self._detect_aom_frequency = detect_aom_frequency
+        self._detect_aom_amplitude = detect_aom_amplitude
         self._build_aom_pulse()
         self._repeats = repeats
 
     def _build_aom_pulse(self):
         self._switch_aom_pulse = AWGSinePulse(
             self._switch_aom_frequency, self._switch_aom_amplitude
+        )
+        self._detect_aom_pulse = AWGSinePulse(
+            self._detect_aom_frequency, self._detect_aom_amplitude
         )
 
     def add_burns(self, burn_width: Q_, burn_time: Q_, burn_amplitude: int):
@@ -61,7 +70,7 @@ class AntiholeEO(Sequence):
             segment.add_awg_function(self._eo_channel, AWGSineSweep(lower_limit, upper_limit, burn_amplitude, 0, burn_piecewise_time))
             self.add_segment(segment)
 
-    def add_pumps(self, pump_time: Q_, pump_amplitude: int):
+    def add_pumps(self, pump_width: Q_, pump_time: Q_, pump_amplitude: int):
         pump_piecewise_time = 10 * ureg.ms
         self._pump_counts = 1
         if pump_time > pump_piecewise_time:
@@ -71,11 +80,22 @@ class AntiholeEO(Sequence):
             F_state = name[0]
             D_state = name[1]
             frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + self._eo_offset_frequency
-            print(name, "pump", frequency)
+            lower_limit = frequency - pump_width / 2
+            upper_limit = frequency + pump_width / 2
+            print(name, "pump", lower_limit, upper_limit)
             segment = Segment(f"pump_{name}", pump_piecewise_time)
             segment.add_awg_function(self._switch_aom_channel, self._switch_aom_pulse)
-            segment.add_awg_function(self._eo_channel, AWGSinePulse(frequency, pump_amplitude))
+            segment.add_awg_function(self._eo_channel, AWGSineSweep(lower_limit, upper_limit, pump_amplitude, 0, pump_piecewise_time))
             self.add_segment(segment)
+
+    def add_flop(self, flop_time: Q_, flop_amplitude: int, aom_flop_amplitude: int):
+        F_state = self._probe_transition[0]
+        D_state = self._probe_transition[1]
+        frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + self._eo_offset_frequency
+        segment = Segment("flop", flop_time)
+        segment.add_awg_function(self._switch_aom_channel, AWGSinePulse(self._switch_aom_frequency, aom_flop_amplitude))
+        segment.add_awg_function(self._eo_channel, AWGSinePulse(frequency, flop_amplitude))
+        self.add_segment(segment)
 
     def add_probe(
         self,
@@ -109,6 +129,7 @@ class AntiholeEO(Sequence):
             on_time, off_time, self._switch_aom_frequency, [aom_probe_amplitude] * len(probe_frequencies), start_time=start_time
         )
         segment.add_awg_function(self._switch_aom_channel, ao_function)
+        segment.add_awg_function(self._detect_aom_channel, self._detect_aom_pulse)
         segment._duration = segment.duration + ttl_probe_offset_time
         self.add_segment(segment)
 
@@ -127,17 +148,21 @@ class AntiholeEO(Sequence):
         for name in self._burn_transitions:
             segment_repeats.append((f"burn_{name}", self._burn_counts))
 
-        segment_repeats.append(("break", 10000))  # can be reduced to 1 if the transmission AOM is implemented.
+        segment_repeats.append(("break", 1))
         segment_repeats.append(("probe", probe_repeats))
         segment_repeats.append(("break", 1))
 
         for kk in range(self._pump_counts):
             for name in self._pump_transitions:
                 segment_repeats.append((f"pump_{name}", 1))
+        segment_repeats.append(("probe", probe_repeats))
 
-        segment_repeats.append(("break", 10000))  # can be reduced to 1 if the transmission AOM is implemented.
+        segment_repeats.append(("break", 1))
+        segment_repeats.append(("flop", 1))
+
+        segment_repeats.append(("break", 1))
         segment_repeats.append(("probe", probe_repeats))
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self, repeats: int) -> int:
-        return 3 * self._probe_repeats * repeats
+        return 4 * self._probe_repeats * repeats
