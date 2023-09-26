@@ -1,3 +1,5 @@
+from numbers import Number
+
 import numpy as np
 import qutip
 from onix.units import ureg
@@ -39,11 +41,15 @@ def Zeeman_tensor_own_frame(g_1, g_2, g_3):
 class HyperfineStates:
     """Hyperfine and Zeeman states of Eu:YSO 7F0 or 5D0 electronic state.
 
+    All inputs and outputs are in the dielectric frame (D1, D2, b).
+
     Args:
         state_labels: list of strs, labels of Zeeman states in increasing energies.
         quadrupole_tensor: The electric quadrupole tensor in the dielectric frame in 2π MHz.
         Zeeman_tensor: The quadrupole Zeeman tensor in the dielectric frame in 2π MHz / T.
-        B_field: float, magnetic field in T.
+        B_field: list of floats or float, magnetic field in the dielectric frame in T.
+            If float, it specifies the magnetic field on the D1 axis. The magnetic field on
+            the D2 and b axes is set to zero.
     """
     def __init__(self, state_labels, quadrupole_tensor, Zeeman_tensor, B_field):
         self.I = 5/2
@@ -51,21 +57,26 @@ class HyperfineStates:
         self._I_x = qutip.jmat(self.I, "x")
         self._I_y = qutip.jmat(self.I, "y")
         self._I_z = qutip.jmat(self.I, "z")
+        self._I_axes = [self._I_x, self._I_y, self._I_z]
         self._quadrupole_tensor = quadrupole_tensor
         self._Zeeman_tensor = Zeeman_tensor
         self._Hamiltonian: qutip.Qobj = self.H_total(B_field)
 
     def H_quadrupole(self):
-        I_axes = [self._I_x, self._I_y, self._I_z]
         H_q = 0
         for kk in range(3):
             for ll in range(3):
-                H_q += I_axes[kk] * self._quadrupole_tensor[kk][ll] * I_axes[ll]
+                H_q += self._I_axes[kk] * self._quadrupole_tensor[kk][ll] * self._I_axes[ll]
         return H_q
 
     def H_Zeeman(self, B_field):
-        # TODO: Should this be replaced by the tensor interaction?
-        return B_field * self._I_z
+        if isinstance(B_field, Number):
+            B_field = [B_field, 0, 0]
+        H_Z = 0
+        for kk in range(3):
+            for ll in range(3):
+                H_Z += self._I_axes[kk] * self._Zeeman_tensor[kk][ll] * B_field[ll]
+        return H_Z
 
     def H_total(self, B_field):
         return self.H_quadrupole() + self.H_Zeeman(B_field)
@@ -73,8 +84,50 @@ class HyperfineStates:
     def energies_and_eigenstates(self):
         return self._Hamiltonian.eigenstates()
 
-    def m_I(self, eigenvector: qutip.Qobj):
+    def m_Ix(self, eigenvector: qutip.Qobj):
+        return (eigenvector.dag() * self._I_x * eigenvector).tr()
+
+    def m_Iy(self, eigenvector: qutip.Qobj):
+        return (eigenvector.dag() * self._I_y * eigenvector).tr()
+
+    def m_Iz(self, eigenvector: qutip.Qobj):
         return (eigenvector.dag() * self._I_z * eigenvector).tr()
+
+    def magnetic_field_sensitivity(self, eigenvector: qutip.Qobj):
+        """Magnetic field sensitivity on (D1, D2, b) axes in MHz / T."""
+        m1_x = 0
+        m1_y = 0
+        m1_z = 0
+        for kk in range(3):
+            m1_x += self._Zeeman_tensor[0][kk] * self._I_axes[kk]
+            m1_y += self._Zeeman_tensor[1][kk] * self._I_axes[kk]
+            m1_z += self._Zeeman_tensor[2][kk] * self._I_axes[kk]
+        return [
+            (eigenvector.dag() * m1_x * eigenvector).tr(),
+            (eigenvector.dag() * m1_y * eigenvector).tr(),
+            (eigenvector.dag() * m1_z * eigenvector).tr(),
+        ]
+
+    def Schiff_moment_sensitivity(self, eigenvector: qutip.Qobj):
+        """Returns the dot product of nuclear spin and electric field direction.
+
+        This calculation depends on the sign of the Stark shifts. Therefore, there are a total
+        of four possible values. Two of them are returned by this function. The other two
+        are the two returned values with sign flips.
+
+        TODO: The Stark shifts used in Harish's notebook is 90600 and 186600 V / cm.
+        """
+        stark_shift_x = 271.8  # Zhang2020, Table I
+        stark_shift_y = 186.1  # Zhang2020, Table I
+        stark_shift = np.sqrt(stark_shift_x ** 2 + stark_shift_y ** 2)
+        n_x = stark_shift_x / stark_shift
+        n_y_1 = stark_shift_y / stark_shift
+        n_y_2 = -n_y_1
+        m_Ix = self.m_Ix(eigenvector)
+        m_Iy = self.m_Iy(eigenvector)
+        sensitivity_1 = m_Ix * n_x + m_Iy * n_y_1
+        sensitivity_2 = m_Ix * n_x + m_Iy * n_y_2
+        return (sensitivity_1, sensitivity_2)
 
     def m1_elements(self):
         """Magnetic dipole transition matrix elements between different Zeeman levels.
@@ -176,7 +229,7 @@ quadrupole_angles = {
 }
 
 
-# Harish's notebook, for 153Eu3+:YSO.
+# Harish's notebook, for 153Eu3+:YSO. TODO: number's source?
 quadrupole_tensor_magnitudes_MHz = {
     "7F0": {
         "D": -32.02,
