@@ -13,32 +13,6 @@ import matplotlib.pyplot as plt
 
 wavemeter = WM()
 
-params = {
-    "wm_channel": 5,
-
-    "eo_channel": 1,
-    "eo_max_amplitude": 3200,
-    "eo_offset_frequency": 100 * ureg.MHz,
-
-    "switch_aom_channel": 0,
-    "switch_aom_frequency": 80 * ureg.MHz,
-    "switch_aom_amplitude": 2400,
-    "switch_aom_probe_amplitude": 60,
-
-    "burn_width": 0.5 * ureg.MHz,
-    "burn_time": 2 * ureg.s,
-
-    "pump_time": 0.5 * ureg.s,
-
-    "probe_detunings": np.linspace(-0.25, 0.25, 20) * ureg.MHz,
-    "probe_on_time": 16 * ureg.us,
-    "probe_off_time": 8 * ureg.us,
-    "probe_repeats": 20,
-    "ttl_probe_offset_time": 4 * ureg.us,
-
-    "repeats": 1,
-}
-
 def wavemeter_frequency():
     freq = wavemeter.read_frequency(params["wm_channel"])
     if isinstance(freq, str):
@@ -47,6 +21,34 @@ def wavemeter_frequency():
 
 m4i = M4i6622()
 dg = DigitizerVisa("192.168.0.125")
+
+## parameters
+
+params = {
+    "wm_channel": 5,
+
+    "eo_channel": 1,
+    "eo_max_amplitude": 3200,
+    "eo_offset_frequency": -99 * ureg.MHz,
+
+    "switch_aom_channel": 0,
+    "switch_aom_frequency": 80 * ureg.MHz,
+    "switch_aom_amplitude": 2400,
+    "switch_aom_probe_amplitude": 40,
+
+    "burn_width": 2 * ureg.MHz,
+    "burn_time": 5 * ureg.s,
+
+    "pump_time": 0.0 * ureg.s,
+
+    "probe_detunings": np.linspace(-0.5, 0.5, 20) * ureg.MHz,
+    "probe_on_time": 16 * ureg.us,
+    "probe_off_time": 8 * ureg.us,
+    "probe_repeats": 20,
+    "ttl_probe_offset_time": 4 * ureg.us,
+
+    "repeats": 1,
+}
 
 ## setup sequence
 sequence = AntiholeEO(
@@ -95,6 +97,8 @@ epoch_times = []
 photodiode_voltages = []
 
 dg.initiate_data_acquisition()
+m4i.start_sequence()
+m4i.wait_for_sequence_complete()
 time.sleep(0.1)
 for kk in range(params["repeats"]):
     m4i.start_sequence()
@@ -107,7 +111,7 @@ photodiode_voltages = dg.get_waveforms([1], records=(1, sequence.num_of_records(
 photodiode_times = [kk / sample_rate for kk in range(len(photodiode_voltages[0]))]
 
 ## plot
-plt.plot(photodiode_times, np.transpose(photodiode_voltages)); plt.legend(); plt.show();
+#plt.plot(photodiode_times, np.transpose(photodiode_voltages)); plt.legend(); plt.show();
 
 ## save data
 data = {
