@@ -85,8 +85,8 @@ print(frequency_before_GHz[-1],contrast_after[-1], np.average(V1), np.average(V2
 try:
     while True:
         dg.initiate_data_acquisition()
+        time.sleep(3)
         freq_before = wavemeter_frequency()
-        time.sleep(2)
         voltages = dg.get_waveforms(dg_channels)
         V1 = voltages[0][0]
         V2 = voltages[1][0]
