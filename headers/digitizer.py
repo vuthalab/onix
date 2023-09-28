@@ -37,10 +37,10 @@ class Digitizer:
         # setup
         dg.configure_acquisition(...)  # configures the acquistion parameters.
         dg.configure_channels(...)  # configures the channel parameters.
-        dg.set_trigger_source_internal()  # or external.
+        dg.set_trigger_source_immediate()  # or external.
         dg.set_arm(triggers_per_arm=num_of_triggers)
         # data taking
-        dg.initialize_data_acquisition()
+        dg.initiate_data_acquisition()
         time.sleep(...)  # wait for all data to be taken.
         # data reading
         data = dg.get_waveforms(channels, records)

@@ -27,6 +27,7 @@ dg = DigitizerVisa("192.168.0.125")
 params = {
     "wm_channel": 5,
 
+
     "eo_channel": 1,
     "eo_max_amplitude": 3200,
     "eo_offset_frequency": -100 * ureg.MHz,
