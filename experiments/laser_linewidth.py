@@ -43,7 +43,7 @@ elif params["source"] == "agilent":
         samples_per_record=samples,
         num_records=1,
     )
-    dg.configure_channels([1], voltage_range=0.2)
+    dg.configure_channels([1], voltage_range=0.25)
     dg.set_trigger_source_immediate()
     dg.set_arm(triggers_per_arm=1)
     dg.initiate_data_acquisition()
