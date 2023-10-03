@@ -28,7 +28,7 @@ dg = DigitizerVisa("192.168.0.125")
 
 ## experiment parameters
 excitation_aom_channel = 2
-excitation_aom_frequency = 55 * ureg.MHz
+excitation_aom_frequency = 78 * ureg.MHz
 excitation_aom_amplitude = 2400
 excitation_time = 10 * ureg.ms
 
@@ -133,9 +133,11 @@ for delay_step in probe_delay_steps:
 ## save data
 headers = {
     "params": {
+        "excitation_aom_frequency": excitation_aom_frequency,
         "excitation_aom_amplitude": excitation_aom_amplitude,
         "excitation_time": excitation_time,
         "probe_aom_amplitude": probe_aom_amplitude,
+        "probe_aom_frequency": probe_aom_frequency,
         "probe_time": probe_time,
         "probe_delay_step_size": probe_delay_step_size,
         "probe_delay_steps": probe_delay_steps,

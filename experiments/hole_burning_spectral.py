@@ -28,16 +28,16 @@ dg = DigitizerVisa("192.168.0.125")
 
 ## experiment parameters
 excitation_aom_channel = 2
-excitation_aom_frequency = 80 * ureg.MHz
+excitation_aom_frequency = 82 * ureg.MHz
 excitation_aom_amplitude = 2400
 excitation_time = 10 * ureg.ms
 
 probe_aom_amplitude = 2400
-probe_aom_frequencies = np.linspace(78.5, 81.5, 30)
+probe_aom_frequencies = np.linspace(80.5, 83.5, 30)
 #np.random.shuffle(probe_aom_frequencies)
 probe_aom_frequencies *= ureg.MHz
 probe_time = 2 * ureg.us
-probe_delay = 1 * ureg.us
+probe_delay = 10 * ureg.us
 
 digitizer_ttl_trigger = 0
 
