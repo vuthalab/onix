@@ -45,11 +45,11 @@ class Probe:
             probes = np.arange(num_of_probes)
         elif len(probes) > num_of_probes:
             raise ValueError("Probe definitions are not correct.")
-        self._probes = probes
+        self.probes = probes
 
         self._probe_masks = []
         start_time = pre_probe_delay
-        for kk in self._probes:
+        for kk in self.probes:
             self._probe_masks.append(
                 np.bitwise_and(
                     self.times > start_time + rise_delay,
@@ -57,6 +57,7 @@ class Probe:
                 )
             )
             start_time += on_time + off_time
+        self._calculate_statistics()
 
     def _calculate_statistics(self):
         self._averages = {}
@@ -71,7 +72,7 @@ class Probe:
                 for probe_repeat in range(len(group[repeat])):
                     probe_repeat_avg = []
                     probe_repeat_ste = []
-                    for probe_index in range(len(self._probes)):
+                    for probe_index in range(len(self.probes)):
                         data = group[repeat][probe_repeat][self._probe_masks[probe_index]]
                         probe_repeat_avg.append(np.average(data))
                         probe_repeat_ste.append(np.std(data) / np.sqrt(len(data) - 1))
@@ -97,11 +98,13 @@ class Probe:
             if data.shape[0] * data.shape[1] > 1:
                 return np.std(data, axis=(0, 1))
             else:
+                print("No repeats found. Using the dataset standard error.")
                 return self._standard_errors[group_name][0][0]
         elif mode == "probe_repeats":
             if data.shape[0] > 1:
                 return np.std(data, axis=0)
             else:
+                print("No repeats found. Using the dataset standard error.")
                 return self._standard_errors[group_name][0]
         else:
             raise ValueError(f"Mode {mode} is not defined.")

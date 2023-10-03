@@ -1,5 +1,4 @@
 import time
-import os
 
 import numpy as np
 from onix.data_tools import save_experiment_data
@@ -26,7 +25,6 @@ dg = DigitizerVisa("192.168.0.125")
 
 params = {
     "wm_channel": 5,
-
 
     "eo_channel": 1,
     "eo_max_amplitude": 3400,
@@ -104,26 +102,33 @@ sample_rate = 1e7
 dg.configure_acquisition(
     sample_rate=sample_rate,
     samples_per_record=int(sequence.probe_read_time.to("s").magnitude * sample_rate),
-    num_records=sequence.num_of_records(params["repeats"]) + 1,
+    num_records=sequence.num_of_records(),
 )
 dg.configure_channels(channels=[1], voltage_range=1)
 dg.set_trigger_source_external()
-dg.set_arm(triggers_per_arm=sequence.num_of_records(params["repeats"]) + 1)
+dg.set_arm(triggers_per_arm=sequence.num_of_records())
 
 ## take data
 epoch_times = []
-photodiode_voltages = []
+photodiode_voltages = None
 
-dg.initiate_data_acquisition()
-time.sleep(0.1)
 for kk in range(params["repeats"]):
+    dg.initiate_data_acquisition()
+    time.sleep(0.1)
     m4i.start_sequence()
     epoch_times.append(time.time())
     m4i.wait_for_sequence_complete()
     time.sleep(0.1)
+    if photodiode_voltages is None:
+        photodiode_voltages = dg.get_waveforms([1], records=(2, sequence.num_of_records()))[0]
+    else:
+        photodiode_voltages = np.append(
+            photodiode_voltages,
+            dg.get_waveforms([1], records=(2, sequence.num_of_records()))[0],
+            axis=0,
+        )
 m4i.stop_sequence()
 
-photodiode_voltages = dg.get_waveforms([1], records=(2, sequence.num_of_records(params["repeats"]) + 1))[0]
 photodiode_times = [kk / sample_rate for kk in range(len(photodiode_voltages[0]))]
 
 ## plot

@@ -164,5 +164,7 @@ class RabiEO(Sequence):
         segment_repeats.append(("probe", probe_repeats))
         return super().setup_sequence(segment_repeats)
 
-    def num_of_records(self, repeats: int) -> int:
-        return 4 * self._probe_repeats * repeats
+    def num_of_records(self) -> int:
+        # the AWG always triggers the digitizer once when it runs.
+        # First sample should be discarded.
+        return 4 * self._probe_repeats + 1
