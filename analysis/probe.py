@@ -96,13 +96,13 @@ class Probe:
         data = self._averages[group_name]
         if mode == "all":
             if data.shape[0] * data.shape[1] > 1:
-                return np.std(data, axis=(0, 1))
+                return np.std(data, axis=(0, 1)) / np.sqrt(data.shape[0] * data.shape[1] - 1)
             else:
                 print("No repeats found. Using the dataset standard error.")
                 return self._standard_errors[group_name][0][0]
         elif mode == "probe_repeats":
             if data.shape[0] > 1:
-                return np.std(data, axis=0)
+                return np.std(data, axis=0) / np.sqrt(data.shape[0] - 1)
             else:
                 print("No repeats found. Using the dataset standard error.")
                 return self._standard_errors[group_name][0]

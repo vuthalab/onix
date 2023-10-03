@@ -28,7 +28,7 @@ params = {
 
     "eo_channel": 1,
     "eo_max_amplitude": 3400,
-    "eo_offset_frequency": 98 * ureg.MHz,
+    "eo_offset_frequency": -300 * ureg.MHz,
 
     "switch_aom_channel": 0,
     "switch_aom_frequency": 80 * ureg.MHz,
@@ -48,7 +48,7 @@ params = {
 
     "flop_time": 0.25 * ureg.ms,
 
-    "probe_detunings": np.linspace(-1, 1, 40) * ureg.MHz,
+    "probe_detunings": np.linspace(-0.25, 0.25, 20) * ureg.MHz,
     "probe_on_time": 16 * ureg.us,
     "probe_off_time": 8 * ureg.us,
     "probe_repeats": 6,
