@@ -7,7 +7,7 @@ from onix.units import ureg
 from onix.headers.digitizer import DigitizerVisa
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
-from onix.sequences.rabi_eo import RabiEO
+from onix.sequences.ramsey_eo import RamseyEO
 import matplotlib.pyplot as plt
 
 wavemeter = WM()
@@ -34,7 +34,7 @@ params = {
     "switch_aom_frequency": 80 * ureg.MHz,
     "switch_aom_amplitude": 2400,
     "switch_aom_flop_amplitude": 2400,
-    "switch_aom_probe_amplitude": 120,
+    "switch_aom_probe_amplitude": 40,
 
     "detect_aom_channel": 3,
     "detect_aom_frequency": 80 * ureg.MHz,
@@ -46,7 +46,9 @@ params = {
     "pump_width": 0.7 * ureg.MHz,
     "pump_time": 0.25 * ureg.s,
 
-    "flop_time": 5 * ureg.us,
+    "flop_time": 20 * ureg.us,
+    "wait_time": 50 * ureg.us,
+    "phase": 4 * np.pi / 4,
 
     "probe_detunings": np.linspace(-0.25, 0.25, 20) * ureg.MHz,
     "probe_on_time": 16 * ureg.us,
@@ -54,11 +56,11 @@ params = {
     "probe_repeats": 2,
     "ttl_probe_offset_time": 4 * ureg.us,
 
-    "repeats": 5,
+    "repeats": 50,
 }
 
 ## setup sequence
-sequence = RabiEO(
+sequence = RamseyEO(
     probe_transition="bb",
     eo_channel=params["eo_channel"],
     eo_offset_frequency=params["eo_offset_frequency"],
@@ -84,6 +86,8 @@ sequence.add_flop(
     flop_time=params["flop_time"],
     flop_amplitude=params["eo_max_amplitude"],
     aom_flop_amplitude=params["switch_aom_flop_amplitude"],
+    wait_time=params["wait_time"],
+    phase=params["phase"],
 )
 sequence.add_probe(
     probe_detunings=params["probe_detunings"],
@@ -104,7 +108,7 @@ dg.configure_acquisition(
     samples_per_record=int(sequence.probe_read_time.to("s").magnitude * sample_rate),
     num_records=sequence.num_of_records(),
 )
-dg.configure_channels(channels=[1], voltage_range=2)
+dg.configure_channels(channels=[1], voltage_range=1)
 dg.set_trigger_source_external()
 dg.set_arm(triggers_per_arm=sequence.num_of_records())
 
@@ -113,13 +117,12 @@ epoch_times = []
 photodiode_voltages = None
 
 for kk in range(params["repeats"]):
-
     dg.initiate_data_acquisition()
-    time.sleep(0.05)
+    time.sleep(0.1)
     m4i.start_sequence()
     epoch_times.append(time.time())
     m4i.wait_for_sequence_complete()
-    time.sleep(0.05)
+    time.sleep(0.1)
     if photodiode_voltages is None:
         photodiode_voltages = dg.get_waveforms([1], records=(2, sequence.num_of_records()))[0]
     else:
@@ -145,7 +148,7 @@ headers = {
     "params": params,
     "wavemeter_frequency": wavemeter_frequency(),
 }
-name = "Rabi EO"
+name = "Ramsey EO"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)
 
