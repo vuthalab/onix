@@ -88,7 +88,7 @@ class Segment:
                 ttl_channels_map_to_awg_channels[ttl_channel]
             )
             awg_data[awg_index] = np.bitwise_or(
-                np.right_shift(awg_data[awg_index], 1),
+                np.right_shift(awg_data[awg_index].view(np.uint16), 1),  # right_shift only works properly on non-negative numbers.
                 np.left_shift(ttl_data[kk], 15),
             )
         return np.array(awg_data).flatten("F")
