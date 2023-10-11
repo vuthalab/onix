@@ -416,6 +416,7 @@ class Sequence:
 
     def setup_sequence(self, segment_steps: List[Tuple[str, int]]):
         self._segment_steps = []
+        self._segment_steps.append(("__empty", 1))
         for name, repeat in segment_steps:
             if name in self._segments:
                 self._segment_steps.append((name, repeat))
