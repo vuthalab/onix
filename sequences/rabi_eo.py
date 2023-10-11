@@ -11,8 +11,6 @@ from onix.sequences.sequence import (
 )
 from onix.models.hyperfine import energies
 from onix.units import Q_, ureg
-from onix.headers.awg.M4i6622 import M4i6622
-from onix.headers.digitizer import DigitizerVisa
 
 
 class RabiEO(Sequence):
@@ -142,29 +140,34 @@ class RabiEO(Sequence):
     def setup_sequence(self, probe_repeats: int = 1):
         self._probe_repeats = probe_repeats
         segment_repeats = []
-        segment_repeats.append(("probe", probe_repeats))
-        segment_repeats.append(("break", 1))
+        for kk in range(probe_repeats):
+            segment_repeats.append(("probe", 1))
+            segment_repeats.append(("break", 1))
 
         for name in self._burn_transitions:
             segment_repeats.append((f"burn_{name}", self._burn_counts))
 
-        segment_repeats.append(("break", 1))
-        segment_repeats.append(("probe", probe_repeats))
-        segment_repeats.append(("break", 1))
+        segment_repeats.append(("break", 1000))
+        for kk in range(probe_repeats):
+            segment_repeats.append(("probe", 1))
+            segment_repeats.append(("break", 1))
 
         for kk in range(self._pump_counts):
             for name in self._pump_transitions:
                 segment_repeats.append((f"pump_{name}", 1))
-        segment_repeats.append(("probe", probe_repeats))
+        segment_repeats.append(("break", 1000))
+        for kk in range(probe_repeats):
+            segment_repeats.append(("probe", 1))
+            segment_repeats.append(("break", 1))
 
         segment_repeats.append(("break", 1))
         segment_repeats.append(("flop", 1))
 
         segment_repeats.append(("break", 1))
-        segment_repeats.append(("probe", probe_repeats))
+        for kk in range(probe_repeats):
+            segment_repeats.append(("probe", 1))
+            segment_repeats.append(("break", 1))
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self) -> int:
-        # the AWG always triggers the digitizer once when it runs.
-        # First sample should be discarded.
-        return 4 * self._probe_repeats + 1
+        return 4 * self._probe_repeats

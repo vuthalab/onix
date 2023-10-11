@@ -94,11 +94,11 @@ sample_rate = 1e7
 dg.configure_acquisition(
     sample_rate=sample_rate,
     samples_per_record=int(sequence.probe_read_time.to("s").magnitude * sample_rate),
-    num_records=sequence.num_of_records() - 1,
+    num_records=sequence.num_of_records(),
 )
 dg.configure_channels(channels=[1], voltage_range=2)
 dg.set_trigger_source_external()
-dg.set_arm(triggers_per_arm=sequence.num_of_records() - 1)
+dg.set_arm(triggers_per_arm=sequence.num_of_records())
 
 ## take data
 epoch_times = []
@@ -113,11 +113,11 @@ for kk in range(params["repeats"]):
     m4i.wait_for_sequence_complete()
     time.sleep(0.05)
     if photodiode_voltages is None:
-        photodiode_voltages = dg.get_waveforms([1], records=(1, sequence.num_of_records() - 1))[0]
+        photodiode_voltages = dg.get_waveforms([1], records=(1, sequence.num_of_records()))[0]
     else:
         photodiode_voltages = np.append(
             photodiode_voltages,
-            dg.get_waveforms([1], records=(1, sequence.num_of_records() - 1))[0],
+            dg.get_waveforms([1], records=(1, sequence.num_of_records()))[0],
             axis=0,
         )
 m4i.stop_sequence()

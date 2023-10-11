@@ -88,13 +88,16 @@ class RabiRF(Sequence):
             segment.add_awg_function(self._eo_channel, AWGSineSweep(lower_limit, upper_limit, pump_amplitude, 0, pump_piecewise_time))
             self.add_segment(segment)
 
-    def add_flop(self, flop_transition: str, flop_time: Q_, flop_amplitude: int):
+    def add_flop(self, frequency_offset: Q_, flop_width: Q_, flop_transition: str, flop_time: Q_, flop_amplitude: int):
         init_state = flop_transition[0]
         end_state = flop_transition[1]
-        frequency = energies["7F0"][end_state] - energies["7F0"][init_state]
+        frequency = energies["7F0"][end_state] - energies["7F0"][init_state] + frequency_offset
         print("flop", frequency)
         segment = Segment("flop", flop_time)
-        segment.add_awg_function(self._rf_channel, AWGSinePulse(frequency, flop_amplitude))
+        lower_limit = frequency - flop_width / 2
+        upper_limit = frequency + flop_width / 2
+        #segment.add_awg_function(self._rf_channel, AWGSinePulse(frequency, flop_amplitude))
+        segment.add_awg_function(self._rf_channel, AWGSineSweep(lower_limit, upper_limit, flop_amplitude, 0, flop_time))
         self.add_segment(segment)
 
     def add_probe(
@@ -158,13 +161,11 @@ class RabiRF(Sequence):
         segment_repeats.append(("probe", probe_repeats))
 
         segment_repeats.append(("break", 1))
-        segment_repeats.append(("flop", 1))
+        segment_repeats.append(("flop", 100))
 
         segment_repeats.append(("break", 1))
         segment_repeats.append(("probe", probe_repeats))
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self) -> int:
-        # the AWG always triggers the digitizer once when it runs.
-        # First sample should be discarded.
-        return 4 * self._probe_repeats + 1
+        return 4 * self._probe_repeats

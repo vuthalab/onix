@@ -28,36 +28,38 @@ params = {
 
     "eo_channel": 1,
     "eo_max_amplitude": 3400,
-    "eo_offset_frequency": 98 * ureg.MHz,
+    "eo_offset_frequency": 100 * ureg.MHz,
 
     "switch_aom_channel": 0,
     "switch_aom_frequency": 80 * ureg.MHz,
     "switch_aom_amplitude": 2400,
     "switch_aom_flop_amplitude": 2400,
-    "switch_aom_probe_amplitude": 40,
+    "switch_aom_probe_amplitude": 120,
 
     "detect_aom_channel": 3,
     "detect_aom_frequency": 80 * ureg.MHz,
     "detect_aom_amplitude": 2400,
 
-    "burn_width": 4 * ureg.MHz,
-    "burn_time": 5 * ureg.s,
+    "burn_width": 2 * ureg.MHz,
+    "burn_time": 3 * ureg.s,
 
-    "pump_width": 2 * ureg.MHz,
-    "pump_time": 5 * ureg.s,
+    "pump_width": 0.7 * ureg.MHz,
+    "pump_time": 1 * ureg.s,
 
     "rf_channel": 2,
-    "flop_transition": "cb",
-    "flop_amplitude": 0,
+    "flop_transition": "ab",
+    "flop_amplitude": 10000,
+    "flop_offset": 25 * ureg.kHz,
+    "flop_width": 50 * ureg.kHz,
     "flop_time": 10 * ureg.ms,
 
-    "probe_detunings": np.linspace(-4, 4, 20) * ureg.MHz,
+    "probe_detunings": np.linspace(-2, 2, 40) * ureg.MHz,
     "probe_on_time": 16 * ureg.us,
     "probe_off_time": 8 * ureg.us,
     "probe_repeats": 6,
     "ttl_probe_offset_time": 4 * ureg.us,
 
-    "repeats": 1,
+    "repeats": 5,
 }
 
 ## setup sequence
@@ -85,6 +87,8 @@ sequence.add_pumps(
     pump_amplitude=params["eo_max_amplitude"],
 )
 sequence.add_flop(
+    frequency_offset=params["flop_offset"],
+    flop_width=params["flop_width"],
     flop_transition=params["flop_transition"],
     flop_time=params["flop_time"],
     flop_amplitude=params["flop_amplitude"],
@@ -108,7 +112,7 @@ dg.configure_acquisition(
     samples_per_record=int(sequence.probe_read_time.to("s").magnitude * sample_rate),
     num_records=sequence.num_of_records(),
 )
-dg.configure_channels(channels=[1], voltage_range=1)
+dg.configure_channels(channels=[1], voltage_range=2)
 dg.set_trigger_source_external()
 dg.set_arm(triggers_per_arm=sequence.num_of_records())
 
@@ -124,11 +128,11 @@ for kk in range(params["repeats"]):
     m4i.wait_for_sequence_complete()
     time.sleep(0.1)
     if photodiode_voltages is None:
-        photodiode_voltages = dg.get_waveforms([1], records=(2, sequence.num_of_records()))[0]
+        photodiode_voltages = dg.get_waveforms([1], records=(1, sequence.num_of_records()))[0]
     else:
         photodiode_voltages = np.append(
             photodiode_voltages,
-            dg.get_waveforms([1], records=(2, sequence.num_of_records()))[0],
+            dg.get_waveforms([1], records=(1, sequence.num_of_records()))[0],
             axis=0,
         )
 m4i.stop_sequence()

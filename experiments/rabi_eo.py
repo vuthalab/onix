@@ -28,7 +28,7 @@ params = {
 
     "eo_channel": 1,
     "eo_max_amplitude": 3400,
-    "eo_offset_frequency": -300 * ureg.MHz,
+    "eo_offset_frequency": 80 * ureg.MHz,
 
     "switch_aom_channel": 0,
     "switch_aom_frequency": 80 * ureg.MHz,
@@ -41,17 +41,17 @@ params = {
     "detect_aom_amplitude": 2400,
 
     "burn_width": 0.7 * ureg.MHz,
-    "burn_time": 0.25 * ureg.s,
+    "burn_time": 1 * ureg.s,
 
     "pump_width": 0.7 * ureg.MHz,
-    "pump_time": 0.25 * ureg.s,
+    "pump_time": 1 * ureg.s,
 
-    "flop_time": 5 * ureg.us,
+    "flop_time": 200 * ureg.us,
 
     "probe_detunings": np.linspace(-0.25, 0.25, 20) * ureg.MHz,
     "probe_on_time": 16 * ureg.us,
     "probe_off_time": 8 * ureg.us,
-    "probe_repeats": 2,
+    "probe_repeats": 5,
     "ttl_probe_offset_time": 4 * ureg.us,
 
     "repeats": 5,
@@ -121,11 +121,11 @@ for kk in range(params["repeats"]):
     m4i.wait_for_sequence_complete()
     time.sleep(0.05)
     if photodiode_voltages is None:
-        photodiode_voltages = dg.get_waveforms([1], records=(2, sequence.num_of_records()))[0]
+        photodiode_voltages = dg.get_waveforms([1], records=(1, sequence.num_of_records()))[0]
     else:
         photodiode_voltages = np.append(
             photodiode_voltages,
-            dg.get_waveforms([1], records=(2, sequence.num_of_records()))[0],
+            dg.get_waveforms([1], records=(1, sequence.num_of_records()))[0],
             axis=0,
         )
 m4i.stop_sequence()

@@ -156,6 +156,4 @@ class AntiholeLifetime(Sequence):
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self) -> int:
-        # the AWG always triggers the digitizer once when it runs.
-        # First sample should be discarded.
-        return 3 * self._probe_repeats + 1
+        return 3 * self._probe_repeats
