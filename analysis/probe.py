@@ -77,7 +77,7 @@ class Probe:
                         probe_repeat_avg.append(np.average(data))
                         probe_repeat_ste.append(np.std(data) / np.sqrt(len(data) - 1))
                     repeat_avg.append(probe_repeat_avg)
-                    probe_repeat_ste.append(probe_repeat_ste)
+                    repeat_ste.append(probe_repeat_ste)
                 self._averages[name].append(repeat_avg)
                 self._standard_errors[name].append(repeat_ste)
             self._averages[name] = np.array(self._averages[name])

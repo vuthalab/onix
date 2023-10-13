@@ -13,7 +13,7 @@ from onix.models.hyperfine import energies
 from onix.units import Q_, ureg
 
 
-class AntiholeLifetime(Sequence):
+class HoleLifetime(Sequence):
     def __init__(
         self,
         probe_transition: str,
@@ -30,7 +30,6 @@ class AntiholeLifetime(Sequence):
         super().__init__()
         self._probe_transition = probe_transition
         self._burn_transition = probe_transition
-        self._pump_transitions = ["ac", "cb"]
         self._eo_channel = eo_channel
         self._eo_offset_frequency = eo_offset_frequency
         self._switch_aom_channel = switch_aom_channel
@@ -50,7 +49,7 @@ class AntiholeLifetime(Sequence):
             self._detect_aom_frequency, self._detect_aom_amplitude
         )
 
-    def add_burns(self, burn_width: Q_, burn_time: Q_, burn_amplitude: int):
+    def add_burns(self, burn_time: Q_, burn_amplitude: int):
         burn_piecewise_time = 10 * ureg.ms
         self._burn_counts = 1
         if burn_time > burn_piecewise_time:
@@ -60,29 +59,11 @@ class AntiholeLifetime(Sequence):
         F_state = name[0]
         D_state = name[1]
         frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + self._eo_offset_frequency
-        lower_limit = frequency - burn_width / 2
-        upper_limit = frequency + burn_width / 2
         print(name, "burn", frequency)
         segment = Segment(f"burn", burn_piecewise_time)
         segment.add_awg_function(self._switch_aom_channel, self._switch_aom_pulse)
-        segment.add_awg_function(self._eo_channel, AWGSineSweep(lower_limit, upper_limit, burn_amplitude, 0, burn_piecewise_time))
+        segment.add_awg_function(self._eo_channel, AWGSinePulse(frequency, burn_amplitude))
         self.add_segment(segment)
-
-    def add_pumps(self, pump_time: Q_, pump_amplitude: int):
-        pump_piecewise_time = 10 * ureg.ms
-        self._pump_counts = 1
-        if pump_time > pump_piecewise_time:
-            self._pump_counts = int(pump_time / pump_piecewise_time)
-            pump_time = pump_piecewise_time
-        for name in self._pump_transitions:
-            F_state = name[0]
-            D_state = name[1]
-            frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + self._eo_offset_frequency
-            print(name, "pump", frequency)
-            segment = Segment(f"pump_{name}", pump_piecewise_time)
-            segment.add_awg_function(self._switch_aom_channel, self._switch_aom_pulse)
-            segment.add_awg_function(self._eo_channel, AWGSinePulse(frequency, pump_amplitude))
-            self.add_segment(segment)
 
     def add_probe(
         self,
@@ -132,9 +113,6 @@ class AntiholeLifetime(Sequence):
             segment_repeats.append(("probe", 1))
         else:
             segment_repeats.append(("burn", self._burn_counts))
-            for kk in range(self._pump_counts):
-                for name in self._pump_transitions:
-                    segment_repeats.append((f"pump_{name}", 1))
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self) -> int:

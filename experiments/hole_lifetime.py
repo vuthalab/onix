@@ -7,7 +7,7 @@ from onix.units import ureg
 from onix.headers.digitizer import DigitizerVisa
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
-from onix.sequences.antihole_lifetime import AntiholeLifetime
+from onix.sequences.hole_lifetime import HoleLifetime
 import matplotlib.pyplot as plt
 
 wavemeter = WM()
@@ -28,34 +28,32 @@ params = {
 
     "eo_channel": 1,
     "eo_max_amplitude": 3400,
-    "eo_probe_amplitude": 3400,
-    "eo_offset_frequency": 160 * ureg.MHz,
+    "eo_offset_frequency": 170 * ureg.MHz,
 
     "switch_aom_channel": 0,
     "switch_aom_frequency": 80 * ureg.MHz,
     "switch_aom_amplitude": 2400,
-    "switch_aom_probe_amplitude": 80,
+    "switch_aom_flop_amplitude": 2400,
+    "switch_aom_probe_amplitude": 120,
 
     "detect_aom_channel": 3,
     "detect_aom_frequency": 80 * ureg.MHz,
     "detect_aom_amplitude": 2400,
 
-    "burn_time": 5 * ureg.s,
-    "burn_width": 4 * ureg.MHz,
-    "pump_time": 3 * ureg.s,
+    "burn_time": 1 * ureg.s,
 
-    "probe_detunings": np.linspace(-1.5, 1.5, 50) * ureg.MHz,
+    "probe_detunings": np.linspace(-2, 2, 50) * ureg.MHz,
     "probe_on_time": 16 * ureg.us,
     "probe_off_time": 8 * ureg.us,
     "ttl_probe_offset_time": 4 * ureg.us,
-    "probe_wait_time": 120 * ureg.s,
-    "num_of_probes": 420,
+    "probe_wait_time": 2 * ureg.s,
+    "num_of_probes": 5,
 
     "repeats": 1,
 }
 
 ## setup sequence
-sequence = AntiholeLifetime(
+sequence = HoleLifetime(
     probe_transition="bb",
     eo_channel=params["eo_channel"],
     eo_offset_frequency=params["eo_offset_frequency"],
@@ -68,17 +66,12 @@ sequence = AntiholeLifetime(
     repeats=params["repeats"],
 )
 sequence.add_burns(
-    burn_width=params["burn_width"],
     burn_time=params["burn_time"],
     burn_amplitude=params["eo_max_amplitude"],
 )
-sequence.add_pumps(
-    pump_time=params["pump_time"],
-    pump_amplitude=params["eo_max_amplitude"],
-)
 sequence.add_probe(
     probe_detunings=params["probe_detunings"],
-    probe_amplitude=params["eo_probe_amplitude"],
+    probe_amplitude=params["eo_max_amplitude"],
     aom_probe_amplitude=params["switch_aom_probe_amplitude"],
     on_time=params["probe_on_time"],
     off_time=params["probe_off_time"],
@@ -152,7 +145,7 @@ headers = {
     "params": params,
     "wavemeter_frequency": wavemeter_frequency(),
 }
-name = "Antihole Lifetime"
+name = "Hole Lifetime"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)
 
