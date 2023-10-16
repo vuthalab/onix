@@ -5,14 +5,13 @@ from onix.sequences.sequence import (
     Segment,
     SegmentEmpty,
     AWGSinePulse,
-    AWGSineSweep,
 )
 from onix.sequences.shared import scan_segment, detect_segment
 from onix.models.hyperfine import energies
 from onix.units import Q_, ureg
 
 
-class RFSpectroscopy(Sequence):
+class EOSpectroscopy(Sequence):
     def __init__(
         self,
         ao_parameters: Dict,
@@ -23,7 +22,6 @@ class RFSpectroscopy(Sequence):
         flop_parameters: Dict,
         detect_parameters: Dict,
         digitizer_channel: int,
-        rf_channel: int,
     ):
         super().__init__()
         self._ao_parameters = ao_parameters
@@ -34,7 +32,6 @@ class RFSpectroscopy(Sequence):
         self._flop_parameters = flop_parameters
         self._detect_parameters = detect_parameters
         self._digitizer_channel = digitizer_channel
-        self._rf_channel = rf_channel
         self._add_carrier_burn()
         self._add_burn()
         self._add_repop()
@@ -83,13 +80,13 @@ class RFSpectroscopy(Sequence):
         name = f"flop_{self._flop_parameters['transition']}"
         lower_state = self._flop_parameters["transition"][0]
         upper_state = self._flop_parameters["transition"][1]
-        frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + self._flop_parameters["offset"]
-        lower = frequency - self._flop_parameters["scan"]
-        upper = frequency + self._flop_parameters["scan"]
+        frequency = energies["5D0"][upper_state] - energies["7F0"][lower_state] + self._eo_parameters["offset"] + self._flop_parameters["offset"]
         print(name, round(frequency, 2))
         segment = Segment(name, self._flop_parameters["duration"])
-        rf_pulse = AWGSineSweep(lower, upper, self._flop_parameters["amplitude"], 0, self._flop_parameters["duration"])
-        segment.add_awg_function(self._rf_channel, rf_pulse)
+        ao_pulse = AWGSinePulse(self._ao_parameters["frequency"], self._ao_parameters["amplitude"])
+        segment.add_awg_function(self._ao_parameters["channel"], ao_pulse)
+        eo_pulse = AWGSinePulse(frequency, self._flop_parameters["amplitude"])
+        segment.add_awg_function(self._eo_parameters["channel"], eo_pulse)
         self.add_segment(segment)
 
     def _add_detect(self):
@@ -118,7 +115,7 @@ class RFSpectroscopy(Sequence):
         detect_name = f"detect_{self._detect_parameters['transition']}"
 
         segment_repeats = []
-        #segment_repeats.append(("carrier_burn", self._carrier_burn_repeats))
+        segment_repeats.append(("carrier_burn", self._carrier_burn_repeats))
         segment_repeats.append(("break", 1))
         segment_repeats.append((detect_name, detect_repeats))
         segment_repeats.append(("break", 1))
@@ -147,7 +144,6 @@ class RFSpectroscopy(Sequence):
         segment_repeats.append((f"flop_{self._flop_parameters['transition']}", self._flop_parameters["repeats"]))
         segment_repeats.append(("break", 1))
         segment_repeats.append((detect_name, detect_repeats))
-        print(segment_repeats)
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self) -> int:

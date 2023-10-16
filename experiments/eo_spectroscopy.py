@@ -7,7 +7,7 @@ from onix.units import ureg
 from onix.headers.digitizer import DigitizerVisa
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
-from onix.sequences.rf_spectroscopy import RFSpectroscopy
+from onix.sequences.eo_spectroscopy import EOSpectroscopy
 import matplotlib.pyplot as plt
 
 wavemeter = WM()
@@ -29,12 +29,12 @@ params = {
     "digitizer_channel": 0,
     "rf_channel": 2,
 
-    "repeats": 5,
+    "repeats": 50,
 
     "ao": {
         "channel": 0,
         "frequency": 80 * ureg.MHz,
-        "amplitude": 1600,
+        "amplitude": 2000,
         "detect_amplitude": 140,
     },
 
@@ -47,7 +47,7 @@ params = {
     "detect_ao": {
         "channel": 3,
         "frequency": 80 * ureg.MHz,
-        "amplitude": 1600,
+        "amplitude": 2000,
     },
 
     "burn": {
@@ -65,17 +65,16 @@ params = {
     },
 
     "flop": {
-        "transition": "ab",
-        "duration": 20 * ureg.ms,
-        "amplitude": 10000,
+        "transition": "bb",
+        "duration": 0.5 * ureg.ms,
+        "amplitude": 3400,
         "offset": 0 * ureg.kHz,
-        "scan": 0 * ureg.kHz,
         "repeats": 1,
     },
 
     "detect": {
         "transition": "bb",
-        "detunings": np.linspace(-5, 5, 41) * ureg.MHz,
+        "detunings": np.linspace(-0.5, 0.5, 31) * ureg.MHz,
         "on_time": 16 * ureg.us,
         "off_time": 8 * ureg.us,
         "repeats": 1,
@@ -86,7 +85,7 @@ params = {
 }
 
 ## setup sequence
-sequence = RFSpectroscopy(
+sequence = EOSpectroscopy(
     ao_parameters=params["ao"],
     eo_parameters=params["eo"],
     detect_ao_parameters=params["detect_ao"],
@@ -95,7 +94,6 @@ sequence = RFSpectroscopy(
     flop_parameters=params["flop"],
     detect_parameters=params["detect"],
     digitizer_channel=params["digitizer_channel"],
-    rf_channel=params["rf_channel"],
 )
 sequence.setup_sequence()
 
@@ -116,9 +114,6 @@ dg.set_arm(triggers_per_arm=sequence.num_of_records())
 epoch_times = []
 transmissions = None
 reflections = None
-for kk in range(2):
-    m4i.start_sequence()
-    m4i.wait_for_sequence_complete()
 
 for kk in range(params["repeats"]):
     dg.initiate_data_acquisition()
@@ -152,7 +147,7 @@ headers = {
     "params": params,
     "wavemeter_frequency": wavemeter_frequency(),
 }
-name = "RF Spectroscopy"
+name = "EO Spectroscopy"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)
 

@@ -32,37 +32,6 @@ params = {
     "switch_aom_channel": 0,
     "switch_aom_frequency": 80 * ureg.MHz,
     "switch_aom_amplitude": 2400,
-    "switch_aom_flop_amplitude": 2400,
-    "switch_aom_probe_amplitude": 120,
-
-    "detect_aom_channel": 3,
-    "detect_aom_frequency": 80 * ureg.MHz,
-    "detect_aom_amplitude": 2400,
-
-    "burn_time": 5 * ureg.s,
-    "burn_width": 4 * ureg.MHz,
-    "pump_time": 3 * ureg.s,
-
-    "probe_detunings": np.linspace(-1.5, 1.5, 50) * ureg.MHz,
-    "probe_on_time": 16 * ureg.us,
-    "probe_off_time": 8 * ureg.us,
-    "ttl_probe_offset_time": 4 * ureg.us,
-    "probe_wait_time": 120 * ureg.s,
-    "num_of_probes": 420,
-
-    "repeats": 1,2.168.0.125")
-
-## parameters
-
-params = {
-    "wm_channel": 5,
-
-    "eo_channel": 1,
-    "eo_max_amplitude": 3400,
-
-    "switch_aom_channel": 0,
-    "switch_aom_frequency": 80 * ureg.MHz,
-    "switch_aom_amplitude": 2400,
     "switch_aom_probe_amplitude": 120,
 
     "detect_aom_channel": 3,

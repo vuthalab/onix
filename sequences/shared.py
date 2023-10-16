@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 from onix.models.hyperfine import energies
 from onix.units import Q_, ureg
@@ -17,7 +17,7 @@ def scan_segment(
     name: str,
     ao_parameters: Dict,
     eo_parameters: Dict,
-    transition: str,
+    transition: Union[str, None],
     duration: Q_,
     scan: Q_,
     detuning: Q_ = 0 * ureg.Hz,
@@ -26,9 +26,12 @@ def scan_segment(
     if duration > PIECEWISE_TIME:
         repeats = int(duration / PIECEWISE_TIME) + 1
         duration = PIECEWISE_TIME
-    F_state = transition[0]
-    D_state = transition[1]
-    frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+    if transition is not None:
+        F_state = transition[0]
+        D_state = transition[1]
+        frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+    else:
+        frequency = 0 * ureg.Hz
     print(name, round(frequency, 2))
     segment = Segment(name, duration)
     lower = frequency + detuning - scan
@@ -67,7 +70,7 @@ def detect_segment(
     segment.add_ttl_function(digitizer_channel, ttl_function)
     start_time = ttl_start_time + ttl_detect_offset_time
     eo_pulse = AWGSineTrain(
-        on_time, off_time, detect_frequencies, eo_amplitude, start_time=start_time
+        on_time + off_time, 0 * ureg.s, detect_frequencies, eo_amplitude, start_time=start_time
     )
     segment.add_awg_function(eo_parameters["channel"], eo_pulse)
 
