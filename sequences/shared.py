@@ -31,7 +31,7 @@ def scan_segment(
         D_state = transition[1]
         frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
     else:
-        frequency = 0 * ureg.Hz
+        frequency = eo_parameters["offset"]
     print(name, round(frequency, 2))
     segment = Segment(name, duration)
     lower = frequency + detuning - scan
@@ -57,9 +57,12 @@ def detect_segment(
     ttl_start_time: Q_ = 12 * ureg.us,
     ttl_duration: Q_ = 4 * ureg.us,
 ):
-    F_state = transition[0]
-    D_state = transition[1]
-    frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+    if transition is not None:
+        F_state = transition[0]
+        D_state = transition[1]
+        frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+    else:
+        frequency = eo_parameters["offset"]
     print(name, round(frequency, 2))
     detect_frequencies = detect_detunings + frequency
     eo_amplitude = eo_parameters["amplitude"]

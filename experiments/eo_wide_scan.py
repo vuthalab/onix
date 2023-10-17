@@ -7,7 +7,7 @@ from onix.units import ureg
 from onix.headers.digitizer import DigitizerVisa
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
-from onix.sequences.eo_spectroscopy import EOSpectroscopy
+from onix.sequences.eo_wide_scan import EOWideScan
 import matplotlib.pyplot as plt
 
 wavemeter = WM()
@@ -25,11 +25,9 @@ dg = DigitizerVisa("192.168.0.125")
 
 params = {
     "wm_channel": 5,
-
     "digitizer_channel": 0,
     "rf_channel": 2,
-
-    "repeats": 3,
+    "repeats": 2,
 
     "ao": {
         "channel": 0,
@@ -40,8 +38,8 @@ params = {
 
     "eo": {
         "channel": 1,
-        "offset": -125 * ureg.MHz,
-        "amplitude": 2500,
+        "offset": 0 * ureg.MHz,
+        "amplitude": 1700,
     },
 
     "detect_ao": {
@@ -50,33 +48,37 @@ params = {
         "amplitude": 2000,
     },
 
-    "burn": {
-        "transition": "bb",
-        "duration": 5 * ureg.s,
-        "scan": 4 * ureg.MHz,
-        "detuning": 0 * ureg.MHz,
+    "sweep": {
+        "duration": 20 * ureg.s,
+        "scan": 300 * ureg.MHz,
+        "detuning": 150 * ureg.MHz,
     },
 
-    "repop": {
-        "transitions": ["ca", "ac"],
-        "duration": 3 * ureg.s,
+    "burn": {
+        "duration": 5 * ureg.s,
         "scan": 2 * ureg.MHz,
-        "detuning": 0 * ureg.MHz,
+        "detuning": 115.25 * ureg.MHz,
+    },
+
+    "burn1": {
+        "duration": 5 * ureg.s,
+        "scan": 2 * ureg.MHz,
+        "detuning": 100 * ureg.MHz,
     },
 
     "flop": {
-        "transition": "bb",
-        "duration": 10 * ureg.ms,
-        "amplitude": 3400,
-        "offset": 0 * ureg.MHz,
+        "transition": "ab",
+        "duration": 20 * ureg.ms,
+        "amplitude": 0,
+        "offset": 25 * ureg.kHz,
+        "scan": 2 * ureg.kHz,
         "repeats": 1,
     },
 
     "detect": {
-        "transition": "bb",
-        "detunings": np.linspace(-5, 5, 101) * ureg.MHz,
-        "on_time": 16 * ureg.us,
-        "off_time": 8 * ureg.us,
+        "detunings": np.linspace(-10, 330, 800) * ureg.MHz,
+        "on_time": 10 * ureg.us,
+        "off_time": 4 * ureg.us,
         "repeats": 1,
         "ttl_detect_offset_time": 4 * ureg.us,
         "ttl_start_time": 12 * ureg.us,
@@ -85,15 +87,17 @@ params = {
 }
 
 ## setup sequence
-sequence = EOSpectroscopy(
+sequence = EOWideScan(
     ao_parameters=params["ao"],
     eo_parameters=params["eo"],
     detect_ao_parameters=params["detect_ao"],
+    sweep_parameters=params["sweep"],
     burn_parameters=params["burn"],
-    repop_parameters=params["repop"],
+    burn1_parameters=params["burn1"],
     flop_parameters=params["flop"],
     detect_parameters=params["detect"],
     digitizer_channel=params["digitizer_channel"],
+    rf_channel=params["rf_channel"],
 )
 sequence.setup_sequence()
 
@@ -114,9 +118,6 @@ dg.set_arm(triggers_per_arm=sequence.num_of_records())
 epoch_times = []
 transmissions = None
 reflections = None
-for kk in range(2):
-    m4i.start_sequence()
-    m4i.wait_for_sequence_complete()
 
 for kk in range(params["repeats"]):
     dg.initiate_data_acquisition()
@@ -150,7 +151,7 @@ headers = {
     "params": params,
     "wavemeter_frequency": wavemeter_frequency(),
 }
-name = "EO Spectroscopy"
+name = "EO Wide Scan"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)
 

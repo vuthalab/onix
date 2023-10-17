@@ -1,25 +1,26 @@
 from typing import Dict
 
 from onix.sequences.sequence import (
+    AWGSineSweep,
     Sequence,
     Segment,
     SegmentEmpty,
     AWGSinePulse,
-    AWGSineSweep,
 )
 from onix.sequences.shared import scan_segment, detect_segment
 from onix.models.hyperfine import energies
 from onix.units import Q_, ureg
 
 
-class RFSpectroscopy(Sequence):
+class EOWideScan(Sequence):
     def __init__(
         self,
         ao_parameters: Dict,
         eo_parameters: Dict,
         detect_ao_parameters: Dict,
+        sweep_parameters: Dict,
         burn_parameters: Dict,
-        repop_parameters: Dict,
+        burn1_parameters: Dict,
         flop_parameters: Dict,
         detect_parameters: Dict,
         digitizer_channel: int,
@@ -29,18 +30,33 @@ class RFSpectroscopy(Sequence):
         self._ao_parameters = ao_parameters
         self._eo_parameters = eo_parameters
         self._detect_ao_parameters = detect_ao_parameters
+        self._sweep_parameters = sweep_parameters
         self._burn_parameters = burn_parameters
-        self._repop_parameters = repop_parameters
+        self._burn1_parameters = burn1_parameters
         self._flop_parameters = flop_parameters
         self._detect_parameters = detect_parameters
         self._digitizer_channel = digitizer_channel
         self._rf_channel = rf_channel
+        self._add_sweep()
         self._add_carrier_burn()
         self._add_burn()
-        self._add_repop()
+        self._add_burn1()
         self._add_flop()
         self._add_detect()
         self._add_break()
+
+    def _add_sweep(self):
+        segment, self._sweep_repeats = scan_segment(
+            "sweep",
+            self._ao_parameters,
+            self._eo_parameters,
+            None,
+            self._sweep_parameters["duration"],
+            self._sweep_parameters["scan"],
+            0 * ureg.Hz,
+        )
+        self.add_segment(segment)
+
 
     def _add_carrier_burn(self):
         segment, self._carrier_burn_repeats = scan_segment(
@@ -48,7 +64,7 @@ class RFSpectroscopy(Sequence):
             self._ao_parameters,
             self._eo_parameters,
             None,
-            1 * ureg.s,
+            self._burn_parameters["duration"],
             0 * ureg.Hz,
             0 * ureg.Hz,
         )
@@ -56,31 +72,30 @@ class RFSpectroscopy(Sequence):
 
     def _add_burn(self):
         segment, self._burn_repeats = scan_segment(
-            f"burn_{self._burn_parameters['transition']}",
+            "burn",
             self._ao_parameters,
             self._eo_parameters,
-            self._burn_parameters["transition"],
+            None,
             self._burn_parameters["duration"],
             self._burn_parameters["scan"],
             self._burn_parameters["detuning"],
         )
         self.add_segment(segment)
 
-    def _add_repop(self):
-        for kk in self._repop_parameters["transitions"]:
-            segment, self._repop_repeats = scan_segment(
-                f"repop_{kk}",
-                self._ao_parameters,
-                self._eo_parameters,
-                kk,
-                self._repop_parameters["duration"],
-                self._repop_parameters["scan"],
-                self._repop_parameters["detuning"],
-            )
-            self.add_segment(segment)
+    def _add_burn1(self):
+        segment, self._burn_repeats = scan_segment(
+            "burn1",
+            self._ao_parameters,
+            self._eo_parameters,
+            None,
+            self._burn1_parameters["duration"],
+            self._burn1_parameters["scan"],
+            self._burn1_parameters["detuning"],
+        )
+        self.add_segment(segment)
 
     def _add_flop(self):
-        name = f"flop_{self._flop_parameters['transition']}"
+        name = "flop"
         lower_state = self._flop_parameters["transition"][0]
         upper_state = self._flop_parameters["transition"][1]
         frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + self._flop_parameters["offset"]
@@ -94,12 +109,12 @@ class RFSpectroscopy(Sequence):
 
     def _add_detect(self):
         segment, self.detect_time = detect_segment(
-            f"detect_{self._detect_parameters['transition']}",
+            "detect",
             self._ao_parameters,
             self._eo_parameters,
             self._detect_ao_parameters,
             self._digitizer_channel,
-            self._detect_parameters["transition"],
+            None,
             self._detect_parameters["detunings"],
             self._detect_parameters["on_time"],
             self._detect_parameters["off_time"],
@@ -115,39 +130,41 @@ class RFSpectroscopy(Sequence):
 
     def setup_sequence(self):
         detect_repeats = self._detect_parameters["repeats"]
-        detect_name = f"detect_{self._detect_parameters['transition']}"
+        detect_name = "detect"
 
         segment_repeats = []
+        segment_repeats.append(("sweep", self._sweep_repeats))
+        segment_repeats.append((detect_name, detect_repeats))
+        segment_repeats.append(("break", 1))
+
         segment_repeats.append(("carrier_burn", self._carrier_burn_repeats))
         segment_repeats.append(("break", 1))
         segment_repeats.append((detect_name, detect_repeats))
         segment_repeats.append(("break", 1))
 
         segment_repeats.append((
-            f"burn_{self._burn_parameters['transition']}",
+            "burn",
             self._burn_repeats,
         ))
         segment_repeats.append(("break", 1))
         segment_repeats.append((detect_name, detect_repeats))
         segment_repeats.append(("break", 1))
 
-        if self._repop_repeats > 100:
-            repop_segment_repeat = int(self._repop_repeats / 10)
-            repop_loop_repeat = 10
-        else:
-            repop_segment_repeat = 1
-            repop_loop_repeat = self._repop_repeats
-        for kk in range(repop_loop_repeat):
-            for name in self._repop_parameters["transitions"]:
-                segment_repeats.append((f"repop_{name}", repop_segment_repeat))
+        segment_repeats.append((
+            "burn1",
+            self._burn_repeats,
+        ))
         segment_repeats.append(("break", 1))
         segment_repeats.append((detect_name, detect_repeats))
         segment_repeats.append(("break", 1))
 
-        segment_repeats.append((f"flop_{self._flop_parameters['transition']}", self._flop_parameters["repeats"]))
+        segment_repeats.append((
+            "flop",
+            self._flop_parameters["repeats"],
+        ))
         segment_repeats.append(("break", 1))
         segment_repeats.append((detect_name, detect_repeats))
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self) -> int:
-        return 4 * self._detect_parameters["repeats"]
+        return 5 * self._detect_parameters["repeats"]

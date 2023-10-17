@@ -7,7 +7,7 @@ from onix.units import ureg
 
 def rotation_matrix(alpha, beta, gamma):
     """Rotation matrix.
-    
+
     alpha, beta, and gamma are Euler angles in degrees.
     """
     def rot_z(theta):
@@ -21,7 +21,7 @@ def rotation_matrix(alpha, beta, gamma):
         c = np.cos(b)
         s = np.sin(b)
         return np.array([[c,0,-s],[0,1,0],[s,0,c]])
-    
+
     return np.matmul(rot_z(gamma), np.matmul(rot_y(beta), rot_z(alpha)))
 
 
@@ -194,14 +194,14 @@ class HyperfineStates:
 # 153Eu3+:YSO
 energies = {
     "7F0": {
-        "a": 0,
+        "a": 0 * ureg.MHz,
         "b": 119.2 * ureg.MHz,  # Yano1992, Lauritzen2012
         "c": 209.25 * ureg.MHz,  # Yano1992, Lauritzen2012 209.2 MHz. Our spectroscopy gives 209.25.
     },
     "5D0": {
-        "a": 454 * ureg.MHz,  # Yano1992, Lauritzen2012
-        "b": 194 * ureg.MHz,  # Yano1992, Lauritzen2012
-        "c": 0,
+        "a": 450.8 * ureg.MHz,  # Yano1992, Lauritzen2012
+        "b": 191.3 * ureg.MHz,  # Yano1992, Lauritzen2012
+        "c": 0 * ureg.MHz,
     }
 }
 
@@ -260,7 +260,7 @@ quadrupole_tensor_D = {
 }
 
 
-# Cruzeiro2018, for 151Eu3+:YSO. 
+# Cruzeiro2018, for 151Eu3+:YSO.
 Zeeman_angles = {
     "7F0": {
         "alpha": 105.25,
@@ -275,7 +275,7 @@ Zeeman_angles = {
 }
 
 
-# Cruzeiro2018, for 151Eu3+:YSO. 
+# Cruzeiro2018, for 151Eu3+:YSO.
 Zeeman_tensor_magnitudes_MHz_per_T = {
     "7F0": {
         "g_1": 4.3,
