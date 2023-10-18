@@ -29,7 +29,7 @@ params = {
     "digitizer_channel": 0,
     "rf_channel": 2,
 
-    "repeats": 3,
+    "repeats": 5,
 
     "ao": {
         "channel": 0,
@@ -40,8 +40,8 @@ params = {
 
     "eo": {
         "channel": 1,
-        "offset": -125 * ureg.MHz,
-        "amplitude": 2500,
+        "offset": -200 * ureg.MHz,
+        "amplitude": 2800,
     },
 
     "detect_ao": {
@@ -52,32 +52,33 @@ params = {
 
     "burn": {
         "transition": "bb",
-        "duration": 1 * ureg.s,
+        "duration": 3 * ureg.s,
         "scan": 3 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
 
     "repop": {
         "transitions": ["ca", "ac"],
-        "duration": 0.5 * ureg.s,
-        "scan": 1 * ureg.MHz,
+        "duration": 0.6 * ureg.s,
+        "scan": 0.3 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
 
     "flop": {
         "transition": "ab",
-        "duration": 20 * ureg.ms,
-        "amplitude": 10000,
-        "offset": 160 * ureg.kHz,
-        "scan": 10 * ureg.kHz,
+        "duration": 240 * ureg.ms,
+        "amplitude": 6000,  # do not go above 6000.
+        "offset": 30 * ureg.kHz,
+        "scan": 20 * ureg.kHz,
         "repeats": 1,
     },
 
     "detect": {
         "transition": "bb",
-        "detunings": np.linspace(-3, 3, 21) * ureg.MHz,
+        "detunings": np.linspace(-1.1, 1.1, 31) * ureg.MHz,
         "on_time": 16 * ureg.us,
         "off_time": 8 * ureg.us,
+        "delay_time": 10 * ureg.ms,
         "repeats": 1,
         "ttl_detect_offset_time": 4 * ureg.us,
         "ttl_start_time": 12 * ureg.us,

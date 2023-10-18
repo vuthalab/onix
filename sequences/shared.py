@@ -29,13 +29,13 @@ def scan_segment(
     if transition is not None:
         F_state = transition[0]
         D_state = transition[1]
-        frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+        frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"] + detuning
     else:
-        frequency = eo_parameters["offset"]
+        frequency = detuning
     print(name, round(frequency, 2))
     segment = Segment(name, duration)
-    lower = frequency + detuning - scan
-    upper = frequency + detuning + scan
+    lower = frequency - scan
+    upper = frequency + scan
     ao_pulse = AWGSinePulse(ao_parameters["frequency"], ao_parameters["amplitude"])
     segment.add_awg_function(ao_parameters["channel"], ao_pulse)
     eo_pulse = AWGSineSweep(lower, upper, eo_parameters["amplitude"], 0, duration)

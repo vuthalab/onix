@@ -1,5 +1,7 @@
 from typing import Dict
 
+import numpy as np
+
 from onix.sequences.sequence import (
     Sequence,
     Segment,
@@ -80,17 +82,39 @@ class RFSpectroscopy(Sequence):
             self.add_segment(segment)
 
     def _add_flop(self):
-        name = f"flop_{self._flop_parameters['transition']}"
         lower_state = self._flop_parameters["transition"][0]
         upper_state = self._flop_parameters["transition"][1]
         frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + self._flop_parameters["offset"]
         lower = frequency - self._flop_parameters["scan"]
         upper = frequency + self._flop_parameters["scan"]
-        print(name, round(frequency, 2))
-        segment = Segment(name, self._flop_parameters["duration"])
-        rf_pulse = AWGSineSweep(lower, upper, self._flop_parameters["amplitude"], 0, self._flop_parameters["duration"])
-        segment.add_awg_function(self._rf_channel, rf_pulse)
-        self.add_segment(segment)
+        print("flop", round(frequency, 2))
+
+        total_duration = self._flop_parameters["duration"]
+        max_segment_duration = 40 * ureg.ms
+        if total_duration <= max_segment_duration:
+            self._flop_segments = 1
+            name = f"flop_{self._flop_parameters['transition']}_0"
+            segment = Segment(name, self._flop_parameters["duration"])
+            rf_pulse = AWGSineSweep(lower, upper, self._flop_parameters["amplitude"], 0, self._flop_parameters["duration"])
+            segment.add_awg_function(self._rf_channel, rf_pulse)
+            self.add_segment(segment)
+        else:
+            start_time = 0 * ureg.s
+            self._flop_segments = int(np.ceil((total_duration / max_segment_duration).to("").magnitude))
+            for kk in range(self._flop_segments):
+                if kk < self._flop_segments - 1:
+                    end_time = start_time + max_segment_duration
+                else:
+                    end_time = total_duration
+                start_frequency = lower + (upper - lower) * start_time / total_duration
+                end_frequency = lower + (upper - lower) * end_time / total_duration
+
+                name = f"flop_{self._flop_parameters['transition']}_{kk}"
+                segment = Segment(name, end_time - start_time)
+                rf_pulse = AWGSineSweep(start_frequency, end_frequency, self._flop_parameters["amplitude"], 0, end_time - start_time)
+                segment.add_awg_function(self._rf_channel, rf_pulse)
+                self.add_segment(segment)
+                start_time += max_segment_duration
 
     def _add_detect(self):
         segment, self.detect_time = detect_segment(
@@ -112,6 +136,10 @@ class RFSpectroscopy(Sequence):
     def _add_break(self, break_time: Q_ = 10 * ureg.us):
         segment = SegmentEmpty("break", break_time)
         self.add_segment(segment)
+        delay_segment_time = 1 * ureg.ms
+        self._delay_repeats = int(self._detect_parameters["delay_time"] / delay_segment_time)
+        delay = SegmentEmpty("delay", delay_segment_time)
+        self.add_segment(delay)
 
     def setup_sequence(self):
         detect_repeats = self._detect_parameters["repeats"]
@@ -120,6 +148,7 @@ class RFSpectroscopy(Sequence):
         segment_repeats = []
         segment_repeats.append(("carrier_burn", self._carrier_burn_repeats))
         segment_repeats.append(("break", 1))
+        segment_repeats.append(("delay", self._delay_repeats))
         segment_repeats.append((detect_name, detect_repeats))
         segment_repeats.append(("break", 1))
 
@@ -128,6 +157,7 @@ class RFSpectroscopy(Sequence):
             self._burn_repeats,
         ))
         segment_repeats.append(("break", 1))
+        segment_repeats.append(("delay", self._delay_repeats))
         segment_repeats.append((detect_name, detect_repeats))
         segment_repeats.append(("break", 1))
 
@@ -141,11 +171,14 @@ class RFSpectroscopy(Sequence):
             for name in self._repop_parameters["transitions"]:
                 segment_repeats.append((f"repop_{name}", repop_segment_repeat))
         segment_repeats.append(("break", 1))
+        segment_repeats.append(("delay", self._delay_repeats))
         segment_repeats.append((detect_name, detect_repeats))
         segment_repeats.append(("break", 1))
 
-        segment_repeats.append((f"flop_{self._flop_parameters['transition']}", self._flop_parameters["repeats"]))
+        for kk in range(self._flop_segments):
+            segment_repeats.append((f"flop_{self._flop_parameters['transition']}_{kk}", self._flop_parameters["repeats"]))
         segment_repeats.append(("break", 1))
+        segment_repeats.append(("delay", self._delay_repeats))
         segment_repeats.append((detect_name, detect_repeats))
         return super().setup_sequence(segment_repeats)
 
