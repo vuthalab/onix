@@ -3,6 +3,7 @@ from typing import Dict
 import numpy as np
 
 from onix.sequences.sequence import (
+    AWGSineTrain,
     Sequence,
     Segment,
     SegmentEmpty,
@@ -85,36 +86,33 @@ class RFSpectroscopy(Sequence):
         lower_state = self._flop_parameters["transition"][0]
         upper_state = self._flop_parameters["transition"][1]
         frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + self._flop_parameters["offset"]
-        lower = frequency - self._flop_parameters["scan"]
-        upper = frequency + self._flop_parameters["scan"]
         print("flop", round(frequency, 2))
-
-        total_duration = self._flop_parameters["duration"]
+        lower = (frequency - self._flop_parameters["scan"]).to("Hz").magnitude
+        upper = (frequency + self._flop_parameters["scan"]).to("Hz").magnitude
+        step = self._flop_parameters["step_frequency"].to("Hz").magnitude
+        scan_frequencies = np.arange(lower, upper, step) * ureg.Hz
+        step_time = self._flop_parameters["step_time"]
+        on_time = self._flop_parameters["on_time"]
+        off_time = step_time - on_time
+        if off_time < 0 * ureg.s:
+            raise ValueError("step time must be longer than on time.")
         max_segment_duration = 40 * ureg.ms
-        if total_duration <= max_segment_duration:
-            self._flop_segments = 1
-            name = f"flop_{self._flop_parameters['transition']}_0"
-            segment = Segment(name, self._flop_parameters["duration"])
-            rf_pulse = AWGSineSweep(lower, upper, self._flop_parameters["amplitude"], 0, self._flop_parameters["duration"])
+        steps_per_segment = int((max_segment_duration / step_time).to("").magnitude)
+        self._flop_segments = int(((len(scan_frequencies) - 1) / steps_per_segment)) + 1
+
+        for kk in range(self._flop_segments):
+            start_index = steps_per_segment * kk
+            end_index = steps_per_segment * (kk + 1) - 1
+            name = f"flop_{self._flop_parameters['transition']}_{kk}"
+            segment = Segment(name)
+            rf_pulse = AWGSineTrain(
+                on_time,
+                off_time,
+                scan_frequencies[start_index:end_index+1],
+                self._flop_parameters["amplitude"],
+            )
             segment.add_awg_function(self._rf_channel, rf_pulse)
             self.add_segment(segment)
-        else:
-            start_time = 0 * ureg.s
-            self._flop_segments = int(np.ceil((total_duration / max_segment_duration).to("").magnitude))
-            for kk in range(self._flop_segments):
-                if kk < self._flop_segments - 1:
-                    end_time = start_time + max_segment_duration
-                else:
-                    end_time = total_duration
-                start_frequency = lower + (upper - lower) * start_time / total_duration
-                end_frequency = lower + (upper - lower) * end_time / total_duration
-
-                name = f"flop_{self._flop_parameters['transition']}_{kk}"
-                segment = Segment(name, end_time - start_time)
-                rf_pulse = AWGSineSweep(start_frequency, end_frequency, self._flop_parameters["amplitude"], 0, end_time - start_time)
-                segment.add_awg_function(self._rf_channel, rf_pulse)
-                self.add_segment(segment)
-                start_time += max_segment_duration
 
     def _add_detect(self):
         segment, self.detect_time = detect_segment(

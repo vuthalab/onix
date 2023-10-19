@@ -29,7 +29,7 @@ params = {
     "digitizer_channel": 0,
     "rf_channel": 2,
 
-    "repeats": 5,
+    "repeats": 20,
 
     "ao": {
         "channel": 0,
@@ -40,7 +40,7 @@ params = {
 
     "eo": {
         "channel": 1,
-        "offset": -200 * ureg.MHz,
+        "offset": -310 * ureg.MHz,
         "amplitude": 2800,
     },
 
@@ -66,10 +66,12 @@ params = {
 
     "flop": {
         "transition": "ab",
-        "duration": 240 * ureg.ms,
-        "amplitude": 6000,  # do not go above 6000.
+        "step_frequency": 2 * ureg.kHz,
+        "step_time": 5 * ureg.ms,
+        "on_time": 0 * ureg.ms,
+        "amplitude": 3000,  # do not go above 6000.
         "offset": 30 * ureg.kHz,
-        "scan": 20 * ureg.kHz,
+        "scan": 40 * ureg.kHz,
         "repeats": 1,
     },
 
