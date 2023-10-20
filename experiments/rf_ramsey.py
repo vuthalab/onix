@@ -4,10 +4,10 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.units import ureg
 
-from onix.headers.pcie_digitizer import Digitizer
+from onix.headers.digitizer import DigitizerVisa
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
-from onix.sequences.rf_spectroscopy import RFSpectroscopy
+from onix.sequences.rf_ramsey import RFRamsey
 import matplotlib.pyplot as plt
 
 wavemeter = WM()
@@ -19,7 +19,7 @@ def wavemeter_frequency():
     return freq
 
 m4i = M4i6622()
-dg = Digitizer(True)
+dg = DigitizerVisa("192.168.0.125")
 
 ## parameters
 
@@ -29,7 +29,7 @@ params = {
     "digitizer_channel": 0,
     "rf_channel": 2,
 
-    "repeats": 2,
+    "repeats": 20,
 
     "ao": {
         "channel": 0,
@@ -66,12 +66,10 @@ params = {
 
     "flop": {
         "transition": "ab",
-        "step_frequency": 20 * ureg.kHz,
-        "step_time": 5 * ureg.ms,
-        "on_time": 5 * ureg.ms,
+        "pulse_time": 0.2 * ureg.ms,
+        "wait_time": 0.2 * ureg.ms,
         "amplitude": 6000,  # do not go above 6000.
         "offset": 30 * ureg.kHz,
-        "scan": 40 * ureg.kHz,
         "repeats": 1,
     },
 
@@ -89,7 +87,7 @@ params = {
 }
 
 ## setup sequence
-sequence = RFSpectroscopy(
+sequence = RFRamsey(
     ao_parameters=params["ao"],
     eo_parameters=params["eo"],
     detect_ao_parameters=params["detect_ao"],
@@ -105,37 +103,39 @@ sequence.setup_sequence()
 ## setup the awg and digitizer
 m4i.setup_sequence(sequence)
 
-sample_rate = 1e8
-val = dg.configure_system(
-    mode=2,
+sample_rate = 1e7
+dg.configure_acquisition(
     sample_rate=sample_rate,
-    segment_size=int(sequence.detect_time.to("s").magnitude * sample_rate),
-    segment_count=sequence.num_of_records() * params['repeats'],
+    samples_per_record=int(sequence.detect_time.to("s").magnitude * sample_rate),
+    num_records=sequence.num_of_records(),
 )
-print(val)
-
-acq_params = dg.get_acquisition_parameters()
-
+dg.configure_channels(channels=[1, 2], voltage_range=2)
+dg.set_trigger_source_external()
+dg.set_arm(triggers_per_arm=sequence.num_of_records())
 
 ## take data
 epoch_times = []
 transmissions = None
 reflections = None
-for kk in range(0):
+for kk in range(2):
     m4i.start_sequence()
     m4i.wait_for_sequence_complete()
-dg.arm_digitizer()
-time.sleep(0.1)
 
 for kk in range(params["repeats"]):
+    dg.initiate_data_acquisition()
+    time.sleep(0.1)
     m4i.start_sequence()
     epoch_times.append(time.time())
     m4i.wait_for_sequence_complete()
+    time.sleep(0.1)
+    voltages = dg.get_waveforms([1, 2], records=(1, sequence.num_of_records()))
+    if transmissions is None:
+        transmissions = voltages[0]
+        reflections = voltages[1]
+    else:
+        transmissions = np.append(transmissions, voltages[0], axis=0)
+        reflections = np.append(reflections, voltages[1], axis=0)
 m4i.stop_sequence()
-
-digitizer_data = dg.get_data()
-transmissions = np.array(digitizer_data[0])
-reflections = np.array(digitizer_data[1])
 
 photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
 
@@ -153,7 +153,7 @@ headers = {
     "params": params,
     "wavemeter_frequency": wavemeter_frequency(),
 }
-name = "RF Spectroscopy"
+name = "RF Ramsey"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)
 

@@ -18,6 +18,7 @@ import sys
 import pathlib
 from typing import List, Literal, Tuple, Union
 from datetime import datetime
+import numpy as np
 
 
 os.chdir(os.path.expanduser('~') + "/gati-linux-driver/Sdk/Python/")
@@ -263,15 +264,28 @@ class Digitizer:
         for i in range(1, self._system_info['ChannelCount'] + 1, channel_increment):
             segment_data = []
             for group in range(1, acq["SegmentCount"]+1):
-                data = np.array(PyGage.TransferData(self._handle, i, gc.TxMODE_DATA_FLOAT, group, 0, acq["Depth"] - self.overflow)[0])
+                data = PyGage.TransferData(self._handle, i, gc.TxMODE_DEFAULT, group, 0, acq["Depth"])
 
-                Vrange = (acq["Range"]/2) * 1e-3
+
+                if isinstance(data, int):
+                    print(f"Data tranfer error! {data}")
+                    return []
+
+                data = np.array(data[0])
+
+                data = data[0:acq["Depth"] - self.overflow]
+
+                Vrange = (self._chan[0]["InputRange"]/2) * 1e-3
 
                 data = data / 2**13 * Vrange
 
-                segmend_data.append(data)
+                segment_data.append(data)
+
+            segment_data = np.array(segment_data)
 
             channel_data.append(segment_data)
+
+        PyGage.FreeSystem(self._handle)
 
         return np.array(channel_data)
 
