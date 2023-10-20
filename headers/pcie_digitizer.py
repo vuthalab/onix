@@ -275,7 +275,7 @@ class Digitizer:
 
                 data = data[0:acq["Depth"] - self.overflow]
 
-                Vrange = (self._chan[0]["InputRange"]/2) * 1e-3
+                Vrange = (self._chan[i]["InputRange"]/2) * 1e-3
 
                 data = data / 2**13 * Vrange
 

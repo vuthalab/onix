@@ -29,7 +29,7 @@ params = {
     "digitizer_channel": 0,
     "rf_channel": 2,
 
-    "repeats": 2,
+    "repeats": 5,
 
     "ao": {
         "channel": 0,
@@ -40,7 +40,7 @@ params = {
 
     "eo": {
         "channel": 1,
-        "offset": -310 * ureg.MHz,
+        "offset": -330 * ureg.MHz,
         "amplitude": 2800,
     },
 
@@ -66,7 +66,7 @@ params = {
 
     "flop": {
         "transition": "ab",
-        "step_frequency": 20 * ureg.kHz,
+        "step_frequency": 2 * ureg.kHz,
         "step_time": 5 * ureg.ms,
         "on_time": 5 * ureg.ms,
         "amplitude": 6000,  # do not go above 6000.
@@ -121,7 +121,7 @@ acq_params = dg.get_acquisition_parameters()
 epoch_times = []
 transmissions = None
 reflections = None
-for kk in range(0):
+for kk in range(2):
     m4i.start_sequence()
     m4i.wait_for_sequence_complete()
 dg.arm_digitizer()
