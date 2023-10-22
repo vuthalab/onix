@@ -19,7 +19,6 @@ def wavemeter_frequency():
     return freq
 
 m4i = M4i6622()
-dg = Digitizer(True)
 
 ## parameters
 
@@ -35,13 +34,13 @@ params = {
         "channel": 0,
         "frequency": 80 * ureg.MHz,
         "amplitude": 2000,
-        "detect_amplitude": 140,
+        "detect_amplitude": 150,
     },
 
     "eo": {
         "channel": 1,
-        "offset": -330 * ureg.MHz,
-        "amplitude": 2800,
+        "offset": -550 * ureg.MHz,
+        "amplitude": 6000,
     },
 
     "detect_ao": {
@@ -59,7 +58,7 @@ params = {
 
     "repop": {
         "transitions": ["ca", "ac"],
-        "duration": 0.6 * ureg.s,
+        "duration": 1.2 * ureg.s,
         "scan": 0.3 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
@@ -80,7 +79,7 @@ params = {
         "detunings": np.linspace(-1.1, 1.1, 31) * ureg.MHz,
         "on_time": 16 * ureg.us,
         "off_time": 8 * ureg.us,
-        "delay_time": 10 * ureg.ms,
+        "delay_time": 100 * ureg.ms,
         "repeats": 1,
         "ttl_detect_offset_time": 4 * ureg.us,
         "ttl_start_time": 12 * ureg.us,
@@ -106,13 +105,13 @@ sequence.setup_sequence()
 m4i.setup_sequence(sequence)
 
 sample_rate = 1e8
+dg = Digitizer(False)
 val = dg.configure_system(
     mode=2,
     sample_rate=sample_rate,
     segment_size=int(sequence.detect_time.to("s").magnitude * sample_rate),
     segment_count=sequence.num_of_records() * params['repeats'],
 )
-print(val)
 
 acq_params = dg.get_acquisition_parameters()
 
