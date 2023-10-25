@@ -5,8 +5,13 @@ PCIE Digitizer Header file,
 Pretty basic as of now
 
 Last Updated by: Daniel Stedman
-Lase Update: 10/19/23
+Last Update: 10/19/23
 
+Changed needed:
+  * Enable setting external or software triggering using this header file.
+  * Code snippets to show how to take data with external and internal triggers.
+  * Read correct voltages. Currently the voltages read are not correct.
+  * Investigate crash issues when the digitizer takes data multiple times, or takes a lot of data.
 """
 
 
@@ -136,7 +141,7 @@ class Digitizer:
         This filename is dependent on where you store the file, create your own if you're using this header file and put the path here.
         """
 
-        filename = "/home/onix/Documents/code/onix/headers/digitizerParameters.ini"
+        filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
 
         acq, sts = gs.LoadAcquisitionConfiguration(self._handle, filename)
 
@@ -261,7 +266,7 @@ class Digitizer:
             return status
 
     def get_data(self):
-        filename = "/home/onix/Documents/code/onix/headers/digitizerParameters.ini"
+        filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
 
         mode = PyGage.GetAcquisitionConfig(self._handle)["Mode"]
         app, sts = gs.LoadApplicationConfiguration(filename)
@@ -299,7 +304,6 @@ class Digitizer:
                 data = data[0 : acq["Depth"] - self.overflow]
 
                 Vrange = (self._chan[i]["InputRange"] / 2) * 1e-3
-                print(i, Vrange)
 
                 data = data / 2**13 * Vrange
 
