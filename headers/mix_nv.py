@@ -1,4 +1,3 @@
-from xmlrpc.client import boolean
 import serial
 import time
 
@@ -26,38 +25,15 @@ import time
 # ?) help
 
 
-# testing
-# ser = serial.Serial('COM3', 
-#                     9600,
-#                     bytesize=serial.EIGHTBITS,
-#                     timeout=10)
-
-# ser.write(b'f0.0')
-# ser.write(b'a7')
-# ser.write(b'l1')
-
-# ser.write(b'?')
-# for i in range(18):
-#     print(ser.readline().decode())
-# # s = ser.read(500)
-# ser.close()
-# # print(s)
-# print(ser.is_open)
-
-# print('a{value:d}'.format(value=1))
-
-
-
-
-
 class MixNV:
-    def __init__(self):
-        self.ser = serial.Serial('COM3', timeout=1)
+    def __init__(self, port="ttyACM2"):
+        self.ser = serial.Serial(port, timeout=0.1)
 
     @property
     def frequency(self):
+        """Output frequency in MHz."""
         self.ser.write(b'f?')
-        return self.ser.readline().decode()
+        return float(self.ser.readline().decode())
 
     @frequency.setter
     def frequency(self, value: float):
@@ -66,50 +42,52 @@ class MixNV:
     @property
     def power(self):
         self.ser.write(b'a?')
-        return self.ser.readline().decode()
+        return int(self.ser.readline().decode())
 
     @power.setter
     def power(self, value: int):
-        if 0 < value <= 7:
-            self.ser.write(str.encode('f{value:d}'.format(value=value)))
+        if value < 0 or value > 7 or int(value) != value:
+            raise ValueError("Power must be an integer between 0 and 7.""")
+        self.ser.write(str.encode('a{value:d}'.format(value=int(value))))
 
     @property
     def phase_lock(self):
         self.ser.write(b'p?')
-        return self.ser.readline().decode()
+        return bool(self.ser.readline().decode())
 
     @phase_lock.setter
-    def phase_lock(self, value: boolean):
-            value = int(value)
-            self.ser.write(str.encode('f{value:d}'.format(value=value)))
+    def phase_lock(self, value: bool):
+        value = int(value)
+        self.ser.write(str.encode('f{value:d}'.format(value=value)))
 
     @property
     def LO_mode(self):
         self.ser.write(b'l?')
-        return self.ser.readline().decode()
+        return bool(self.ser.readline().decode())
 
     @LO_mode.setter
-    def LO_mode(self, value: boolean):
-            value = int(value)
-            self.ser.write(str.encode('f{value:d}'.format(value=value)))
+    def LO_mode(self, value: bool):
+        value = int(value)
+        self.ser.write(str.encode('f{value:d}'.format(value=value)))
 
     @property
     def reference(self):
+        """True is internal, false is external."""
         self.ser.write(b'x?')
-        return self.ser.readline().decode()
+        return bool(self.ser.readline().decode())
 
     @reference.setter
-    def reference(self, value: boolean):
-            value = int(value) # 1 internal - 0 external
-            self.ser.write(str.encode('f{value:d}'.format(value=value)))
+    def reference(self, value: bool):
+        value = int(value) # 1 internal - 0 external
+        self.ser.write(str.encode('f{value:d}'.format(value=value)))
 
     @property
     def reference_frequency(self):
         self.ser.write(b'Y?')
-        return self.ser.readline().decode()
+        return float(self.ser.readline().decode())
 
     @reference_frequency.setter
-    def reference_frequency(self, value: int):
+    def reference_frequency(self, value: float):
         self.ser.write(str.encode('f{value:d}'.format(value=value)))
 
 if __name__ == '__main__':
@@ -117,48 +95,4 @@ if __name__ == '__main__':
     t.power = 7
     t.frequency = 1000.0
     t.LO_mode = False
-    # print(t.frequency)
 
-# from windfreak import SynthHD
-
-# class RFSynthesizer:
-#     def __init__(self):
-#         self.synth = SynthHD('/dev/ttyACM0')
-#         self.synth.init()
-
-#         self.active_channel = 1
-
-#     @property
-#     def _channel(self):
-#         return self.synth[self.active_channel-1]
-
-#     @property
-#     def power(self):
-#         return self._channel.power
-
-#     @power.setter
-#     def power(self, value: float):
-#         assert value <= 10
-#         self._channel.power = value
-
-#     @property
-#     def frequency(self):
-#         return self._channel.frequency
-
-#     @frequency.setter
-#     def frequency(self, value: float):
-#         self._channel.frequency = value
-
-#     @property
-#     def enabled(self):
-#         return self._channel.enable
-
-#     @enabled.setter
-#     def enabled(self, value: bool):
-#         self._channel.enable = value
-
-#     def on(self): self.enabled = True
-#     def off (self): self.enabled = False
-
-# if __name__ == '__main__':
-#     synth = RFSynthesizer()
