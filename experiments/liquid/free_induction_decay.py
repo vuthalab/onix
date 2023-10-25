@@ -5,7 +5,7 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.units import ureg
 
-from onix.headers.digitizer import DigitizerVisa
+from onix.headers.pcie_digitizer import Digitizer
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
 
@@ -20,81 +20,102 @@ def wavemeter_frequency():
 
 wavemeter = WM()
 m4i = M4i6622()
-dg = DigitizerVisa("192.168.0.125")
 
 ## experiment parameters
 params = {
     "aom_channel": 2,
     "digitizer_channel": 0,
-    "repeats": 10,
+    "repeats": 1000,
 
     "excitation": {
-        "frequency": 80 * ureg.MHz,
+        "frequency": 84 * ureg.MHz,
         "amplitude": 2000,
         "time": 10 * ureg.ms,
     },
 
     "coherence": {
-        "frequency": 76 * ureg.MHz,
+        "frequency": 72 * ureg.MHz,
         "amplitude": 1400,
         "time": 1 * ureg.ms,
     },
+
+    "yso": {
+        "use": True,
+        "eo_channel": 1,
+        "frequency_excitation": 300 * ureg.MHz,
+        "frequency_coherence": 290 * ureg.MHz,
+        "eo_amplitude": 24000,
+        "switch_ao_channel": 0,
+        "switch_ao_frequency": 80 * ureg.MHz,
+        "switch_ao_amplitude_excitation": 150,
+        "switch_ao_amplitude_coherence": 150,
+    }
 }
 
 ## setup sequence
 sequence = Sequence()
 segment = Segment("excitation", duration=params["excitation"]["time"])
-ao_pulse = AWGSinePulse(params["excitation"]["frequency"], params["excitation"]["amplitude"])
-segment.add_awg_function(params["aom_channel"], ao_pulse)
-ao_pulse = AWGSinePulse(80e6, 250)
-segment.add_awg_function(0, ao_pulse)
-ao_pulse = AWGSinePulse(80e6, 2000)
-segment.add_awg_function(3, ao_pulse)
+if params["yso"]["use"]:
+    ao_pulse = AWGSinePulse(params["yso"]["switch_ao_frequency"], params["yso"]["switch_ao_amplitude_excitation"])
+    segment.add_awg_function(params["yso"]["switch_ao_channel"], ao_pulse)
+    eo_pulse = AWGSinePulse(params["yso"]["frequency_excitation"], params["yso"]["eo_amplitude"])
+    segment.add_awg_function(params["yso"]["eo_channel"], eo_pulse)
+else:
+    ao_pulse = AWGSinePulse(params["excitation"]["frequency"], params["excitation"]["amplitude"])
+    segment.add_awg_function(params["aom_channel"], ao_pulse)
 ttl_gate = TTLPulses([[0, 4e-6]])
 segment.add_ttl_function(params["digitizer_channel"], ttl_gate)
 sequence.add_segment(segment)
 
 segment = Segment("coherence", duration=params["coherence"]["time"])
-ao_pulse = AWGSinePulse(params["coherence"]["frequency"], params["coherence"]["amplitude"])
-segment.add_awg_function(params["aom_channel"], ao_pulse)
-ao_pulse = AWGSinePulse(80e6, 250)
-segment.add_awg_function(0, ao_pulse)
-ao_pulse = AWGSinePulse(80e6, 2000)
-segment.add_awg_function(3, ao_pulse)
+if params["yso"]["use"]:
+    ao_pulse = AWGSinePulse(params["yso"]["switch_ao_frequency"], params["yso"]["switch_ao_amplitude_coherence"])
+    segment.add_awg_function(params["yso"]["switch_ao_channel"], ao_pulse)
+    eo_pulse = AWGSinePulse(params["yso"]["frequency_coherence"], params["yso"]["eo_amplitude"])
+    segment.add_awg_function(params["yso"]["eo_channel"], eo_pulse)
+else:
+    ao_pulse = AWGSinePulse(params["coherence"]["frequency"], params["coherence"]["amplitude"])
+    segment.add_awg_function(params["aom_channel"], ao_pulse)
 sequence.add_segment(segment)
 
 measure_time = params["excitation"]["time"] + params["coherence"]["time"]
 
 sequence.setup_sequence([("excitation", 1), ("coherence", 1)])
 
-## setup the awg and digitizer
+## setup the awg
 m4i.setup_sequence(sequence)
 
-sampling_rate = 2e7
-dg.configure_acquisition(
-    sample_rate=sampling_rate,
-    samples_per_record=int(measure_time.to("s").magnitude * sampling_rate),
-    num_records=params["repeats"],
-)
-dg.configure_channels(channels=[1], voltage_range=2)
-dg.set_trigger_source_external()
-dg.set_arm(triggers_per_arm=params["repeats"])
-
 ## take data
-
-dg.initiate_data_acquisition()
-time.sleep(0.5)
 for kk in range(100):
     m4i.start_sequence()
     m4i.wait_for_sequence_complete()
-for kk in range(params["repeats"]):
-    m4i.start_sequence()
-    m4i.wait_for_sequence_complete()
-    time.sleep(0.01)
+
+transmissions = None
+for kk in range(int(params["repeats"] / 100)):
+    sample_rate = 1e8
+    dg = Digitizer(False)
+    val = dg.configure_system(
+        mode=1,
+        sample_rate=sample_rate,
+        segment_size=int(measure_time.to("s").magnitude * sample_rate),
+        segment_count=int(params["repeats"] / 100),
+    )
+
+    acq_params = dg.get_acquisition_parameters()
+    dg.arm_digitizer()
+    time.sleep(0.1)
+    for ll in range(100):
+        m4i.start_sequence()
+        m4i.wait_for_sequence_complete()
+
+    digitizer_data = dg.get_data()
+    if transmissions is None:
+        transmissions = np.array(digitizer_data[0])
+    else:
+        transmissions = np.append(transmissions, np.array(digitizer_data[0]), axis=0)
 m4i.stop_sequence()
 
-voltages = dg.get_waveforms([1], records=(1, params["repeats"]))[0]
-times = [kk / sampling_rate for kk in range(len(voltages[0]))]
+times = [kk / sample_rate for kk in range(len(transmissions[0]))]
 
 ## save data
 header = {
@@ -102,7 +123,7 @@ header = {
 }
 data = {
     "times": times,
-    "voltages": voltages,
+    "voltages": transmissions,
 }
 name = "Free Induction Decay"
 data_id = save_experiment_data(name, data, header)

@@ -39,14 +39,14 @@ params = {
 
     "eo": {
         "channel": 1,
-        "offset": -550 * ureg.MHz,
-        "amplitude": 6000,
+        "offset": -300 * ureg.MHz,
+        "amplitude": 4000,
     },
 
     "detect_ao": {
         "channel": 3,
         "frequency": 80 * ureg.MHz,
-        "amplitude": 2000,
+        "amplitude": 0,
     },
 
     "burn": {
@@ -79,7 +79,7 @@ params = {
         "detunings": np.linspace(-1.1, 1.1, 31) * ureg.MHz,
         "on_time": 16 * ureg.us,
         "off_time": 8 * ureg.us,
-        "delay_time": 100 * ureg.ms,
+        "delay_time": 500 * ureg.ms,
         "repeats": 1,
         "ttl_detect_offset_time": 4 * ureg.us,
         "ttl_start_time": 12 * ureg.us,

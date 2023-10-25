@@ -97,6 +97,7 @@ class RFRamsey(Sequence):
             wait_time,
             frequency,
             self._flop_parameters["amplitude"],
+            [0, self._flop_parameters["phase_difference"]],
         )
         segment.add_awg_function(self._rf_channel, rf_pulse)
         self.add_segment(segment)
@@ -160,8 +161,7 @@ class RFRamsey(Sequence):
         segment_repeats.append((detect_name, detect_repeats))
         segment_repeats.append(("break", 1))
 
-        for kk in range(self._flop_segments):
-            segment_repeats.append((f"flop_{self._flop_parameters['transition']}_{kk}", self._flop_parameters["repeats"]))
+        segment_repeats.append((f"flop_{self._flop_parameters['transition']}", self._flop_parameters["repeats"]))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("delay", self._delay_repeats))
         segment_repeats.append((detect_name, detect_repeats))

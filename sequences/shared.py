@@ -11,6 +11,7 @@ from onix.sequences.sequence import (
 )
 
 PIECEWISE_TIME = 10 * ureg.ms
+EO_order = 1
 
 
 def scan_segment(
@@ -38,7 +39,7 @@ def scan_segment(
     upper = frequency + scan
     ao_pulse = AWGSinePulse(ao_parameters["frequency"], ao_parameters["amplitude"])
     segment.add_awg_function(ao_parameters["channel"], ao_pulse)
-    eo_pulse = AWGSineSweep(lower, upper, eo_parameters["amplitude"], 0, duration)
+    eo_pulse = AWGSineSweep(lower / EO_order, upper / EO_order, eo_parameters["amplitude"], 0, duration)
     segment.add_awg_function(eo_parameters["channel"], eo_pulse)
     return (segment, repeats)
 
@@ -73,7 +74,7 @@ def detect_segment(
     segment.add_ttl_function(digitizer_channel, ttl_function)
     start_time = ttl_start_time + ttl_detect_offset_time
     eo_pulse = AWGSineTrain(
-        on_time + off_time, 0 * ureg.s, detect_frequencies, eo_amplitude, start_time=start_time
+        on_time + off_time, 0 * ureg.s, detect_frequencies / EO_order, eo_amplitude, start_time=start_time
     )
     segment.add_awg_function(eo_parameters["channel"], eo_pulse)
 
