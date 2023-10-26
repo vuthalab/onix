@@ -4,7 +4,7 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.units import ureg
 
-from onix.headers.pcie_digitizer import Digitizer
+from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.sequences.rf_spectroscopy import RFSpectroscopy
@@ -28,19 +28,19 @@ params = {
     "digitizer_channel": 0,
     "rf_channel": 2,
 
-    "repeats": 5,
+    "repeats": 20,
 
     "ao": {
         "channel": 0,
         "frequency": 80 * ureg.MHz,
-        "amplitude": 2000,
-        "detect_amplitude": 150,
+        "amplitude": 1200,
+        "detect_amplitude": 140,
     },
 
     "eo": {
         "channel": 1,
-        "offset": -300 * ureg.MHz,
-        "amplitude": 4000,
+        "offset": 100 * ureg.MHz,
+        "amplitude": 24000,
     },
 
     "detect_ao": {
@@ -51,35 +51,35 @@ params = {
 
     "burn": {
         "transition": "bb",
-        "duration": 3 * ureg.s,
+        "duration": 1.5 * ureg.s,
         "scan": 3 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
 
     "repop": {
         "transitions": ["ca", "ac"],
-        "duration": 1.2 * ureg.s,
+        "duration": 0.6 * ureg.s,
         "scan": 0.3 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
 
     "flop": {
         "transition": "ab",
-        "step_frequency": 2 * ureg.kHz,
-        "step_time": 5 * ureg.ms,
-        "on_time": 5 * ureg.ms,
+        "step_frequency": 1 * ureg.kHz,
+        "step_time": 1 * ureg.ms,
+        "on_time": 1 * ureg.ms,
         "amplitude": 6000,  # do not go above 6000.
         "offset": 30 * ureg.kHz,
-        "scan": 40 * ureg.kHz,
+        "scan": 5 * ureg.kHz,
         "repeats": 1,
     },
 
     "detect": {
         "transition": "bb",
-        "detunings": np.linspace(-1.1, 1.1, 31) * ureg.MHz,
+        "detunings": np.linspace(-1.1, 1.1, 56) * ureg.MHz,
         "on_time": 16 * ureg.us,
         "off_time": 8 * ureg.us,
-        "delay_time": 500 * ureg.ms,
+        "delay_time": 600 * ureg.ms,
         "repeats": 1,
         "ttl_detect_offset_time": 4 * ureg.us,
         "ttl_start_time": 12 * ureg.us,
@@ -104,6 +104,7 @@ sequence.setup_sequence()
 ## setup the awg and digitizer
 m4i.setup_sequence(sequence)
 
+## take data
 sample_rate = 1e8
 dg = Digitizer(False)
 val = dg.configure_system(
@@ -112,21 +113,19 @@ val = dg.configure_system(
     segment_size=int(sequence.detect_time.to("s").magnitude * sample_rate),
     segment_count=sequence.num_of_records() * params['repeats'],
 )
-
 acq_params = dg.get_acquisition_parameters()
 
-
-## take data
 epoch_times = []
 transmissions = None
 reflections = None
-for kk in range(2):
+for kk in range(0):
     m4i.start_sequence()
     m4i.wait_for_sequence_complete()
 dg.arm_digitizer()
 time.sleep(0.1)
 
 for kk in range(params["repeats"]):
+    print(f"{kk / params['repeats'] * 100:.0f}%")
     m4i.start_sequence()
     epoch_times.append(time.time())
     m4i.wait_for_sequence_complete()
