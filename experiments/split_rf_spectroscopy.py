@@ -29,7 +29,7 @@ params = {
     "field_plate_channel": 1,
     "rf_channel": 2,
 
-    "repeats": 20,
+    "repeats": 5,
 
     "ao": {
         "channel": 0,
@@ -52,7 +52,7 @@ params = {
 
     "burn": {
         "transition": "bb",
-        "duration": 1.5 * ureg.s,
+        "duration": 2 * ureg.s,
         "scan": 3 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
@@ -71,7 +71,7 @@ params = {
         "on_time": 1 * ureg.ms,
         "amplitude": 6000,  # do not go above 6000.
         "offset": 30 * ureg.kHz,
-        "scan": 5 * ureg.kHz,
+        "scan": 10 * ureg.kHz,
         "repeats": 1,
     },
 
