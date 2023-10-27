@@ -40,7 +40,7 @@ params = {
 
     "eo": {
         "channel": 1,
-        "offset": 100 * ureg.MHz,
+        "offset": 60 * ureg.MHz,
         "amplitude": 24000,
     },
 
@@ -52,8 +52,8 @@ params = {
 
     "burn": {
         "transition": "bb",
-        "duration": 2 * ureg.s,
-        "scan": 3 * ureg.MHz,
+        "duration": 5 * ureg.s,
+        "scan": -5 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
 
@@ -66,18 +66,18 @@ params = {
 
     "flop": {
         "transition": "ab",
-        "step_frequency": 1 * ureg.kHz,
+        "step_frequency": 3 * ureg.kHz,
         "step_time": 1 * ureg.ms,
         "on_time": 1 * ureg.ms,
         "amplitude": 6000,  # do not go above 6000.
         "offset": 30 * ureg.kHz,
-        "scan": 10 * ureg.kHz,
+        "scan": 30 * ureg.kHz,
         "repeats": 1,
     },
 
     "detect": {
         "transition": "bb",
-        "detunings": np.linspace(-1.1, 1.1, 56) * ureg.MHz,
+        "detunings": np.linspace(-2.5, 2.5, 51) * ureg.MHz,
         "on_time": 16 * ureg.us,
         "off_time": 8 * ureg.us,
         "delay_time": 600 * ureg.ms,

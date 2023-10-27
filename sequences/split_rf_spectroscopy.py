@@ -119,7 +119,7 @@ class SplitRFSpectroscopy(Sequence):
                 self._flop_parameters["amplitude"],
             )
             segment.add_awg_function(self._rf_channel, rf_pulse)
-            segment.add_ttl_function(self._field_plate_channel, TTLOff())
+            segment.add_ttl_function(self._field_plate_channel, TTLOn())
             self.add_segment(segment)
 
     def _add_detect(self):
@@ -137,7 +137,7 @@ class SplitRFSpectroscopy(Sequence):
             self._detect_parameters["ttl_start_time"],
             self._detect_parameters["ttl_duration"],
         )
-        segment.add_ttl_function(self._field_plate_channel, TTLOn())
+        segment.add_ttl_function(self._field_plate_channel, TTLOff())
         self.add_segment(segment)
 
     def _add_break(self, break_time: Q_ = 10 * ureg.us):
@@ -161,7 +161,9 @@ class SplitRFSpectroscopy(Sequence):
         segment_repeats.append(("carrier_burn", self._carrier_burn_repeats))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("delay", self._delay_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append((detect_name, detect_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append(("break", 1))
 
         segment_repeats.append((
@@ -170,7 +172,9 @@ class SplitRFSpectroscopy(Sequence):
         ))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("delay", self._delay_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append((detect_name, detect_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append(("break", 1))
 
         if self._repop_repeats > 100:
@@ -184,16 +188,18 @@ class SplitRFSpectroscopy(Sequence):
                 segment_repeats.append((f"repop_{name}", repop_segment_repeat))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("delay", self._delay_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append((detect_name, detect_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append(("break", 1))
 
-        segment_repeats.append(("delay_with_field_plate_on", 1))
         for kk in range(self._flop_segments):
             segment_repeats.append((f"flop_{self._flop_parameters['transition']}_{kk}", self._flop_parameters["repeats"]))
-        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("delay", self._delay_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append((detect_name, detect_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self) -> int:
