@@ -9,6 +9,8 @@ from onix.sequences.sequence import (
     SegmentEmpty,
     AWGSinePulse,
     AWGSineSweep,
+    TTLOff,
+    TTLOn,
 )
 from onix.sequences.shared import scan_segment, detect_segment
 from onix.models.hyperfine import energies
@@ -26,6 +28,7 @@ class RFRamsey(Sequence):
         flop_parameters: Dict,
         detect_parameters: Dict,
         digitizer_channel: int,
+        field_plate_channel: int,
         rf_channel: int,
     ):
         super().__init__()
@@ -37,6 +40,7 @@ class RFRamsey(Sequence):
         self._flop_parameters = flop_parameters
         self._detect_parameters = detect_parameters
         self._digitizer_channel = digitizer_channel
+        self._field_plate_channel = field_plate_channel
         self._rf_channel = rf_channel
         self._add_carrier_burn()
         self._add_burn()
@@ -55,6 +59,7 @@ class RFRamsey(Sequence):
             0 * ureg.Hz,
             0 * ureg.Hz,
         )
+        segment.add_ttl_function(self._field_plate_channel, TTLOn())
         self.add_segment(segment)
 
     def _add_burn(self):
@@ -67,6 +72,7 @@ class RFRamsey(Sequence):
             self._burn_parameters["scan"],
             self._burn_parameters["detuning"],
         )
+        segment.add_ttl_function(self._field_plate_channel, TTLOn())
         self.add_segment(segment)
 
     def _add_repop(self):
@@ -80,6 +86,7 @@ class RFRamsey(Sequence):
                 self._repop_parameters["scan"],
                 self._repop_parameters["detuning"],
             )
+            segment.add_ttl_function(self._field_plate_channel, TTLOn())
             self.add_segment(segment)
 
     def _add_flop(self):
@@ -100,6 +107,7 @@ class RFRamsey(Sequence):
             [0, self._flop_parameters["phase_difference"]],
         )
         segment.add_awg_function(self._rf_channel, rf_pulse)
+        segment.add_ttl_function(self._field_plate_channel, TTLOn())
         self.add_segment(segment)
 
     def _add_detect(self):
@@ -117,15 +125,21 @@ class RFRamsey(Sequence):
             self._detect_parameters["ttl_start_time"],
             self._detect_parameters["ttl_duration"],
         )
+        segment.add_ttl_function(self._field_plate_channel, TTLOff())
         self.add_segment(segment)
 
     def _add_break(self, break_time: Q_ = 10 * ureg.us):
         segment = SegmentEmpty("break", break_time)
+        segment.add_ttl_function(self._field_plate_channel, TTLOn())
         self.add_segment(segment)
         delay_segment_time = 1 * ureg.ms
         self._delay_repeats = int(self._detect_parameters["delay_time"] / delay_segment_time)
         delay = SegmentEmpty("delay", delay_segment_time)
+        delay.add_ttl_function(self._field_plate_channel, TTLOn())
         self.add_segment(delay)
+        delay_with_field_plate_on = SegmentEmpty("delay_with_field_plate_on", delay_segment_time)
+        delay_with_field_plate_on.add_ttl_function(self._field_plate_channel, TTLOff())
+        self.add_segment(delay_with_field_plate_on)
 
     def setup_sequence(self):
         detect_repeats = self._detect_parameters["repeats"]
@@ -135,7 +149,9 @@ class RFRamsey(Sequence):
         segment_repeats.append(("carrier_burn", self._carrier_burn_repeats))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("delay", self._delay_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append((detect_name, detect_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append(("break", 1))
 
         segment_repeats.append((
@@ -144,7 +160,9 @@ class RFRamsey(Sequence):
         ))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("delay", self._delay_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append((detect_name, detect_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append(("break", 1))
 
         if self._repop_repeats > 100:
@@ -158,13 +176,17 @@ class RFRamsey(Sequence):
                 segment_repeats.append((f"repop_{name}", repop_segment_repeat))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("delay", self._delay_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append((detect_name, detect_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append(("break", 1))
 
         segment_repeats.append((f"flop_{self._flop_parameters['transition']}", self._flop_parameters["repeats"]))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("delay", self._delay_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         segment_repeats.append((detect_name, detect_repeats))
+        segment_repeats.append(("delay_with_field_plate_on", 1))
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self) -> int:
