@@ -34,7 +34,7 @@ params = {
     "ao": {
         "channel": 0,
         "frequency": 80 * ureg.MHz,
-        "amplitude": 1200,
+        "amplitude": 2000,
         "detect_amplitude": 140,
     },
 
@@ -53,7 +53,7 @@ params = {
     "burn": {
         "transition": "bb",
         "duration": 5 * ureg.s,
-        "scan": -5 * ureg.MHz,
+        "scan": 5 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
 
@@ -66,12 +66,12 @@ params = {
 
     "flop": {
         "transition": "ab",
-        "step_frequency": 3 * ureg.kHz,
-        "step_time": 1 * ureg.ms,
-        "on_time": 1 * ureg.ms,
+        "step_frequency": 1 * ureg.kHz,
+        "step_time": 0.5 * ureg.ms,
+        "on_time": 0.5 * ureg.ms,
         "amplitude": 6000,  # do not go above 6000.
         "offset": 30 * ureg.kHz,
-        "scan": 30 * ureg.kHz,
+        "scan": 5 * ureg.kHz,
         "repeats": 1,
     },
 
@@ -81,7 +81,7 @@ params = {
         "on_time": 16 * ureg.us,
         "off_time": 8 * ureg.us,
         "delay_time": 600 * ureg.ms,
-        "repeats": 1,
+        "repeats": 200,
         "ttl_detect_offset_time": 4 * ureg.us,
         "ttl_start_time": 12 * ureg.us,
         "ttl_duration": 4 * ureg.us,
@@ -135,7 +135,13 @@ m4i.stop_sequence()
 
 digitizer_data = dg.get_data()
 transmissions = np.array(digitizer_data[0])
+transmissions = np.reshape(transmissions, (4 * params["repeats"], params["detect"]["repeats"], len(transmissions[0])))
+transmissions = np.average(transmissions, axis=1)
+#transmissions = np.reshape(transmissions, (4 * params["repeats"], len(transmissions[0][0])))
 reflections = np.array(digitizer_data[1])
+reflections = np.reshape(reflections, (4 * params["repeats"], params["detect"]["repeats"], len(transmissions[0])))
+reflections = np.average(reflections, axis=1)
+#reflections = np.reshape(reflections, (4 * params["repeats"], len(reflections[0][0])))
 
 photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
 
