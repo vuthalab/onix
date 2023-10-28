@@ -4,7 +4,7 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.units import ureg
 
-from onix.headers.pcie_digitizer import Digitizer
+from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.sequences.rf_ramsey import RFRamsey
@@ -26,47 +26,48 @@ params = {
     "wm_channel": 5,
 
     "digitizer_channel": 0,
+    "field_plate_channel": 1,
     "rf_channel": 2,
 
-    "repeats": 20,
+    "repeats": 5,
 
     "ao": {
         "channel": 0,
         "frequency": 80 * ureg.MHz,
         "amplitude": 2000,
-        "detect_amplitude": 220,
+        "detect_amplitude": 140,
     },
 
     "eo": {
         "channel": 1,
-        "offset": -310 * ureg.MHz,
-        "amplitude": 2800,
+        "offset": 60 * ureg.MHz,
+        "amplitude": 24000,
     },
 
     "detect_ao": {
         "channel": 3,
         "frequency": 80 * ureg.MHz,
-        "amplitude": 2000,
+        "amplitude": 0,
     },
 
     "burn": {
         "transition": "bb",
-        "duration": 3 * ureg.s,
-        "scan": 3 * ureg.MHz,
+        "duration": 5 * ureg.s,
+        "scan": 5 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
 
     "repop": {
         "transitions": ["ca", "ac"],
-        "duration": 1.2 * ureg.s,
+        "duration": 0.6 * ureg.s,
         "scan": 0.3 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
 
     "flop": {
         "transition": "ab",
-        "pulse_time": 0.3 * ureg.ms,
-        "wait_time": 0.2 * ureg.ms,
+        "pulse_time": 0.2 * ureg.ms,
+        "wait_time": 0.0 * ureg.ms,
         "amplitude": 6000,  # do not go above 6000.
         "phase_difference": 0,
         "offset": 30 * ureg.kHz,
@@ -75,11 +76,11 @@ params = {
 
     "detect": {
         "transition": "bb",
-        "detunings": np.linspace(-1.1, 1.1, 31) * ureg.MHz,
+        "detunings": np.linspace(-2.5, 2.5, 51) * ureg.MHz,
         "on_time": 16 * ureg.us,
         "off_time": 8 * ureg.us,
-        "delay_time": 10 * ureg.ms,
-        "repeats": 1,
+        "delay_time": 600 * ureg.ms,
+        "repeats": 200,
         "ttl_detect_offset_time": 4 * ureg.us,
         "ttl_start_time": 12 * ureg.us,
         "ttl_duration": 4 * ureg.us,
@@ -96,6 +97,7 @@ sequence = RFRamsey(
     flop_parameters=params["flop"],
     detect_parameters=params["detect"],
     digitizer_channel=params["digitizer_channel"],
+    field_plate_channel=params["field_plate_channel"],
     rf_channel=params["rf_channel"],
 )
 sequence.setup_sequence()
@@ -103,6 +105,7 @@ sequence.setup_sequence()
 ## setup the awg and digitizer
 m4i.setup_sequence(sequence)
 
+## take data
 sample_rate = 1e8
 dg = Digitizer(False)
 val = dg.configure_system(
@@ -114,17 +117,14 @@ val = dg.configure_system(
 
 acq_params = dg.get_acquisition_parameters()
 
-## take data
 epoch_times = []
 transmissions = None
 reflections = None
-for kk in range(2):
-    m4i.start_sequence()
-    m4i.wait_for_sequence_complete()
 dg.arm_digitizer()
 time.sleep(0.1)
 
 for kk in range(params["repeats"]):
+    print(f"{kk / params['repeats'] * 100:.0f}%")
     m4i.start_sequence()
     epoch_times.append(time.time())
     m4i.wait_for_sequence_complete()
@@ -132,7 +132,11 @@ m4i.stop_sequence()
 
 digitizer_data = dg.get_data()
 transmissions = np.array(digitizer_data[0])
+transmissions = np.reshape(transmissions, (4 * params["repeats"], params["detect"]["repeats"], len(transmissions[0])))
+transmissions = np.average(transmissions, axis=1)
 reflections = np.array(digitizer_data[1])
+reflections = np.reshape(reflections, (4 * params["repeats"], params["detect"]["repeats"], len(transmissions[0])))
+reflections = np.average(reflections, axis=1)
 
 photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
 
