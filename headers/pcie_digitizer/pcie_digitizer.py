@@ -11,7 +11,8 @@ Changed needed:
   * Enable setting external or software triggering using this header file.
   * Code snippets to show how to take data with external and internal triggers.
   * Read correct voltages. Currently the voltages read are not correct.
-  * Investigate crash issues when the digitizer takes data multiple times, or takes a lot of data.
+  * Investigate crash issues when the digitizer takes data multiple times, or takes a lot of data. This may be solved already.
+  * It does not return the number of samples set exactly.
 """
 
 
@@ -313,6 +314,6 @@ class Digitizer:
 
             channel_data.append(segment_data)
 
-        PyGage.FreeSystem(self._handle)
+        #PyGage.FreeSystem(self._handle)
 
         return np.array(channel_data)
