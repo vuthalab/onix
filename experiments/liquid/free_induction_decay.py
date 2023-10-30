@@ -43,12 +43,12 @@ params = {
         "use": True,
         "eo_channel": 1,
         "frequency_excitation": 300 * ureg.MHz,
-        "frequency_coherence": 290 * ureg.MHz,
+        "frequency_coherence": -275 * ureg.MHz,
         "eo_amplitude": 24000,
         "switch_ao_channel": 0,
         "switch_ao_frequency": 80 * ureg.MHz,
-        "switch_ao_amplitude_excitation": 150,
-        "switch_ao_amplitude_coherence": 150,
+        "switch_ao_amplitude_excitation": 1500,
+        "switch_ao_amplitude_coherence": 1000,
     }
 }
 

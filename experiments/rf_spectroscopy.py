@@ -33,7 +33,7 @@ params = {
     "ao": {
         "channel": 0,
         "frequency": 80 * ureg.MHz,
-        "amplitude": 1200,
+        "amplitude": 2000,
         "detect_amplitude": 140,
     },
 
@@ -65,12 +65,12 @@ params = {
 
     "flop": {
         "transition": "ab",
-        "step_frequency": 1 * ureg.kHz,
+        "step_frequency": 2 * ureg.kHz,
         "step_time": 1 * ureg.ms,
         "on_time": 1 * ureg.ms,
         "amplitude": 6000,  # do not go above 6000.
         "offset": 30 * ureg.kHz,
-        "scan": 5 * ureg.kHz,
+        "scan": 20 * ureg.kHz,
         "repeats": 1,
     },
 

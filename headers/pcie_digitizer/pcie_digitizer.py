@@ -18,6 +18,7 @@ Changed needed:
 
 from __future__ import print_function
 import os
+import sys
 from builtins import int
 import platform
 import sys
@@ -26,8 +27,7 @@ from typing import List, Literal, Tuple, Union
 from datetime import datetime
 import numpy as np
 
-
-os.chdir(os.path.expanduser("~") + "/gati-linux-driver/Sdk/Python/")
+sys.path.append(os.path.expanduser("~") + "/gati-linux-driver/Sdk/Python/")
 
 import GageSupport as gs
 import GageConstants as gc

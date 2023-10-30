@@ -40,7 +40,7 @@ params = {
 
     "eo": {
         "channel": 1,
-        "offset": 60 * ureg.MHz,
+        "offset": 50 * ureg.MHz,
         "amplitude": 24000,
     },
 
