@@ -112,6 +112,42 @@ class Segment:
         return self._duration
 
 
+class MultiSegments(Segment):
+    def __init__(self, name: str, segments: List[Segment]):
+        super().__init__(name, duration=None)
+        self._combine_segments(segments)
+
+    def _combine_segments(self, segments: List[Segment]):
+        awg_channels = set()
+        ttl_channels = set()
+        start_times = []
+        end_times = []
+        time_now = 0
+        for segment in segments:
+            start_times.append(time_now)
+            time_now += segment.duration.to("s").magnitude
+            end_times.append(time_now)
+            for awg_channel in segment._awg_pulses:
+                awg_channels.add(awg_channel)
+            for ttl_channel in segment._ttl_pulses:
+                ttl_channels.add(ttl_channel)
+        start_times = np.array(start_times) * ureg.s
+        end_times = np.array(end_times) * ureg.s
+
+        for segment in segments:
+            segment._fill_all_channels(list(awg_channels), list(ttl_channels))
+        for awg_channel in awg_channels:
+            awg_pulse = AWGMultiFunctions(
+                [segment._awg_pulses[awg_channel] for segment in segments], start_times, end_times
+            )
+            self.add_awg_function(awg_channel, awg_pulse)
+        for ttl_channel in ttl_channels:
+            ttl_pulse = TTLMultiFunctions(
+                [segment._ttl_pulses[ttl_channel] for segment in segments], start_times, end_times
+            )
+            self.add_ttl_function(ttl_channel, ttl_pulse)
+
+
 class AWGFunction:
     def output(self, times):
         raise NotImplementedError()
@@ -328,6 +364,32 @@ class AWGSineTrain(AWGFunction):
         )
 
 
+class AWGMultiFunctions(AWGFunction):
+    def __init__(self, functions: List[AWGFunction], start_times: Q_, end_times: Q_):
+        super().__init__()
+        self._functions = functions
+        self._start_times = start_times
+        self._end_times = end_times
+
+    def output(self, times):
+        def zero(times):
+            return np.zeros(len(times))
+
+        funclist = []
+        condlist = []
+        for kk in range(len(self._start_times)):
+            start_time = self._start_times[kk].to("s").magnitude
+            end_time = self._end_times[kk].to("s").magnitude
+            funclist.append(self._functions[kk].output)
+            condlist.append(np.logical_and(times > start_time, times <= end_time))
+        funclist.append(zero)
+        return np.piecewise(times, condlist, funclist)
+
+    @property
+    def min_duration(self) -> Q_:
+        return max(self._end_times)
+
+
 class TTLFunction:
     def output(self, times):
         raise NotImplementedError()
@@ -384,6 +446,32 @@ class TTLPulses(TTLFunction):
     @property
     def min_duration(self) -> Q_:
         return np.max(self._on_times)
+
+
+class TTLMultiFunctions(TTLFunction):
+    def __init__(self, functions: List[TTLFunction], start_times: Q_, end_times: Q_):
+        super().__init__()
+        self._functions = functions
+        self._start_times = start_times
+        self._end_times = end_times
+
+    def output(self, times):
+        def zero(times):
+            return np.zeros(len(times))
+
+        funclist = []
+        condlist = []
+        for kk in range(len(self._start_times)):
+            start_time = self._start_times[kk].to("s").magnitude
+            end_time = self._end_times[kk].to("s").magnitude
+            funclist.append(self._functions[kk].output)
+            condlist.append(np.logical_and(times > start_time, times <= end_time))
+        funclist.append(zero)
+        return np.piecewise(times, condlist, funclist)
+
+    @property
+    def min_duration(self) -> Q_:
+        return max(self._end_times)
 
 
 class SegmentEmpty(Segment):

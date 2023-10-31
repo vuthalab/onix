@@ -7,17 +7,20 @@ from onix.sequences.sequence import (
     AWGSinePulse,
     AWGSineSweep,
     AWGSineTrain,
+    TTLOff,
+    TTLOn,
     TTLPulses,
 )
 
 PIECEWISE_TIME = 10 * ureg.ms
-EO_order = 1
 
 
 def scan_segment(
     name: str,
     ao_parameters: Dict,
     eo_parameters: Dict,
+    field_plate_channel: int,
+    use_field_plate: bool,
     transition: Union[str, None],
     duration: Q_,
     scan: Q_,
@@ -35,12 +38,16 @@ def scan_segment(
         frequency = detuning
     print(name, round(frequency, 2))
     segment = Segment(name, duration)
-    lower = frequency - scan
-    upper = frequency + scan
+    lower = (frequency - scan) / eo_parameters["order"]
+    upper = (frequency + scan) / eo_parameters["order"]
     ao_pulse = AWGSinePulse(ao_parameters["frequency"], ao_parameters["amplitude"])
     segment.add_awg_function(ao_parameters["channel"], ao_pulse)
-    eo_pulse = AWGSineSweep(lower / EO_order, upper / EO_order, eo_parameters["amplitude"], 0, duration)
+    eo_pulse = AWGSineSweep(lower, upper, eo_parameters["amplitude"], 0, duration)
     segment.add_awg_function(eo_parameters["channel"], eo_pulse)
+    if use_field_plate:
+        segment.add_ttl_function(field_plate_channel, TTLOff())
+    else:
+        segment.add_ttl_function(field_plate_channel, TTLOn())
     return (segment, repeats)
 
 
@@ -49,6 +56,8 @@ def detect_segment(
     ao_parameters: Dict,
     eo_parameters: Dict,
     detect_ao_parameters: Dict,
+    field_plate_channel: int,
+    use_field_plate: bool,
     digitizer_channel: int,
     transition: str,
     detect_detunings: Q_,
@@ -74,7 +83,11 @@ def detect_segment(
     segment.add_ttl_function(digitizer_channel, ttl_function)
     start_time = ttl_start_time + ttl_detect_offset_time
     eo_pulse = AWGSineTrain(
-        on_time + off_time, 0 * ureg.s, detect_frequencies / EO_order, eo_amplitude, start_time=start_time
+        on_time + off_time,
+        0 * ureg.s,
+        detect_frequencies / eo_parameters["order"],
+        eo_amplitude,
+        start_time=start_time
     )
     segment.add_awg_function(eo_parameters["channel"], eo_pulse)
 
@@ -92,4 +105,8 @@ def detect_segment(
     segment.add_awg_function(detect_ao_parameters["channel"], detect_ao_pulse)
     segment._duration = segment.duration + ttl_detect_offset_time
     detect_read_time = segment.duration - ttl_start_time
+    if use_field_plate:
+        segment.add_ttl_function(field_plate_channel, TTLOff())
+    else:
+        segment.add_ttl_function(field_plate_channel, TTLOn())
     return (segment, detect_read_time)
