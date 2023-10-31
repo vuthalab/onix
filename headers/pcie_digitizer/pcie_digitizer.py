@@ -27,10 +27,8 @@ from typing import List, Literal, Tuple, Union
 from datetime import datetime
 import numpy as np
 
-sys.path.append(os.path.expanduser("~") + "/gati-linux-driver/Sdk/Python/")
-
-import GageSupport as gs
-import GageConstants as gc
+import onix.headers.pcie_digitizer.GageSupport as gs
+import onix.headers.pcie_digitizer.GageConstants as gc
 import platform
 
 

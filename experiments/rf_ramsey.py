@@ -11,8 +11,8 @@ from onix.sequences.rf_ramsey import RFRamsey
 import matplotlib.pyplot as plt
 import sys
 
-phase = float(sys.argv[1])
-#phase = 0
+#phase = float(sys.argv[1])
+phase = 0
 
 wavemeter = WM()
 
@@ -33,7 +33,7 @@ params = {
     "field_plate_channel": 1,
     "rf_channel": 2,
 
-    "repeats": 20,
+    "repeats": 2,
 
     "ao": {
         "channel": 0,
@@ -115,8 +115,8 @@ sample_rate = 1e8
 dg = Digitizer(False)
 val = dg.configure_system(
     mode=2,
-    sample_rate=sample_rate,
-    segment_size=int(sequence.detect_time.to("s").magnitude * sample_rate),
+    sample_rate=int(sample_rate),
+    segment_size=64,
     segment_count=sequence.num_of_records(),
 )
 
