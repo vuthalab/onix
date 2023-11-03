@@ -8,11 +8,11 @@ Last Updated by: Daniel Stedman
 Last Update: 10/19/23
 
 Changed needed:
-  * Enable setting external or software triggering using this header file.
-  * Code snippets to show how to take data with external and internal triggers.
+  * Enable setting external or software triggering using this header file. (solved)
+  * Code snippets to show how to take data with external and internal triggers. (solved)
   * Read correct voltages. Currently the voltages read are not correct.
-  * Investigate crash issues when the digitizer takes data multiple times, or takes a lot of data. This may be solved already.
-  * It does not return the number of samples set exactly.
+  * Investigate crash issues when the digitizer takes data multiple times, or takes a lot of data. (solved)
+  * It does not return the number of samples set exactly. (solved)
 """
 import os
 import sys
@@ -142,8 +142,9 @@ class Digitizer:
         overflow = segment_size % 16
         if overflow > 0:
             segment_size = segment_size + 16 - overflow
-
-        self.overflow = 16 - overflow
+            self.overflow = 16 - overflow
+        else:
+            self.overflow = 0
 
         acq["Mode"] = mode
 
@@ -191,7 +192,7 @@ class Digitizer:
         missing_parameters = False
         for i in range(1, self._system_info["ChannelCount"] + 1, channel_increment):
             chan, sts = gs.LoadChannelConfiguration(self._handle, i, filename)
-            chan["InputRange"] = 2 * voltage_range
+            chan["InputRange"] = int(2 * voltage_range)
             self._chan.append(chan)
             if isinstance(chan, dict) and chan:
                 status = PyGage.SetChannelConfig(self._handle, i, chan)
@@ -211,28 +212,6 @@ class Digitizer:
             )
 
         missing_parameters = False
-
-        """
-        trigger_count = 1
-        for i in range(1, trigger_count + 1):
-            trig, sts = gs.LoadTriggerConfiguration(self._handle, i, filename)
-            if isinstance(trig, dict) and trig:
-                status = PyGage.SetTriggerConfig(self._handle, i, trig)
-                if status < 0:
-                    return status
-            else:
-                print("Using default parameters for trigger ", i)
-
-            if sts == gs.PARAMETERS_MISSING:
-                missing_parameters = True
-
-        if missing_parameters:
-            print(
-                "One or more trigger parameters missing, using defaults for missing values"
-            )
-
-        self._trig = trig
-        """
 
         status = PyGage.Commit(self._handle)
 
@@ -258,27 +237,40 @@ class Digitizer:
         - edge: rising or falling
         - level: trigger level as a percent of trigger range
         - source: external or internal
-        - range: maximum trigger voltage
+        - range: maximum trigger voltage in volts
         - impedance: 50 Ohm or 1 MOhm
+
+        Example: to external trigger
+        dg = Digitizer()
+        val = dg.configure_system(...)
+        val = dg.configure_trigger(
+            edge = 'falling',
+            level = 40,
+            source = 'external',
+            range = 3,
+            impedance = 50,
+            coupling = 'DC'
+            )
+        
+        To set software trigger, set source = 'software'. All other params will be ignored if on software trigger. 
         """
 
         filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
         trig, sts = gs.LoadTriggerConfiguration(self._handle, 1, filename)
 
-        if edge is not None:
-            if edge == "rising":
-                trig['Condition'] = 1
-            elif edge == "falling":
-                trig['Condition'] = 0
+    
+        if edge == "rising":
+            trig['Condition'] = 1
+        elif edge == "falling":
+            trig['Condition'] = 0
 
         if level is not None:
             trig['Level'] = level
 
-        if source is not None:
-            if source == 'software':
-                trig['Source'] = 0
-            elif source == "external":
-                trig['Source'] = -1
+        if source == 'software':
+            trig['Source'] = 0
+        elif source == "external":
+            trig['Source'] = -1
 
         if range is not None:
             trig['ExtRange'] = range * 2 * 10**3
@@ -286,11 +278,10 @@ class Digitizer:
         if impedance is not None:
             trig['ExtImpedance'] = impedance
 
-        if coupling is not None:
-            if coupling == 'AC':
-                trig['ExtCoupling'] = 2
-            elif coupling == 'DC':
-                trig['ExtCoupling'] = 1
+        if coupling == 'AC':
+            trig['ExtCoupling'] = 2
+        elif coupling == 'DC':
+            trig['ExtCoupling'] = 1
 
 
         missing_parameters = False
@@ -329,7 +320,7 @@ class Digitizer:
     def get_channel_parameters(self, chan: Literal[1, 2]):
         """return the current channel parameters of the digitizer, if they're available"""
         try:
-            return PyGage.GetChannelConfig(self._handle), chan
+            return PyGage.GetChannelConfig(self._handle, chan)
         except Exception as e:
             print("Error getting channel parameters. Code: ", e)
 
@@ -380,7 +371,7 @@ class Digitizer:
 
                 data = np.array(data[0])
 
-                data = data[0 : acq["Depth"] - self.overflow] #this line here should fix the overflow issue, not sure why it would still save all the extra data
+                data = data[0 : acq["Depth"] - self.overflow] 
 
                 Vrange = (self._chan[i]["InputRange"] / 2) * 1e-3
 

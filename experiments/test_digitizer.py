@@ -19,29 +19,34 @@ def trigger():
 
 dg = Digitizer(False)
 val = dg.configure_system(
-    mode=1,
+    mode=0,
     sample_rate=int(1e8),
-    segment_size=4080,
+    segment_size=4090,
     segment_count=1,
+    voltage_range = 1000,
 )
 
-"""
+
 val = dg.configure_trigger(
     edge = 'falling',
     level = 40,
-    source = 'software',
-    range = 5,
+    source = 'external',
+    range = 3,
     impedance = 50,
-    coupling = 'AC'
 )
-"""
-val = dg.configure_trigger(source = 'software')
 
 def test_sequence():
-    set_channel_output(0.5)
     dg.arm_digitizer()
     time.sleep(1)
-    data = dg.get_data()
+    trigger()
+    set_channel_output(2.0)
+    time.sleep(1)
+    digitizer_data = dg.get_data()
     set_channel_output(0)
+    data = np.array(digitizer_data[0]).flatten().tolist()
+    data = [2*i/(1.54150390625 * dg.get_channel_parameters(1)['InputRange'] * 1e-3) for i in data]
+    print(max(data))
     return data
+
+
 
