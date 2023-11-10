@@ -1,0 +1,62 @@
+import numpy as np
+import time
+import matplotlib.pyplot as plt
+
+from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
+from onix.headers.awg.M4i6622 import M4i6622
+import onix.headers.pcie_digitizer.GageSupport as gs
+
+m4i = M4i6622()
+m4i.start_sine_outputs()
+
+###
+def set_channel_output(amplitude_V):
+    m4i.set_sine_output(0, 1e5, amplitude_V / 2.5 * 32768)
+
+def trigger():
+    m4i.set_ttl_output(0, True)
+    time.sleep(0.01)
+    m4i.set_ttl_output(0, False)
+
+
+dg = Digitizer(False)
+val = dg.configure_system(
+    mode=1,
+    sample_rate=int(1e8),
+    segment_size=5000,
+    segment_count=1,
+    voltage_range = 2000
+)
+
+
+val = dg.configure_trigger(
+    edge = 'rising',
+    level = 30,
+    source = -1,
+    coupling = 1,
+    range = 10000
+)
+
+def test_sequence():
+    dg.arm_digitizer()
+    time.sleep(1)
+    set_channel_output(0.3)
+    trigger()
+    time.sleep(1)
+    digitizer_data = dg.get_data()
+    set_channel_output(0)
+    return digitizer_data
+
+
+##
+
+data = np.array(test_sequence()[0][0])
+
+plt.plot(data)
+plt.show()
+
+##
+filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
+acq, sts = gs.LoadChannelConfiguration(dg._handle, filename)
+
+
