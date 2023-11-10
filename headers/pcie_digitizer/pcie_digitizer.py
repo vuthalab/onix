@@ -2,7 +2,8 @@
 PCIE Digitizer Header file,
 
 
-Pretty basic as of now
+Everything working. Enables you do set the aquisition parameters and the trigger parameters.
+The only thing not working is the +-1V setting for the aquisition system, for whatever reason there is an extra factor of 2 added to everything
 
 Last Updated by: Daniel Stedman
 Last Update: 10/19/23
@@ -118,16 +119,16 @@ class Digitizer:
         segment_size: Union[int, None] = None,
         segment_count: Union[int, None] = None,
         trigger_holdoff: int = 0,
-        voltage_range: Literal[100, 200, 500, 1000, 2000, 5000] = 2000,):
+        voltage_range: Literal[100, 200, 500, 2000, 5000] = 2000,):
         """Configure the acquisition and trigger parameters of the digitizer
 
         Parameters:
             - mode: 1 for single channel, 2 for dual channel.
             - sample_rate: integer for the sample rate. Must be in [100MS/s, 65MS/s, 50MS/s, 40MS/s, 25MS/s, 20MS/s, 10MS/s, 5MS/s, 2MS/s, 1MS/s]
             - segment_size: The amount of samples taken per segment after the digitizer has been triggered.
-            - segment_count: The total number of segments the digitizer expects to (total number of triggers too).
+            - segment_count: The total number of segments the digitizer expects.
             - trigger_holdoff: number of samples after a trigger before digitizer can be triggered again.
-            - voltage_range: voltage range in volts. Must be in [100mV, 200mV, 500mV, 1V, 2V, 5V]
+            - voltage_range: voltage range in volts. This specifies the max AMPLITUDE of the input voltage, not peak to peak. Allowed values are [100,200,500,2000,5000] for whatever reason 1000 doesnt work :/
 
         The other parameters can be changed by looking at the default parameters file at the filename location
         This method can be run multiple times to change the configuration of the digitizer before starting acquisition.
@@ -192,7 +193,7 @@ class Digitizer:
         missing_parameters = False
         for i in range(1, self._system_info["ChannelCount"] + 1, channel_increment):
             chan, sts = gs.LoadChannelConfiguration(self._handle, i, filename)
-            chan["InputRange"] = int(2 * voltage_range)
+            chan["InputRange"] = int(2*voltage_range)
             self._chan.append(chan)
             if isinstance(chan, dict) and chan:
                 status = PyGage.SetChannelConfig(self._handle, i, chan)
@@ -223,10 +224,10 @@ class Digitizer:
     def configure_trigger(
         self,
         edge: Literal["rising", "falling"] = "rising",
-        level: int = 50,
-        source: Literal["external", "software"] = "software",
-        range: int = 5,
-        impedance: Literal[50,1000000] = 50,
+        level: int = 30,
+        source: Literal["external", "software"] = "external",
+        range: int = 10000,
+        impedance: Literal[50,1000000] = 1000000,
         coupling: Literal['AC', 'DC'] = 'DC',
         ):
 
@@ -235,7 +236,7 @@ class Digitizer:
 
         Parameters:
         - edge: rising or falling
-        - level: trigger level as a percent of trigger range
+        - level: trigger level as a percent of input range
         - source: external or internal
         - range: maximum trigger voltage in volts
         - impedance: 50 Ohm or 1 MOhm
@@ -251,14 +252,14 @@ class Digitizer:
             impedance = 50,
             coupling = 'DC'
             )
-        
-        To set software trigger, set source = 'software'. All other params will be ignored if on software trigger. 
+
+        To set software trigger, set source = 'software'. All other params will be ignored if on software trigger.
         """
 
         filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
         trig, sts = gs.LoadTriggerConfiguration(self._handle, 1, filename)
 
-    
+
         if edge == "rising":
             trig['Condition'] = 1
         elif edge == "falling":
@@ -273,7 +274,7 @@ class Digitizer:
             trig['Source'] = -1
 
         if range is not None:
-            trig['ExtRange'] = range * 2 * 10**3
+            trig['ExtRange'] = int(range)
 
         if impedance is not None:
             trig['ExtImpedance'] = impedance
@@ -371,11 +372,9 @@ class Digitizer:
 
                 data = np.array(data[0])
 
-                data = data[0 : acq["Depth"] - self.overflow] 
+                data = data[0 : acq["Depth"] - self.overflow]
 
-                Vrange = (self._chan[i]["InputRange"] / 2) * 1e-3
-
-                data = data / 2**13 * Vrange
+                data = (data / 2**16) * (self._chan[i]['InputRange'] * 1e-3)
 
                 segment_data.append(data)
 
@@ -386,3 +385,8 @@ class Digitizer:
         #PyGage.FreeSystem(self._handle)
 
         return np.array(channel_data)
+
+
+
+
+
