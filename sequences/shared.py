@@ -1,9 +1,10 @@
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 from onix.models.hyperfine import energies
 from onix.units import Q_, ureg
 from onix.sequences.sequence import (
     Segment,
+    MultiSegments,
     AWGSinePulse,
     AWGSineSweep,
     AWGSineTrain,
@@ -13,6 +14,73 @@ from onix.sequences.sequence import (
 )
 
 PIECEWISE_TIME = 10 * ureg.ms
+
+
+def chasm_segment(
+    name: str,
+    ao_parameters: Dict,
+    eo_parameters: Dict,
+    field_plate_parameters: Dict,
+    transition: str,
+    scan: Q_,
+    scan_rate: Q_,
+    detuning: Q_ = 0 * ureg.Hz,
+):
+    duration = scan / scan_rate
+    if not field_plate_parameters["use"]:
+        return scan_segment(
+            name,
+            ao_parameters,
+            eo_parameters,
+            field_plate_parameters["channel"],
+            not field_plate_parameters["on_polarity"],
+            transition,
+            duration,
+            scan,
+            detuning,
+        )
+    else:
+        segment_repeats = [
+            scan_segment(
+                name,
+                ao_parameters,
+                eo_parameters,
+                field_plate_parameters["channel"],
+                field_plate_parameters["on_polarity"],
+                transition,
+                duration,
+                scan,
+                detuning + field_plate_parameters["stark_shift"] * polarity,
+            ) for polarity in [-1, 1]
+        ]
+        segment = MultiSegments(name, [segment for (segment, repeats) in segment_repeats])
+        return (segment, segment_repeats[0][1])
+
+
+def antihole_segment(
+    name: str,
+    ao_parameters: Dict,
+    eo_parameters: Dict,
+    field_plate_parameters: Dict,
+    transitions: List[str],
+    duration: Q_,
+    detuning: Q_ = 0 * ureg.Hz,
+):
+    segment_repeats = [
+        scan_segment(
+            name,
+            ao_parameters,
+            eo_parameters,
+            field_plate_parameters["channel"],
+            not field_plate_parameters["on_polarity"],
+            transition,
+            duration,
+            0 * ureg.Hz,
+            detuning,
+        ) for transition in transitions
+    ]
+    segment = MultiSegments(name, [segment for (segment, repeats) in segment_repeats])
+    return (segment, segment_repeats[0][1])
 
 
 def scan_segment(
@@ -56,8 +124,7 @@ def detect_segment(
     ao_parameters: Dict,
     eo_parameters: Dict,
     detect_ao_parameters: Dict,
-    field_plate_channel: int,
-    use_field_plate: bool,
+    field_plate_parameters: Dict,
     digitizer_channel: int,
     transition: str,
     detect_detunings: Q_,
@@ -105,8 +172,8 @@ def detect_segment(
     segment.add_awg_function(detect_ao_parameters["channel"], detect_ao_pulse)
     segment._duration = segment.duration + ttl_detect_offset_time
     detect_read_time = segment.duration - ttl_start_time
-    if use_field_plate:
-        segment.add_ttl_function(field_plate_channel, TTLOff())
+    if field_plate_parameters["use"] and field_plate_parameters["on_polarity"]:
+        segment.add_ttl_function(field_plate_parameters["channel"], TTLOff())
     else:
-        segment.add_ttl_function(field_plate_channel, TTLOn())
+        segment.add_ttl_function(field_plate_parameters["channel"], TTLOn())
     return (segment, detect_read_time)
