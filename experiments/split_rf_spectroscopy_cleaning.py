@@ -21,8 +21,8 @@ def wavemeter_frequency():
 
 m4i = M4i6622()
 
-flop_time = float(sys.argv[1])
-print(flop_time)
+#offset = float(sys.argv[1])
+#print(offset)
 
 ## parameters
 
@@ -71,10 +71,10 @@ params = {
     "flop": {
         "transition": "ab",
         "step_frequency": 5 * ureg.kHz,
-        "step_time": 1 * ureg.ms,
-        "on_time": flop_time * ureg.us,
+        "step_time": 0.5 * ureg.ms,
+        "on_time": 0.5 * ureg.ms,
         "amplitude": 6000,  # do not go above 6000.
-        "offset": 95 * ureg.kHz,
+        "offset": 0 * ureg.kHz,
         "scan": 1 * ureg.kHz,
         "repeats": 1,
     },
@@ -114,19 +114,43 @@ m4i.setup_sequence(sequence)
 ##
 
 def data_cleaning(data, sample_rate):
-    delay_time = params["detect"]["delay_time"]
-    on_time = params["detect"]["on_time"]
-    off_time = params["detect"]["on_time"]
+    delay_time = params["detect"]["ttl_detect_offset_time"].to('s').magnitude
+    on_time = params["detect"]["on_time"].to('s').magnitude
+    off_time = params["detect"]["off_time"].to('s').magnitude
+    steps = len(params["detect"]["detunings"])
 
-    rise_delay = 2e-6
+    rise_delay = 3e-6
     fall_delay = 1e-6
 
-    data_width = on_time - rise_delay - fall_delay
+    data_width = int((on_time - rise_delay - fall_delay)*sample_rate)
 
-    start_index = delay_time + rise_delay * sample_rate
-    #stop_index = start_index +
+    start_index = int((delay_time + rise_delay) * sample_rate)
+    stop_index = start_index + data_width
 
+    mask = np.ones_like(data[0])
 
+    for i in range(steps):
+        first_index = start_index + i * (int((fall_delay + off_time + rise_delay) * sample_rate) + data_width)
+        last_index = first_index + data_width
+
+        mask[first_index : last_index] = 0
+
+    means = []
+    errs = []
+    for run in data:
+        masked = np.ma.masked_array(run, mask).compressed()
+        split = np.split(masked, steps)
+
+        mean = np.mean(split, axis=1)
+        err = np.std(split, axis=1) / np.sqrt(len(split[0]))
+
+        means.append(mean)
+        errs.append(err)
+
+    sorted = np.reshape(means, (4 * params["repeats"], params["detect"]["repeats"], steps))
+    sortederrs = np.reshape(errs, (4 * params["repeats"], params["detect"]["repeats"], steps))
+
+    return sorted, sortederrs
 
 
 
@@ -169,19 +193,21 @@ for kk in range(params["repeats"]):
 m4i.stop_sequence()
 
 digitizer_data = dg.get_data()
-transmissions = np.array(digitizer_data[0])
-transmissions = np.reshape(transmissions, (4 * params["repeats"], params["detect"]["repeats"], len(transmissions[0])))
-transmissions = np.average(transmissions, axis=1)
-#transmissions = np.reshape(transmissions, (4 * params["repeats"], len(transmissions[0][0])))
-reflections = np.array(digitizer_data[1])
-reflections = np.reshape(reflections, (4 * params["repeats"], params["detect"]["repeats"], len(transmissions[0])))
-reflections = np.average(reflections, axis=1)
-#reflections = np.reshape(reflections, (4 * params["repeats"], len(reflections[0][0])))
 
-photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
+##
+
+transmissions = np.array(digitizer_data[0])
+reflections = np.array(digitizer_data[1])
+
+transmission_means, transmission_errs = data_cleaning(transmissions, sample_rate)
+
+reflection_means, reflection_errs = data_cleaning(reflections, sample_rate)
 
 ## plot
-#plt.plot(photodiode_times, np.transpose(photodiode_voltages)); plt.legend(); plt.show();
+#plt.plot(digitizer_data[0][100])
+plt.errorbar(params["detect"]["detunings"], means[3][0]/reflection_means[3][0], errs[3][0], fmt='.')
+
+plt.show()
 
 ## save data
 data = {
