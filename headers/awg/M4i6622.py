@@ -32,7 +32,7 @@ class M4i6622:
         m4i.set_sine_output(channel, frequency, amplitude)  # sets a channel to output a sine wave.
         m4i.set_ttl_output(channel, state)  # sets a TTL channel to be on or off.
         m4i.start_sine_outputs()  # starts the output.
-        m4i.stop_sine_outputs()  # stops the output. 
+        m4i.stop_sine_outputs()  # stops the output.
         # The set_sine_output and set_ttl_output functions can be called at any time.
         # If called when the sine outputs are on, the output will change within a few ms.
 
@@ -114,7 +114,7 @@ class M4i6622:
         self._set_sine_segment()
         self.setup_sequence(Sequence())
 
-    # device methods   
+    # device methods
     def _get_bytes_per_sample(self) -> int:
         value = pyspcm.int32(0)
         ret = pyspcm.spcm_dwGetParam_i32(
@@ -287,7 +287,7 @@ class M4i6622:
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get data ready to transfer failed with code {ret}.")
         return value.value
-        
+
     def _set_data_ready_to_transfer(self, data_bytes: int):
         ret = pyspcm.spcm_dwSetParam_i32(
             self._hcard, pyspcm.SPC_DATA_AVAIL_CARD_LEN, pyspcm.int32(data_bytes)
@@ -464,7 +464,7 @@ class M4i6622:
         end: Literal["end_loop", "end_loop_on_trig", "end_sequence"] = "end_loop",
     ):
         """Sets the parameters for a sequence step.
-        
+
         For some reason that the last "end_sequnce" step always don't output.
         Adding a short, empty step at the end solves the problem.
         """
@@ -662,3 +662,10 @@ class M4i6622:
     def get_and_clear_error(self):
         """Get and clear the error."""
         print(self._get_error_information())
+
+    """
+    def replace_segment(self, new_segment_name, old_segment_name):
+        segments = self._current_sequence.segments
+        index_to_replace = segments.index(old_segment_name)
+        self._write_segment(index_to_replace, new_segment_name)
+    """
