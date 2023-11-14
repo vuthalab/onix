@@ -28,14 +28,14 @@ params = {
 
     "pump": {
         "duration": 1 * ureg.s,
-        "ao_amplitude": 0,
-        "eo_amplitude": 24000,
+        "ao_amplitude": 2400,
+        "eo_amplitude": 3400,
     },
 
     "probe": {
         "duration": 1 * ureg.s,
         "ao_amplitude": 550,
-        "eo_amplitude": 24000,
+        "eo_amplitude": 3400,
         "eo_modulation": True,
         "modulation_time": 5 * ureg.us,
     },
@@ -61,8 +61,7 @@ probe.add_awg_function(params["ao"]["channel"], ao_probe)
 if params["probe"]["eo_modulation"]:
     probe_inner_repeats = int((SEG_TIME / params["probe"]["modulation_time"]).to("").magnitude)
     amplitudes = [params["probe"]["eo_amplitude"] for kk in range(probe_inner_repeats)]
-    frequencies = Q_.from_list([params["eo"]["frequency"] if kk % 2 == 0 else params["eo"]["frequency"] + 20 * ureg.MHz for kk in range(probe_inner_repeats)])
-    print(len(frequencies), len(amplitudes))
+    frequencies = Q_.from_list([params["eo"]["frequency"] if kk % 2 == 0 else params["eo"]["frequency"] + 50 * ureg.MHz for kk in range(probe_inner_repeats)])
     eo_probe = AWGSineTrain(
         params["probe"]["modulation_time"],
         0 * ureg.s,
@@ -122,7 +121,7 @@ reflections = np.array(digitizer_data[1])
 
 photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
 
-n = 10
+n = sample_rate // int(1e6)
 photodiode_times = np.mean(np.array(photodiode_times).reshape(-1, n), axis=1)
 transmissions = np.mean(transmissions.reshape(params["repeats"] * probe_repeats, -1, n), axis=2)
 reflections = np.mean(reflections.reshape(params["repeats"] * probe_repeats, -1, n), axis=2)
