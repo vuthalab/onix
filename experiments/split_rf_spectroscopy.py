@@ -21,8 +21,11 @@ def wavemeter_frequency():
 
 m4i = M4i6622()
 
-flop_time = float(sys.argv[1])
-print(flop_time)
+#flop_time = float(sys.argv[1])
+#print(flop_time)
+
+#offset = float(sys.argv[1])
+#print(offset)
 
 ## parameters
 
@@ -33,19 +36,19 @@ params = {
     "field_plate_channel": 1,
     "rf_channel": 2,
 
-    "repeats": 5,
+    "repeats": 3,
 
     "ao": {
         "channel": 0,
         "frequency": 80 * ureg.MHz,
-        "amplitude": 1800,
-        "detect_amplitude": 600,
+        "amplitude": 2400,
+        "detect_amplitude": 400,
     },
 
     "eo": {
         "channel": 1,
         "offset": -300 * ureg.MHz,
-        "amplitude": 24000,
+        "amplitude": 0,
     },
 
     "detect_ao": {
@@ -56,7 +59,7 @@ params = {
 
     "burn": {
         "transition": "bb",
-        "duration": 7 * ureg.s,
+        "duration": 1 * ureg.s,
         "scan": 5 * ureg.MHz,
         "detuning": 0 * ureg.MHz,
     },
@@ -72,9 +75,9 @@ params = {
         "transition": "ab",
         "step_frequency": 5 * ureg.kHz,
         "step_time": 1 * ureg.ms,
-        "on_time": flop_time * ureg.us,
+        "on_time": 50 * ureg.us,
         "amplitude": 6000,  # do not go above 6000.
-        "offset": 95 * ureg.kHz,
+        "offset": 0 * ureg.kHz,
         "scan": 1 * ureg.kHz,
         "repeats": 1,
     },
@@ -84,7 +87,7 @@ params = {
         "detunings": np.linspace(-2.5, 2.5, 51) * ureg.MHz,
         "on_time": 16 * ureg.us,
         "off_time": 8 * ureg.us,
-        "delay_time": 300 * ureg.ms,
+        "delay_time": 30 * ureg.ms,
         "repeats": 200,
         "ttl_detect_offset_time": 4 * ureg.us,
         "ttl_start_time": 12 * ureg.us,
