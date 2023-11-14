@@ -27,15 +27,15 @@ params = {
     },
 
     "pump": {
-        "duration": 1 * ureg.s,
+        "duration": 10 * ureg.s,
         "ao_amplitude": 2400,
-        "eo_amplitude": 3400,
+        "eo_amplitude": 24000,
     },
 
     "probe": {
         "duration": 1 * ureg.s,
         "ao_amplitude": 550,
-        "eo_amplitude": 3400,
+        "eo_amplitude": 24000,
         "eo_modulation": True,
         "modulation_time": 5 * ureg.us,
     },
