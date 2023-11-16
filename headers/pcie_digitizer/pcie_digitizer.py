@@ -119,6 +119,7 @@ class Digitizer:
         segment_size: Union[int, None] = None,
         segment_count: Union[int, None] = None,
         trigger_holdoff: int = 0,
+        trigger_time_out: int = -1,
         voltage_range: Literal[100, 200, 500, 2000, 5000] = 2000,):
         """Configure the acquisition and trigger parameters of the digitizer
 
@@ -129,36 +130,47 @@ class Digitizer:
             - segment_count: The total number of segments the digitizer expects.
             - trigger_holdoff: number of samples after a trigger before digitizer can be triggered again.
             - voltage_range: voltage range in volts. This specifies the max AMPLITUDE of the input voltage, not peak to peak. Allowed values are [100,200,500,2000,5000] for whatever reason 1000 doesnt work :/
+            - trigger_time_out: how long to wait before the driver forces a trigger event, in units of 100ns, default is -1 which means wait indefinitely
 
         The other parameters can be changed by looking at the default parameters file at the filename location
         This method can be run multiple times to change the configuration of the digitizer before starting acquisition.
 
         This filename is dependent on where you store the file, create your own if you're using this header file and put the path here.
         """
+        self.mode = mode
+        self.sample_rate = sample_rate
+        self.segment_count = segment_count
+        self.trigger_holdoff = trigger_holdoff
+        self.voltage_range = voltage_range
+        self.segment_size = segment_size
 
         filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
 
         acq, sts = gs.LoadAcquisitionConfiguration(self._handle, filename)
 
-        overflow = segment_size % 16
-        if overflow > 0:
-            segment_size = segment_size + 16 - overflow
-            self.overflow = 16 - overflow
-        else:
-            self.overflow = 0
+        if segment_size is not None:
+            overflow = segment_size % 16
+            if overflow > 0:
+                segment_size = segment_size + 16 - overflow
+                self.overflow = 16 - overflow
+            else:
+                self.overflow = 0
 
-        acq["Mode"] = mode
+            self.segment_size = segment_size
+
+        acq["Mode"] = self.mode
 
         """ Setting parameters if they've been changed manually """
-        if sample_rate is not None:
-            acq["SampleRate"] = sample_rate
-        if segment_size is not None:
-            acq["SegmentSize"] = segment_size
-        if segment_size is not None:
-            acq["Depth"] = segment_size
-        if segment_count is not None:
-            acq["SegmentCount"] = segment_count
-        acq["TriggerHoldoff"] = trigger_holdoff
+        if self.sample_rate is not None:
+            acq["SampleRate"] = self.sample_rate
+        if self.segment_size is not None:
+            acq["SegmentSize"] = self.segment_size
+        if self.segment_size is not None:
+            acq["Depth"] = self.segment_size
+        if self.segment_count is not None:
+            acq["SegmentCount"] = self.segment_count
+        acq["TriggerHoldoff"] = self.trigger_holdoff
+        acq['TriggerTimeout'] = trigger_time_out
 
         self._acq = acq
         self._sts = sts
@@ -270,7 +282,19 @@ class Digitizer:
 
         if source == 'software':
             trig['Source'] = 0
+            self.configure_system(
+                mode = self.mode,
+                sample_rate = self.sample_rate,
+                segment_count = self.segment_count,
+                trigger_holdoff = self.trigger_holdoff,
+                trigger_time_out = 1,
+                voltage_range = self.voltage_range)
+                #this just sets the trigger time out to 1, so after 100ns the software will force a trigger
+
         elif source == "external":
+            trig['Source'] = -1
+        else:
+            print("Invalid trigger source. Using defaults.")
             trig['Source'] = -1
 
         if range is not None:
@@ -340,13 +364,16 @@ class Digitizer:
         filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
 
         mode = PyGage.GetAcquisitionConfig(self._handle)["Mode"]
+
         app, sts = gs.LoadApplicationConfiguration(filename)
 
         channel_increment = gs.CalculateChannelIndexIncrement(
             mode, self._system_info["ChannelCount"], self._system_info["BoardCount"]
         )
 
+
         acq = PyGage.GetAcquisitionConfig(self._handle)
+
 
         min_start_address = acq["TriggerDelay"] + acq["Depth"] - acq["SegmentSize"]
         if app["StartPosition"] < min_start_address:
