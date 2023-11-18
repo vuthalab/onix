@@ -118,12 +118,12 @@ sequence.setup_sequence()
 ## Digitizer setup
 
 T = params["detect"]["sample_time"]
-sample_rate = int(1e8)
+sample_rate = int(1e7)
 segment_size = int(T * sample_rate)
-segment_count = 10
+segment_count = 1
 dg = Digitizer(False)
 val = dg.configure_system(
-    mode = 1,
+    mode = 2,
     sample_rate = sample_rate,
     segment_size = segment_size,
     segment_count = segment_count,
@@ -133,19 +133,14 @@ val = dg.configure_system(
 val = dg.configure_trigger(
     edge = 'rising',
     level = 30,
-    source =-1,
-    coupling = 1,
+    source = "external",
+    coupling = "DC",
     range = 10000
 )
 
 ##
 
 m4i.setup_sequence(sequence)
-
-for kk in range(0):
-    m4i.start_sequence()
-    m4i.wait_for_sequence_complete()
-
 dg.arm_digitizer()
 
 
@@ -156,14 +151,15 @@ for i in tqdm(range(segment_count)):
 
 m4i.stop_sequence()
 
-Vs = dg.get_data()[0]
+Vt = dg.get_data()[0]
+Vm = dg.get_data()[1]
 
 ##
 
-Vavg = np.mean(Vs, axis=0)
+Vavg = np.mean(Vt, axis=0)
 
-#plt.plot(np.arange(0,len(Vavg))/1e8, Vs[0])
-plt.plot(np.arange(0,len(Vavg))/1e8, Vavg)
+plt.plot(np.arange(0,len(Vavg))/sample_rate, Vt[0])
+plt.plot(np.arange(0,len(Vavg))/sample_rate, Vm[0])
 
 plt.xlabel("Time (s)")
 plt.ylabel("Transmissions voltage (V)")
