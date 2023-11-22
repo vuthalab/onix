@@ -21,19 +21,19 @@ def chasm_segment(
     ao_parameters: Dict,
     eo_parameters: Dict,
     field_plate_parameters: Dict,
+    chasm_parameters: Dict,
     transition: str,
     scan: Q_,
     scan_rate: Q_,
     detuning: Q_ = 0 * ureg.Hz,
 ):
+    transition = chasm_parameters["transition"]
     duration = scan / scan_rate
     if not field_plate_parameters["use"]:
         return scan_segment(
             name,
             ao_parameters,
             eo_parameters,
-            field_plate_parameters["channel"],
-            not field_plate_parameters["on_polarity"],
             transition,
             duration,
             scan,
@@ -45,8 +45,6 @@ def chasm_segment(
                 name,
                 ao_parameters,
                 eo_parameters,
-                field_plate_parameters["channel"],
-                field_plate_parameters["on_polarity"],
                 transition,
                 duration,
                 scan,
@@ -61,7 +59,6 @@ def antihole_segment(
     name: str,
     ao_parameters: Dict,
     eo_parameters: Dict,
-    field_plate_parameters: Dict,
     transitions: List[str],
     duration: Q_,
     detuning: Q_ = 0 * ureg.Hz,
@@ -71,8 +68,6 @@ def antihole_segment(
             name,
             ao_parameters,
             eo_parameters,
-            field_plate_parameters["channel"],
-            not field_plate_parameters["on_polarity"],
             transition,
             duration,
             0 * ureg.Hz,
@@ -87,8 +82,6 @@ def scan_segment(
     name: str,
     ao_parameters: Dict,
     eo_parameters: Dict,
-    field_plate_channel: int,
-    use_field_plate: bool,
     transition: Union[str, None],
     duration: Q_,
     scan: Q_,
@@ -112,10 +105,6 @@ def scan_segment(
     segment.add_awg_function(ao_parameters["channel"], ao_pulse)
     eo_pulse = AWGSineSweep(lower, upper, eo_parameters["amplitude"], 0, duration)
     segment.add_awg_function(eo_parameters["channel"], eo_pulse)
-    if use_field_plate:
-        segment.add_ttl_function(field_plate_channel, TTLOff())
-    else:
-        segment.add_ttl_function(field_plate_channel, TTLOn())
     return (segment, repeats)
 
 
