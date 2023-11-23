@@ -1,15 +1,11 @@
 from typing import Any
 
-from onix.sequences.sequence import (
-    AWGSinePulse,
-    Sequence,
-    Segment,
-    SegmentEmpty,
-    TTLOn,
-)
-from onix.sequences.shared import chasm_segment, antihole_segment, detect_segment
 from onix.models.hyperfine import energies
-from onix.units import Q_, ureg
+from onix.sequences.sequence import (AWGSinePulse, Segment, SegmentEmpty,
+                                     Sequence, TTLOn)
+from onix.sequences.shared import (antihole_segment, chasm_segment,
+                                   detect_segment)
+from onix.units import ureg
 
 
 class RFSpectroscopy(Sequence):
@@ -58,14 +54,14 @@ class RFSpectroscopy(Sequence):
             self._ao_parameters,
             self._eos_parameters,
             self._field_plate_parameters,
-            self._detect_parameters
+            self._detect_parameters,
         )
         self.add_segment(segment)
 
     def _add_rf_segment(self):
         lower_state = self._rf_parameters["transition"][0]
         upper_state = self._rf_parameters["transition"][1]
-        frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + self._rf_parameters["offset"]
+        frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + self._rf_parameters["offset"] + self._rf_parameters["detuning"]
         print("rf", round(frequency, 2))
         segment = Segment("rf", self._rf_parameters["duration"])
         rf_pulse = AWGSinePulse(frequency, self._rf_parameters["amplitude"])
@@ -79,7 +75,7 @@ class RFSpectroscopy(Sequence):
 
         segment = Segment("field_plate", break_time)
         field_plate_trigger = TTLOn()
-        segment.add_ttl_function(self._field_plate_parameters["channel"], field_plate_trigger)
+        segment.add_ttl_function(self._field_plate_parameters["trigger_channel"], field_plate_trigger)
         self.add_segment(segment)
 
     def setup_sequence(self):

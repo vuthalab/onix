@@ -1,16 +1,10 @@
 from typing import Any
-import numpy as np
 
+import numpy as np
 from onix.models.hyperfine import energies
+from onix.sequences.sequence import (AWGSinePulse, AWGSineSweep, AWGSineTrain,
+                                     MultiSegments, Segment, TTLPulses)
 from onix.units import Q_, ureg
-from onix.sequences.sequence import (
-    Segment,
-    MultiSegments,
-    AWGSinePulse,
-    AWGSineSweep,
-    AWGSineTrain,
-    TTLPulses,
-)
 
 PIECEWISE_TIME = 10 * ureg.ms
 
@@ -100,7 +94,7 @@ def detect_segment(
     ttl_stop_time = ttl_start_time + ttl_duration
     detect_padding_time = 4 * ureg.us  # extra data recording time around the detection
     ttl_function = TTLPulses([[ttl_start_time, ttl_stop_time]])
-    segment.add_ttl_function(detect_parameters["digitizer_channel"], ttl_function)
+    segment.add_ttl_function(detect_parameters["trigger_channel"], ttl_function)
 
     transition = detect_parameters["transition"]
     eo_parameters = eos_parameters[transition]

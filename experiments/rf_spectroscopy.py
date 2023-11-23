@@ -1,22 +1,12 @@
 import time
 
+import matplotlib.pyplot as plt
 import numpy as np
 from onix.data_tools import save_experiment_data
-from onix.units import ureg
-
-from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.awg.M4i6622 import M4i6622
+from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.sequences.rf_spectroscopy import RFSpectroscopy
-import matplotlib.pyplot as plt
-
-wavemeter = WM()
-
-def wavemeter_frequency():
-    freq = wavemeter.read_frequency(params["wm_channel"])
-    if isinstance(freq, str):
-        return -1
-    return freq
+from onix.units import ureg
 
 m4i = M4i6622()
 
@@ -24,66 +14,68 @@ m4i = M4i6622()
 
 params = {
     "wm_channel": 5,
-
-    "digitizer_channel": 0,
-    "rf_channel": 2,
-
     "repeats": 20,
 
     "ao": {
         "channel": 0,
+        "order": 2,
         "frequency": 80 * ureg.MHz,
         "amplitude": 2000,
         "detect_amplitude": 140,
     },
-
-    "eo": {
-        "channel": 1,
-        "offset": 100 * ureg.MHz,
-        "amplitude": 24000,
+    "eos": {
+        "ac": {
+            "channel": 1,
+            "amplitude": 500,
+            "offset": 0 * ureg.MHz,
+        },
+        "bb": {
+            "channel": 2,
+            "amplitude": 500,
+            "offset": 0 * ureg.MHz,
+        },
+        "ca": {
+            "channel": 3,
+            "amplitude": 500,
+            "offset": 0 * ureg.MHz,
+        },
     },
-
-    "detect_ao": {
-        "channel": 3,
-        "frequency": 80 * ureg.MHz,
-        "amplitude": 0,
+    "field_plate": {
+        "trigger_channel": 1,
+        "output_channel": 1,
+        "use": True,
+        "voltage": 1 * ureg.V,
+        "stark_shift": 1 * ureg.MHz,
     },
-
-    "burn": {
+    "chasm": {
         "transition": "bb",
-        "duration": 1.5 * ureg.s,
-        "scan": 3 * ureg.MHz,
+        "scan": 1.5 * ureg.MHz,
+        "scan_rate": 1 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
-
-    "repop": {
-        "transitions": ["ca", "ac"],
-        "duration": 0.6 * ureg.s,
-        "scan": 0.3 * ureg.MHz,
+    "antihole": {
+        "transitions": ["ac", "ca"],
+        "scan": 0.6 * ureg.MHz,
+        "scan_rate": 1 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
-
-    "flop": {
-        "transition": "ab",
-        "step_frequency": 2 * ureg.kHz,
-        "step_time": 1 * ureg.ms,
-        "on_time": 1 * ureg.ms,
-        "amplitude": 6000,  # do not go above 6000.
-        "offset": 30 * ureg.kHz,
-        "scan": 20 * ureg.kHz,
-        "repeats": 1,
-    },
-
     "detect": {
         "transition": "bb",
-        "detunings": np.linspace(-1.1, 1.1, 56) * ureg.MHz,
-        "on_time": 16 * ureg.us,
-        "off_time": 8 * ureg.us,
-        "delay_time": 600 * ureg.ms,
-        "repeats": 1,
-        "ttl_detect_offset_time": 4 * ureg.us,
-        "ttl_start_time": 12 * ureg.us,
-        "ttl_duration": 4 * ureg.us,
+        "trigger_channel": 0,
+        "detunings": np.linspace(-1, 1, 8) * ureg.MHz,
+        "randomize": True,
+        "on_time": 10 * ureg.us,
+        "off_time": 2 * ureg.us,
+        "repeats": 100,
+        "fast_repeats": 10,
+    },
+    "rf": {
+        "transition": "ab",
+        "trigger_channel": 2,
+        "output_channel": 2,
+        "offset": 0 * ureg.kHz,
+        "detuning": 0 * ureg.kHz,
+        "duration": 1 * ureg.ms,
     },
 }
 
