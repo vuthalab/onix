@@ -229,7 +229,7 @@ quadrupole_angles = {
 }
 
 
-# Harish's notebook, for 153Eu3+:YSO. TODO: number's source?
+# Harish's notebook, for 153Eu3+:YSO. Probably comes from scaling the 151Eu number by the nuclear magnetic dipole moment ratio.
 quadrupole_tensor_magnitudes_MHz = {
     "7F0": {
         "D": -32.02,
