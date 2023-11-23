@@ -9,11 +9,13 @@ from onix.units import ureg, Q_
 from onix.sequences.pd_noise import pdNoiseMeasurement
 
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
+from onix.headers.digitizer import DigitizerVisa
 from onix.headers.awg.M4i6622 import M4i6622
 
 from tqdm import tqdm
 
 m4i = M4i6622()
+#dg = DigitizerVisa("192.168.0.125")
 
 ##
 
@@ -97,7 +99,7 @@ params = {
     "ao": {
         "channel": 0,
         "frequency": 80e6, # Hz
-        "amplitude": 300
+        "amplitude": 1400
     },
 
     "detect": {
@@ -115,12 +117,12 @@ sequence = pdNoiseMeasurement(
 )
 sequence.setup_sequence()
 
-## Digitizer setup
+## Digitizer setup PCIE
 
 T = params["detect"]["sample_time"]
 sample_rate = int(1e7)
 segment_size = int(T * sample_rate)
-segment_count = 1
+segment_count = 10
 dg = Digitizer(False)
 val = dg.configure_system(
     mode = 2,
@@ -138,11 +140,26 @@ val = dg.configure_trigger(
     range = 10000
 )
 
+## Digitizer setup Agilent
+sample_rate = 1e7
+segment_count = 100
+T = params["detect"]["sample_time"]
+dg.configure_acquisition(
+    sample_rate=sample_rate,
+    samples_per_record=int(T * sample_rate),
+    num_records=segment_count,
+)
+dg.configure_channels(channels=[1, 2], voltage_range=2)
+dg.set_trigger_source_external()
+dg.set_arm(triggers_per_arm=segment_count)
+
+
 ##
 
 m4i.setup_sequence(sequence)
 dg.arm_digitizer()
 
+#dg.initiate_data_acquisition()
 
 print("taking data")
 for i in tqdm(range(segment_count)):
@@ -151,93 +168,64 @@ for i in tqdm(range(segment_count)):
 
 m4i.stop_sequence()
 
-Vt = dg.get_data()[0]
-Vm = dg.get_data()[1]
+#Vt, Vm = dg.get_waveforms([1,2], records=(1,segment_count))
+
+Vt, Vm = dg.get_data()
 
 ##
 
-Vavg = np.mean(Vt, axis=0)
+Vtavg = np.mean(Vt, axis=0)
+Vmavg = np.mean(Vm, axis=0)
 
-plt.plot(np.arange(0,len(Vavg))/sample_rate, Vt[0])
-plt.plot(np.arange(0,len(Vavg))/sample_rate, Vm[0])
+plt.plot(np.arange(0,len(Vtavg))/sample_rate, Vt[0], label="Transmission")
+#plt.plot(np.arange(0,len(Vtavg))/sample_rate, Vm[0], label="Monitor")
+plt.plot(np.arange(0,len(Vtavg))/sample_rate, Vtavg, label="Transmission Avg")
 
 plt.xlabel("Time (s)")
-plt.ylabel("Transmissions voltage (V)")
+plt.ylabel("PD voltage (V)")
+plt.legend(frameon=True)
 plt.show()
-
-# W_Vs = []
-# f = None
-# print("Computing voltage spectra")
-# for i in tqdm(range(len(Vs))):
-#     W_V, f_ = get_vspectrum(Vs[i],sample_rate)
-#     f = f_
-#     W_Vs.append(W_V)
 
 ##
 
-W_V_avg = np.abs(np.average(W_Vs, axis=0) - baselineW_V)
+W_Vs = []
+f = None
+print("Computing voltage spectra")
+for i in tqdm(range(len(Vt))):
+    W_V, f_ = get_vspectrum(Vt[i],sample_rate)
+    f = f_
+    W_Vs.append(W_V)
+
+##
+
+W_V_avg = np.average(W_Vs, axis=0) #- baselineW_V)
 
 
-plt.ylabel(r"Avg voltage spectrum - baseline $\mathrm{V}/\sqrt{\mathrm{Hz}}$")
+#plt.ylabel(r"Avg voltage spectrum - baseline $\mathrm{V}/\sqrt{\mathrm{Hz}}$")
+plt.ylabel(r"Avg voltage spectrum $\mathrm{V}/\sqrt{\mathrm{Hz}}$")
 plt.xlabel("Frequency (Hz)")
-plt.loglog(f, np.sqrt(np.abs(W_V_avg)))
-plt.loglog(f, np.sqrt(baselineW_V), label="baseline")
+plt.loglog(f, np.sqrt(W_V_avg))
+#plt.loglog(f, np.sqrt(baselineW_V), label="baseline")
 
 plt.legend()
 plt.show()
 
 
 
-## longer test for pulse tube
+## Save Data
 
-def trigger():
-    m4i.set_ttl_output(0, True)
-    time.sleep(0.01)
-    m4i.set_ttl_output(0, False)
-
-
-T = 2000 * 1e-3
-sample_rate = int(1e8)
-segment_size = int(T * sample_rate)
-segment_count = 5
-dg = Digitizer(False)
-val = dg.configure_system(
-    mode = 1,
-    sample_rate = sample_rate,
-    segment_size = segment_size,
-    segment_count = segment_count,
-    voltage_range = 2000
-)
-
-val = dg.configure_trigger(
-    edge = 'rising',
-    level = 30,
-    source =-1,
-    coupling = 1,
-    range = 10000
-)
-
-m4i.start_sine_outputs()
-
-dg.arm_digitizer()
-
-m4i.set_sine_output(0, 80e6, 350)
-
-for i in tqdm(range(segment_count)):
-    trigger()
-    time.sleep(T + 10e-3)
-
-m4i.stop_sine_outputs()
-
-Vs = dg.get_data()[0]
-
-W_Vs = []
-f = None
-print("Computing voltage spectra")
-for i in tqdm(range(len(Vs))):
-    W_V, f_ = get_vspectrum(Vs[i],sample_rate)
-    f = f_
-    W_Vs.append(W_V)
+data = {
+    "f": f,
+    "W_V_avg": W_V_avg,
+    "Vtavg": Vtavg,
+    "Vmavg": Vmavg
+}
+headers = {
+    "params": params,
+}
+name = "PD Noise Spectra"
+data_id = save_experiment_data(name, data, headers)
+print(data_id)
 
 
 
