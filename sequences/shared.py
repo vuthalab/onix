@@ -1,3 +1,4 @@
+from typing import Any
 import numpy as np
 
 from onix.models.hyperfine import energies
@@ -16,10 +17,10 @@ PIECEWISE_TIME = 10 * ureg.ms
 
 def chasm_segment(
     name: str,
-    ao_parameters: dict,
-    eos_parameters: dict,
-    field_plate_parameters: dict,
-    chasm_parameters: dict,
+    ao_parameters: dict[str, Any],
+    eos_parameters: dict[str, Any],
+    field_plate_parameters: dict[str, Any],
+    chasm_parameters: dict[str, Any],
     reverse_stark_order: bool = False,
 ):
     transition = chasm_parameters["transition"]
@@ -59,9 +60,9 @@ def chasm_segment(
 
 def antihole_segment(
     name: str,
-    ao_parameters: dict,
-    eos_parameters: dict,
-    antihole_parameters: dict,
+    ao_parameters: dict[str, Any],
+    eos_parameters: dict[str, Any],
+    antihole_parameters: dict[str, Any],
     reverse_transition_order: bool = False,
 ):
     transitions: list[str] = antihole_parameters["transitions"]
@@ -88,10 +89,10 @@ def antihole_segment(
 
 def detect_segment(
     name: str,
-    ao_parameters: dict,
-    eos_parameters: dict,
-    field_plate_parameters: dict,
-    detect_parameters: dict,
+    ao_parameters: dict[str, Any],
+    eos_parameters: dict[str, Any],
+    field_plate_parameters: dict[str, Any],
+    detect_parameters: dict[str, Any],
 ):
     segment = Segment(name)
     ttl_start_time = 0 * ureg.us  # digitizer trigger pulse start time.
@@ -162,8 +163,8 @@ def detect_segment(
 
 def _scan_segment(
     name: str,
-    ao_parameters: dict,
-    eos_parameters: dict,
+    ao_parameters: dict[str, Any],
+    eos_parameters: dict[str, Any],
     transition: str,
     duration: Q_,
     scan: Q_,
@@ -173,7 +174,7 @@ def _scan_segment(
     repeats = 1
     if duration > PIECEWISE_TIME:
         repeats = int(duration / PIECEWISE_TIME) + 1
-        duration = PIECEWISE_TIME
+        duration = duration / repeats
     F_state = transition[0]
     D_state = transition[1]
     frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
