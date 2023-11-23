@@ -20,22 +20,44 @@ def trigger():
 
 
 dg = Digitizer(False)
+
+"""
 val = dg.configure_system(
     mode=1,
-    sample_rate=int(1e8),
-    segment_size=5000,
-    segment_count=1,
-    voltage_range = 2000
+    sample_rate = int(1e6),
 )
 
+val = dg.configure_trigger()
+"""
+
+"""
+val = dg.configure_system(
+    mode=1,
+    sample_rate = int(1e8),
+    segment_count=0.1,
+    voltage_range = 0.327
+)
 
 val = dg.configure_trigger(
     edge = 'rising',
-    level = 30,
-    source = -1,
-    coupling = 1,
-    range = 10000
+    level = 'string',
+    source ='nonsense',
+    coupling = 'other',
+    trigger_range = 'string'
 )
+"""
+
+val = dg.configure_system(
+    mode=1,
+    sample_rate = int(1e6),
+    segment_count=0.1,
+    voltage_range = 1
+)
+
+val = dg.configure_trigger(
+    source = 'software',
+)
+
 
 def test_sequence():
     dg.arm_digitizer()
