@@ -120,7 +120,7 @@ class DG4162(object):
 		'''
 		self.resource.close()
 		
-	def ExtBurst(self,channel,nCycl): #function for externally triggered burst
+	def ExtBurst(self,channel,nCycl, slope): #function for externally triggered burst
 		
 		command = ':SOURCE'+str(channel)+':BURS:STATE ON'		#Enable the burst mode
 		self.resource.write(command)
@@ -131,7 +131,10 @@ class DG4162(object):
 		command = ':SOURCE'+str(channel)+':BURS:TRIG:SOUR EXT'	#External triggering
 		self.resource.write(command)
 		
-		command = ':SOURCE'+str(channel)+':BURS:TRIG:SLOP POS' #set positive slope
+		if slope == 'positive':
+			command = ':SOURCE'+str(channel)+':BURS:TRIG:SLOP POS' #set positive slope
+		elif slope == 'negative':
+			command = ':SOURCE'+str(channel)+':BURS:TRIG:SLOP NEG' #set negative slope
 		self.resource.write(command)
 
 		command = ':SOURCE'+str(channel)+':BURST:NCYC ' + str(nCycl)	#Set the number of cycles
