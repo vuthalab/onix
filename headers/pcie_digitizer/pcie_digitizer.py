@@ -1,19 +1,13 @@
 """
-PCIE Digitizer Header file,
+PCIE Digitizer Header file
 
-
-Everything working. Enables you do set the aquisition parameters and the trigger parameters.
-The only thing not working is the +-1V setting for the aquisition system, for whatever reason there is an extra factor of 2 added to everything
-
-Last Updated by: Daniel Stedman
-Last Update: 10/19/23
-
-Changed needed:
-  * Enable setting external or software triggering using this header file. (solved)
-  * Code snippets to show how to take data with external and internal triggers. (solved)
-  * Read correct voltages. Currently the voltages read are not correct.
-  * Investigate crash issues when the digitizer takes data multiple times, or takes a lot of data. (solved)
-  * It does not return the number of samples set exactly. (solved)
+All voltages values are in volts and amplitudes, not peak to peak. 
+The +- 1V setting for acquisition does not work. 
+Changes to make, not critical:
+ - do not load the .ini file and then overwrite the parameters you want to change. Just set up your own dictionary full of the defaul values of every parameter
+ 
+Last Updated by: Alek Radak
+Last Update: 11/22/23
 """
 import os
 import sys
@@ -72,12 +66,14 @@ class Digitizer:
     def __init__(self, verbose: bool = False):
         self._handle = self.initialize()
         self.overflow = 0
+        
+        self.verbose = verbose
 
         """ Initialize the Digitizer and connect to it"""
         if self._handle < 0:
             # get error string
             error_string = PyGage.GetErrorString(self._handle)
-            print("Error: ", error_string)
+            print("Error: ", error_string, "\n")
             raise SystemExit
 
         """ Get the info to make sure everything is working """
@@ -85,12 +81,12 @@ class Digitizer:
         if not isinstance(
             self._system_info, dict
         ):  # if it's not a dict, it's an int indicating an error
-            print("Error: ", PyGage.GetErrorString(self._system_info))
+            print("Error: ", PyGage.GetErrorString(self._system_info), "\n")
             PyGage.FreeSystem(self._handle)
             raise SystemExit
 
-        if verbose:
-            print("\nBoard Name: ", self._system_info["BoardName"])
+        if self.verbose:
+            print("\nBoard Name: ", self._system_info["BoardName"], "\n")
 
     def initialize(self):
         """Connect and initialize the digitizer"""
@@ -100,6 +96,11 @@ class Digitizer:
         else:
             handle = PyGage.GetSystem(0, 0, 0, 0)
             return handle
+
+    def test_verbose(self):
+        if self.verbose:
+            print('verbose is true')
+    
 
     def configure_system(
         self,
@@ -119,8 +120,9 @@ class Digitizer:
         segment_size: Union[int, None] = None,
         segment_count: Union[int, None] = None,
         trigger_holdoff: int = 0,
-        trigger_time_out: int = -1,
-        voltage_range: Literal[100, 200, 500, 2000, 5000] = 2000,):
+        trigger_timeout: int = -1,
+        voltage_range: Literal[0.1, 0.2, 0.5, 2, 5] = 2,
+        ):
         """Configure the acquisition and trigger parameters of the digitizer
 
         Parameters:
@@ -129,8 +131,8 @@ class Digitizer:
             - segment_size: The amount of samples taken per segment after the digitizer has been triggered.
             - segment_count: The total number of segments the digitizer expects.
             - trigger_holdoff: number of samples after a trigger before digitizer can be triggered again.
-            - voltage_range: voltage range in volts. This specifies the max AMPLITUDE of the input voltage, not peak to peak. Allowed values are [100,200,500,2000,5000] for whatever reason 1000 doesnt work :/
-            - trigger_time_out: how long to wait before the driver forces a trigger event, in units of 100ns, default is -1 which means wait indefinitely
+            - voltage_range: voltage range in volts. This specifies the max AMPLITUDE of the input voltage, not peak to peak. Allowed values are [0.1,0.2,0.5,2,5] with default 2 for whatever reason 1 doesnt work :/
+            - trigger_timeout: how long to wait before the software forces a trigger event, in units of 100ns, default is -1 which means wait indefinitely
 
         The other parameters can be changed by looking at the default parameters file at the filename location
         This method can be run multiple times to change the configuration of the digitizer before starting acquisition.
@@ -158,19 +160,67 @@ class Digitizer:
 
             self.segment_size = segment_size
 
-        acq["Mode"] = self.mode
-
+        if self.mode == 1 or self.mode == 2:
+            acq["Mode"] = self.mode
+        else:
+            acq['Mode'] = 2
+            print('Invalid Mode. Setting to 2\n')
+            
+            
         """ Setting parameters if they've been changed manually """
-        if self.sample_rate is not None:
+        
+        possible_sample_rates = [100000000,65000000, 50000000, 40000000, 25000000,20000000,10000000,5000000,2000000,1000000]
+        
+        if self.sample_rate in possible_sample_rates :
             acq["SampleRate"] = self.sample_rate
+        else:
+            print('Invalid sample rate. Using 100MS/s \n')
+            acq["SampleRate"] = 100000000
+        
         if self.segment_size is not None:
-            acq["SegmentSize"] = self.segment_size
-        if self.segment_size is not None:
-            acq["Depth"] = self.segment_size
+            if isinstance(self.segment_size, int):
+                acq["SegmentSize"] = self.segment_size
+                acq["Depth"] = self.segment_size
+            else:
+                print('Invalid segment size. Using 4000 \n')
+                acq["SegmentSize"] = 4000
+                acq["Depth"] = 4000
+        else:
+            acq["SegmentSize"] = 4000
+            acq["Depth"] = 4000
+            if self.verbose:
+                print('Using default segment size 4000 \n')
+            
+        
         if self.segment_count is not None:
-            acq["SegmentCount"] = self.segment_count
-        acq["TriggerHoldoff"] = self.trigger_holdoff
-        acq['TriggerTimeout'] = trigger_time_out
+            if isinstance(self.segment_count, int):
+                acq["SegmentCount"] = self.segment_count
+            else:   
+                print('Invalid segment count. Setting to 1 \n')
+                acq["SegmentCount"] = 1
+        else:
+            acq["SegmentCount"] = 1
+            if self.verbose:
+                print('Using default segment count 1 \n')
+            
+                
+               
+        if isinstance(self.trigger_holdoff,int):
+            acq["TriggerHoldoff"] = self.trigger_holdoff
+        else:
+            print('Invalid trigger holdoff. Using 0 \n')
+            acq["TriggerHoldoff"] = 0
+        
+            
+        
+
+        if isinstance(trigger_timeout, int):
+            acq['TriggerTimeout'] = trigger_timeout
+        else:
+            print('Invalid trigger timeout. Using -1 \n')
+            acq['TriggerTimeout'] = -1
+
+                
 
         self._acq = acq
         self._sts = sts
@@ -179,10 +229,10 @@ class Digitizer:
         if isinstance(acq, dict) and acq:
             status = PyGage.SetAcquisitionConfig(self._handle, acq)
             if status < 0:
-                print("Invalid Parameters! Check you've input the correct dictonary")
+                print("Invalid Parameters! Check you've input the correct dictonary \n")
                 return status
         else:
-            print("Using defaults for acquisition parameters")
+            print("Using defaults for acquisition parameters \n")
 
         if sts == gs.INI_FILE_MISSING:
             print("Missing ini file, using defaults")
@@ -205,14 +255,21 @@ class Digitizer:
         missing_parameters = False
         for i in range(1, self._system_info["ChannelCount"] + 1, channel_increment):
             chan, sts = gs.LoadChannelConfiguration(self._handle, i, filename)
-            chan["InputRange"] = int(2*voltage_range)
+            voltage_ranges = [0.1, 0.2, 0.5, 2, 5]
+            if voltage_range in voltage_ranges:
+                chan["InputRange"] = int(2*1000*voltage_range)
+            else:
+                print(f'Invalid voltage range on channel {i}. Using +- 2V \n')
+                voltage_range = 2
+                chan["InputRange"] = int(2*1000*voltage_range)
+           
             self._chan.append(chan)
             if isinstance(chan, dict) and chan:
                 status = PyGage.SetChannelConfig(self._handle, i, chan)
                 if status < 0:
                     return status
             else:
-                print("Using default parameters for channel ", i)
+                print("Using default parameters for channel ", i, "\n")
 
             if sts == gs.PARAMETERS_MISSING:
                 missing_parameters = True
@@ -221,7 +278,7 @@ class Digitizer:
 
         if missing_parameters:
             print(
-                "One or more channel parameters missing, using defaults for missing values"
+                "One or more channel parameters missing, using defaults for missing values \n"
             )
 
         missing_parameters = False
@@ -235,77 +292,108 @@ class Digitizer:
 
     def configure_trigger(
         self,
-        edge: Literal["rising", "falling"] = "rising",
-        level: int = 30,
-        source: Literal["external", "software"] = "external",
-        range: int = 10000,
-        impedance: Literal[50,1000000] = 1000000,
-        coupling: Literal['AC', 'DC'] = 'DC',
+        source: Literal["external", "software", None] = "external",
+        edge: Literal["rising", "falling", None] = "rising",
+        trigger_range: Union[int, None] = 5,
+        level: Union[int, None] = 30,
+        impedance: Literal[50,1000000, None] = 50,
+        coupling: Literal['AC', 'DC', None] = 'DC',
         ):
 
         """
         Configure the trigger.
 
         Parameters:
-        - edge: rising or falling
-        - level: trigger level as a percent of input range
-        - source: external or internal
-        - range: maximum trigger voltage in volts
-        - impedance: 50 Ohm or 1 MOhm
+        - source: External or software. If software, the trigger event will occur after 100ns. Defaults to external. 
+        - edge: rising or falling, defaults to rising
+        - trigger_range: amplitude of input, in Volts, defaults to +- 5V input
+        - level: percentage of input range at which to trigger, defaults to 30%
+        - impedance: 50Ohm or 1MOhm, defaults to 1MOhm
+        - coupling: AC or DC, defaults to DC
 
         Example: to external trigger
         dg = Digitizer()
         val = dg.configure_system(...)
         val = dg.configure_trigger(
-            edge = 'falling',
-            level = 40,
             source = 'external',
-            range = 3,
+            edge = 'falling',
+            trigger_range = 3,
+            level = 40,
             impedance = 50,
             coupling = 'DC'
             )
-
-        To set software trigger, set source = 'software'. All other params will be ignored if on software trigger.
+            
+        Example: to software trigger
+        dg = Digitizer()
+        val = dg.configure_system(...)
+        val = dg.configure_trigger(source = 'software')
         """
 
         filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
         trig, sts = gs.LoadTriggerConfiguration(self._handle, 1, filename)
+
+        if source is not None:
+            if source == 'software':
+                trig['Source'] = 0
+                self.configure_system(
+                    mode = self.mode,
+                    sample_rate = self.sample_rate,
+                    segment_count = self.segment_count,
+                    trigger_holdoff = self.trigger_holdoff,
+                    trigger_timeout = 1,
+                    voltage_range = self.voltage_range)
+                    #reconfigure the system using the exact same setting, force software trigger after 100ns
+            elif source == "external":
+                trig['Source'] = -1
+            else:
+                print("Invalid trigger source. Using default external. \n")
+                trig['Source'] = -1
+        else:
+            trig['Source'] = -1
+            if self.verbose:
+                print('Using default trigger source external \n')
+                
 
 
         if edge == "rising":
             trig['Condition'] = 1
         elif edge == "falling":
             trig['Condition'] = 0
-
-        if level is not None:
-            trig['Level'] = level
-
-        if source == 'software':
-            trig['Source'] = 0
-            self.configure_system(
-                mode = self.mode,
-                sample_rate = self.sample_rate,
-                segment_count = self.segment_count,
-                trigger_holdoff = self.trigger_holdoff,
-                trigger_time_out = 1,
-                voltage_range = self.voltage_range)
-                #this just sets the trigger time out to 1, so after 100ns the software will force a trigger
-
-        elif source == "external":
-            trig['Source'] = -1
         else:
-            print("Invalid trigger source. Using defaults.")
-            trig['Source'] = -1
+            print('Invalid trigger edge setting. Using default rising \n')
+            trig['Condition'] = 1
+ 
+                
+          
 
-        if range is not None:
-            trig['ExtRange'] = int(range)
+        if isinstance(trigger_range,int):
+            trig['ExtRange'] = int(2*1000*trigger_range)   
+        else:
+            print('Invalid trigger_range. Using default +- 5V \n')
+            trig['ExtRange'] = int(2*1000*5)
+                
 
-        if impedance is not None:
+        if isinstance(level, int):
+            trig['Level'] = level
+        else:
+            print('Invalid trigger level. Using default 30% \n')
+            trig['Level'] = 30
+
+            
+
+        if impedance == 50 or impedance == 1000000:
             trig['ExtImpedance'] = impedance
+        else:
+            print('Invalid impedance. Using default 50 Ohm \n') 
+            trig['ExtImpedance'] = 50
+
 
         if coupling == 'AC':
             trig['ExtCoupling'] = 2
         elif coupling == 'DC':
+            trig['ExtCoupling'] = 1
+        else:
+            print('Invalid couping. Using default DC. \n')
             trig['ExtCoupling'] = 1
 
 
@@ -316,15 +404,13 @@ class Digitizer:
             if status < 0:
                 return status
         else:
-            print("Using default parameters for trigger ", status)
+            print("Using default parameters for trigger ", status, "\n")
 
         if sts == gs.PARAMETERS_MISSING:
             missing_parameters = True
 
         if missing_parameters:
-            print(
-                "One or more trigger parameters missing, using defaults for missing values"
-            )
+            print("One or more trigger parameters missing, using defaults for missing values \n")
 
 
         self._trig = trig
@@ -340,20 +426,20 @@ class Digitizer:
         try:
             return PyGage.GetAcquisitionConfig(self._handle)
         except Exception as e:
-            print("Error getting acquisition parameters. Code: ", e)
+            print("Error getting acquisition parameters. Code: ", e, "\n")
 
     def get_channel_parameters(self, chan: Literal[1, 2]):
         """return the current channel parameters of the digitizer, if they're available"""
         try:
             return PyGage.GetChannelConfig(self._handle, chan)
         except Exception as e:
-            print("Error getting channel parameters. Code: ", e)
+            print("Error getting channel parameters. Code: ", e, "\n")
 
     def get_trigger_parameters(self):
         try:
             return PyGage.GetTriggerConfig(self._handle, 1)
         except Exception as e:
-            print("Error getting trigger parameters. Code: ", e)
+            print("Error getting trigger parameters. Code: ", e, "\n")
 
     def arm_digitizer(self):
         status = PyGage.StartCapture(self._handle)
@@ -361,6 +447,12 @@ class Digitizer:
             return status
 
     def get_data(self):
+        """Returns the digitizer data in 3-dim np.array.
+        
+        The first dimension iterates over all channels.
+        The second dimension iterates over all segments.
+        The third dimension stores data in each segment.
+        """
         filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
 
         mode = PyGage.GetAcquisitionConfig(self._handle)["Mode"]
@@ -409,11 +501,7 @@ class Digitizer:
 
             channel_data.append(segment_data)
 
-        #PyGage.FreeSystem(self._handle)
-
         return np.array(channel_data)
 
-
-
-
-
+    def close(self):
+        PyGage.FreeSystem(self._handle)

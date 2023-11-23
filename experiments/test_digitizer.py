@@ -20,41 +20,55 @@ def trigger():
 
 
 dg = Digitizer(False)
-val = dg.configure_system(
-    mode=1,
-    sample_rate=int(1e6),
-    segment_size=4000,
-    segment_count=1,
-    voltage_range = 2000
-)
-print(val)
 
 """
+val = dg.configure_system(
+    mode=1,
+    sample_rate = int(1e6),
+)
+
+val = dg.configure_trigger()
+"""
+
+"""
+val = dg.configure_system(
+    mode=1,
+    sample_rate = int(1e8),
+    segment_count=0.1,
+    voltage_range = 0.327
+)
+
 val = dg.configure_trigger(
     edge = 'rising',
-    level = 30,
-    source = "external",
-    coupling = "DC",
-    range = 10000
+    level = 'string',
+    source ='nonsense',
+    coupling = 'other',
+    trigger_range = 'string'
 )
-print(val)
 """
-val = dg.configure_trigger(
-    source = 'software'
+
+val = dg.configure_system(
+    mode=1,
+    sample_rate = int(1e6),
+    segment_count=0.1,
+    voltage_range = 1
 )
-print(val)
+
+val = dg.configure_trigger(
+    source = 'software',
+)
 
 
 def test_sequence():
     dg.arm_digitizer()
-    #set_channel_output(0.3)
-    #trigger()
+    time.sleep(1)
+    set_channel_output(0.3)
+    trigger()
     time.sleep(1)
     digitizer_data = dg.get_data()
-    #set_channel_output(0)
+    set_channel_output(0)
     return digitizer_data
 
-#if it is set to wait indefinityly for a trigger, after a few seconds it will throw the error
 
 ##
 
