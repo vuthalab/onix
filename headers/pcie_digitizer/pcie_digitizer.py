@@ -338,6 +338,7 @@ class Digitizer:
                 self.configure_system(
                     mode = self.mode,
                     sample_rate = self.sample_rate,
+                    segment_size = self.segment_size,
                     segment_count = self.segment_count,
                     trigger_holdoff = self.trigger_holdoff,
                     trigger_timeout = 1,
