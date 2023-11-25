@@ -32,7 +32,8 @@ fg.setLeadTrailMinimum(channel = 1)
 
 fg.ExtBurst(
     channel = 1,
-    nCycl = 3)
+    nCycl = 3,
+    slope = 'positive')
 
 
 #print(fg.getWaveformDetails(), '\n')

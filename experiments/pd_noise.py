@@ -7,87 +7,15 @@ from onix.data_tools import save_experiment_data
 from onix.sequences.sequence import AWGSinePulse, AWGSineTrain, Segment, Sequence, TTLPulses
 from onix.units import ureg, Q_
 from onix.sequences.pd_noise import pdNoiseMeasurement
+from onix.analysis.debug.laser_linewidth import LaserLinewidth
 
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
+from onix.headers.digitizer import DigitizerVisa
 from onix.headers.awg.M4i6622 import M4i6622
 
 from tqdm import tqdm
 
 m4i = M4i6622()
-
-##
-
-T = 100 * ureg.ms
-sample_rate = int(1e8)
-segment_size = int(T.to("s").magnitude * sample_rate)
-segment_count = 500
-dg = Digitizer(False)
-val = dg.configure_system(
-    mode = 1,
-    sample_rate = sample_rate,
-    segment_size = segment_size,
-    segment_count = segment_count,
-    voltage_range = 2000
-)
-val = dg.configure_trigger(source = "software")
-# acq_params = dg.get_acquisition_parameters()
-
-
-test = None
-dg.arm_digitizer()
-time.sleep(0.1)
-
-digitizer_data = dg.get_data()
-f = np.fft.rfftfreq(len(digitizer_data[0][0]), 1/sample_rate)
-
-fts = []
-ft2s = np.zeros((segment_count, int(len(digitizer_data[0][0])/2 + 1)))
-
-for i, data in enumerate(digitizer_data[0]):
-    ft = np.fft.rfft(data)
-    fts.append(ft)
-    # plt.plot(f, np.abs(ft))
-    ft2 = np.square(np.abs(ft))
-    ft2s[i, :] = ft2
-
-ft2s_avg = np.sqrt(np.average(ft2s, axis=0)/segment_count)
-print(ft2s)
-
-# test = digitizer_data[0][0]
-# ft = np.fft.rfft(test)
-# plt.plot(f, np.abs(ft))
-plt.ylabel(r"$\mathrm{V}/\sqrt{\mathrm{Hz}}$")
-plt.xlabel("Frequency (Hz)")
-plt.loglog(f, ft2s_avg)
-plt.show()
-
-
-##
-
-def get_vspectrum(V, sample_rate):
-    t = np.arange(0,len(V))
-    t = t/sample_rate
-
-    V = V - np.average(V)
-
-    T = t[-1] - t[0]
-    dt = t[1] - t[0]
-    sample_time = 1/dt
-
-    V_T = V/np.sqrt(T)
-    V_f = np.fft.fft(V_T)*dt
-    S_V = np.abs(V_f)**2
-    f = np.fft.fftfreq(len(V_T),dt)
-
-    W_V = 2*S_V[f>0]
-    f = f[f>0]
-    df = f[1]-f[0]
-
-    return W_V, f
-
-##
-
-baselineW_V = np.loadtxt("/home/onix/Documents/code/onix/experiments/baseline.txt")
 
 ##
 
@@ -97,7 +25,7 @@ params = {
     "ao": {
         "channel": 0,
         "frequency": 80e6, # Hz
-        "amplitude": 300
+        "amplitude": 2200
     },
 
     "detect": {
@@ -114,140 +42,104 @@ sequence = pdNoiseMeasurement(
     digitizer_channel=params["digitizer_channel"]
 )
 sequence.setup_sequence()
+m4i.setup_sequence(sequence)
 
-## Digitizer setup
+## Digitizer setup PCIE
 
 T = params["detect"]["sample_time"]
-sample_rate = int(1e7)
-segment_size = int(T * sample_rate)
-segment_count = 1
-dg = Digitizer(False)
-val = dg.configure_system(
-    mode = 2,
-    sample_rate = sample_rate,
-    segment_size = segment_size,
-    segment_count = segment_count,
-    voltage_range = 2000
-)
-
-val = dg.configure_trigger(
-    edge = 'rising',
-    level = 30,
-    source = "external",
-    coupling = "DC",
-    range = 10000
-)
-
-##
-
-m4i.setup_sequence(sequence)
-dg.arm_digitizer()
-
-
-print("taking data")
-for i in tqdm(range(segment_count)):
-    m4i.start_sequence()
-    m4i.wait_for_sequence_complete()
-
-m4i.stop_sequence()
-
-Vt = dg.get_data()[0]
-Vm = dg.get_data()[1]
-
-##
-
-Vavg = np.mean(Vt, axis=0)
-
-plt.plot(np.arange(0,len(Vavg))/sample_rate, Vt[0])
-plt.plot(np.arange(0,len(Vavg))/sample_rate, Vm[0])
-
-plt.xlabel("Time (s)")
-plt.ylabel("Transmissions voltage (V)")
-plt.show()
-
-# W_Vs = []
-# f = None
-# print("Computing voltage spectra")
-# for i in tqdm(range(len(Vs))):
-#     W_V, f_ = get_vspectrum(Vs[i],sample_rate)
-#     f = f_
-#     W_Vs.append(W_V)
-
-##
-
-W_V_avg = np.abs(np.average(W_Vs, axis=0) - baselineW_V)
-
-
-plt.ylabel(r"Avg voltage spectrum - baseline $\mathrm{V}/\sqrt{\mathrm{Hz}}$")
-plt.xlabel("Frequency (Hz)")
-plt.loglog(f, np.sqrt(np.abs(W_V_avg)))
-plt.loglog(f, np.sqrt(baselineW_V), label="baseline")
-
-plt.legend()
-plt.show()
-
-
-
-## longer test for pulse tube
-
-def trigger():
-    m4i.set_ttl_output(0, True)
-    time.sleep(0.01)
-    m4i.set_ttl_output(0, False)
-
-
-T = 2000 * 1e-3
 sample_rate = int(1e8)
 segment_size = int(T * sample_rate)
-segment_count = 5
+segment_count = 10
+repeats = 10
 dg = Digitizer(False)
 val = dg.configure_system(
     mode = 1,
     sample_rate = sample_rate,
     segment_size = segment_size,
     segment_count = segment_count,
-    voltage_range = 2000
+    voltage_range = 2,
 )
 
 val = dg.configure_trigger(
-    edge = 'rising',
-    level = 30,
-    source =-1,
-    coupling = 1,
-    range = 10000
+    source = "external",
 )
 
-m4i.start_sine_outputs()
-
-dg.arm_digitizer()
-
-m4i.set_sine_output(0, 80e6, 350)
-
-for i in tqdm(range(segment_count)):
-    trigger()
-    time.sleep(T + 10e-3)
-
-m4i.stop_sine_outputs()
-
-Vs = dg.get_data()[0]
-
-W_Vs = []
-f = None
-print("Computing voltage spectra")
-for i in tqdm(range(len(Vs))):
-    W_V, f_ = get_vspectrum(Vs[i],sample_rate)
-    f = f_
-    W_Vs.append(W_V)
+## Digitizer setup Agilent
+# sample_rate = 1e7
+# segment_count = 100
+# segment_size = int(T * sample_rate)
+# T = params["detect"]["sample_time"]
+# dg.configure_acquisition(
+#     sample_rate=sample_rate,
+#     samples_per_record=segment_size,
+#     num_records=segment_count,
+# )
+# dg.configure_channels(channels=[1, 2], voltage_range=2)
+# dg.set_trigger_source_external()
+# dg.set_arm(triggers_per_arm=segment_count)
 
 
+##
+Vt = np.zeros((0, segment_size))
+
+for kk in range(repeats):
+    dg.arm_digitizer()
+    #dg.initiate_data_acquisition()
+
+    for i in tqdm(range(segment_count)):
+        m4i.start_sequence()
+        m4i.wait_for_sequence_complete()
+
+    #Vt, Vm = dg.get_waveforms([1,2], records=(1,segment_count))
+    Vt = np.append(Vt, dg.get_data()[0], axis=0)
+
+m4i.stop_sequence()
+Vtavg = np.mean(Vt, axis=0)
+print(Vtavg)
+
+##
+spectrum = LaserLinewidth(
+    error_signals = Vt,
+    time_resolution = 1 / sample_rate,
+    discriminator_slope = 1,  # not used
+    max_points_per_decade = 100,
+)
+
+
+##
+plt.plot(np.arange(0,len(Vtavg))/sample_rate, Vtavg, label="Transmission Avg")
+
+plt.xlabel("Time (s)")
+plt.ylabel("PD voltage (V)")
+plt.legend(frameon=True)
+plt.show()
+
+##
+#plt.ylabel(r"Avg voltage spectrum - baseline $\mathrm{V}/\sqrt{\mathrm{Hz}}$")
+plt.ylabel(r"Avg voltage spectrum $\mathrm{V}/\sqrt{\mathrm{Hz}}$")
+plt.xlabel("Frequency (Hz)")
+plt.loglog(spectrum.f, np.sqrt(spectrum.W_V))
+
+#plt.legend()
+plt.show()
 
 
 
+## Save Data
 
+data = {
+    "f": spectrum.f,
+    "W_V": spectrum.W_V,
+    "Vtavg": Vtavg,
+}
+headers = {
+    "params": params,
+}
+name = "PD Noise Spectra"
+data_id = save_experiment_data(name, data, headers)
+print(data_id)
+del spectrum
+del Vt
+del Vtavg
 
-
-
-
-
-
-
+##
