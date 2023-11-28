@@ -64,47 +64,54 @@ class M4i6622:
 
     def __init__(
         self,
-        address: Union[list[str], str] = "/dev/spcm0",
+        addresses: Union[list[str], str] = "/dev/spcm0",
         external_clock_frequency: Optional[int] = None,
     ):
-        if isinstance(address, list):
-            self._hcard = [
-                pyspcm.spcm_hOpen(
-                    pyspcm.create_string_buffer(kk.encode("ascii"))
-                ) for kk in address
-            ]
-            self._number_of_cards = len(self._hcard)
-            if None in self._hcard:
-                raise Exception(f"No card is found at {address[self._hcard.index(None)]}.")
-        else:
-            self._hcard = pyspcm.spcm_hOpen(
+        if not isinstance(address, list):
+            addresses = [addresses]
+
+        self._hcards = []
+        for address in addresses:
+            hcard = pyspcm.spcm_hOpen(
                 pyspcm.create_string_buffer(address.encode("ascii"))
             )
-            self._number_of_cards = 1
-            if self._hcard is None:
-                raise Exception(f"No card is found at {address}.")  # TODO: current progress.
+            if hcard is None:
+                raise Exception(f"No card is found at {address}.")
+            self._hcards.append(hcard)
+        self._number_of_cards = len(self._hcards)  # TODO: progress
 
-        self._reset()
-        self._bytes_per_sample = self._get_bytes_per_sample()
+        for hcard in self._hcards:
+            self._reset(hcard)
+        self._bytes_per_sample = self._get_bytes_per_sample(self._hcards[0])
 
         if external_clock_frequency is not None:
-            self._set_clock_mode("external_reference")
-            self._set_external_clock_frequency(external_clock_frequency)
+            for hcard in self._hcards:
+                self._set_clock_mode(hcard, "external_reference")
+                self._set_external_clock_frequency(hcard, external_clock_frequency)
         else:
-            self._set_clock_mode("internal_pll")
+            for hcard in self._hcards:
+                self._set_clock_mode(hcard, "internal_pll")
 
-        self._set_sample_rate()
-        self._sample_rate = self._get_sample_rate()
-        self._set_trigger_or_mask(pyspcm.SPC_TMASK_SOFTWARE)
-        self._set_trigger_and_mask(pyspcm.SPC_TMASK_NONE)
+        for hcard in self._hcards:
+            self._set_sample_rate(hcard)
+        self._sample_rate = self._get_sample_rate(self._hcards[0])
+        
+        self._set_trigger_or_mask(self._hcards[0], pyspcm.SPC_TMASK_SOFTWARE)
+        self._set_trigger_and_mask(self._hcards[0], pyspcm.SPC_TMASK_NONE)
+        for hcard in self._hcards[1:]:
+            self._set_trigger_or_mask(hcard, pyspcm.SPC_TMASK_EXT0)
+            self._set_trigger_and_mask(hcard, pyspcm.SPC_TMASK_NONE)
+        # TODO: set up trigger parameters for other cards.
 
-        self._awg_channels = list(range(4))
-        self._ttl_channels = list(range(3))
-        self._select_channels(self._awg_channels)
+        self._awg_channels = list(range(4 * self._number_of_cards))
+        self._ttl_channels = list(range(3 * self._number_of_cards))
+        for hcard in self._hcards:
+            self._select_channels(hcard, 4)
         for awg_channel in self._awg_channels:
-            self._enable_channel(awg_channel)
-            self._set_channel_amplitude(awg_channel)
-            self._set_channel_filter(awg_channel)
+            for hcard in self._hcards:
+                self._enable_channel(hcard, awg_channel)
+                self._set_channel_amplitude(hcard, awg_channel)
+                self._set_channel_filter(hcard, awg_channel)
 
         # Maps of TTL channels mixing with AWG channels
         self._ttl_awg_map = {0: 0, 1: 1, 2: 2}
@@ -114,7 +121,8 @@ class M4i6622:
                 pyspcm, f"SPCM_XMODE_DIGOUTSRC_CH{self._ttl_awg_map[ttl_channel]}"
             )
             mode = mode | pyspcm.SPCM_XMODE_DIGOUTSRC_BIT15
-            self._set_multi_purpose_io_mode(ttl_channel, mode)
+            for hcard in self._hcards:
+                self._set_multi_purpose_io_mode(hcard, ttl_channel, mode)  # TODO: progress 19:21
 
         # implements the sine segments.
         self._next_sine_segment = 0
@@ -132,54 +140,55 @@ class M4i6622:
         self.setup_sequence(Sequence())
 
     # device methods
-    def _get_bytes_per_sample(self) -> int:
+    def _get_bytes_per_sample(self, hcard) -> int:
         value = pyspcm.int32(0)
         ret = pyspcm.spcm_dwGetParam_i32(
-            self._hcard, pyspcm.SPC_MIINST_BYTESPERSAMPLE, pyspcm.byref(value)
+            hcard, pyspcm.SPC_MIINST_BYTESPERSAMPLE, pyspcm.byref(value)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get bytes per sample failed with code {ret}.")
         return value.value
 
-    def _select_channels(self, channels: list[CHANNEL_TYPE]):
+    def _select_channels(self, hcard, channels: list[CHANNEL_TYPE]):
         if len(channels) == 3:
             raise ValueError("Cannot enable 3 channels. Enable 4 channels instead.")
         value = 0
         for channel in channels:
             value = value | getattr(pyspcm, f"CHANNEL{channel}")
-        ret = pyspcm.spcm_dwSetParam_i64(self._hcard, pyspcm.SPC_CHENABLE, value)
+        ret = pyspcm.spcm_dwSetParam_i64(hcard, pyspcm.SPC_CHENABLE, value)
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Select channels failed with code {ret}.")
 
-    def _enable_channel(self, channel: CHANNEL_TYPE, enabled: bool = True):
+    def _enable_channel(self, hcard, channel: CHANNEL_TYPE, enabled: bool = True):
         if enabled:
             value = pyspcm.int64(1)
         else:
             value = pyspcm.int64(0)
         ret = pyspcm.spcm_dwSetParam_i64(
-            self._hcard, getattr(pyspcm, f"SPC_ENABLEOUT{channel}"), value
+            hcard, getattr(pyspcm, f"SPC_ENABLEOUT{channel}"), value
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Enable channel failed with code {ret}.")
 
-    def _set_channel_amplitude(self, channel: CHANNEL_TYPE, amplitude_mV: int = 2500):
+    def _set_channel_amplitude(self, hcard, channel: CHANNEL_TYPE, amplitude_mV: int = 2500):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard,
+            hcard,
             getattr(pyspcm, f"SPC_AMP{channel}"),
             pyspcm.int32(amplitude_mV),
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set channel amplitude failed with code {ret}.")
 
-    def _set_channel_filter(self, channel: CHANNEL_TYPE, filter: int = 0):
+    def _set_channel_filter(self, hcard, channel: CHANNEL_TYPE, filter: int = 0):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, getattr(pyspcm, f"SPC_FILTER{channel}"), pyspcm.int32(filter)
+            hcard, getattr(pyspcm, f"SPC_FILTER{channel}"), pyspcm.int32(filter)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set channel filter failed with code {ret}.")
 
     def _set_mode(
         self,
+        hcard,
         mode: Literal[
             "single",
             "multiple",
@@ -198,84 +207,85 @@ class M4i6622:
             value = pyspcm.SPC_REP_STD_SEQUENCE
         else:
             raise ValueError(f"The replay mode {mode} is invalid or not implemented.")
-        ret = pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_CARDMODE, value)
+        ret = pyspcm.spcm_dwSetParam_i32(hcard, pyspcm.SPC_CARDMODE, value)
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set mode failed with code {ret}.")
 
-    def _reset(self):
+    def _reset(self, hcard):
         """Resets the card."""
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_RESET
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_RESET
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Reset failed with code {ret}.")
 
-    def _write_setup(self):
+    def _write_setup(self, hcard):
         """Writes the setup without starting the card."""
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_WRITESETUP
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_WRITESETUP
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Write setup failed with code {ret}.")
 
-    def _start(self):
+    def _start(self, hcard):
         """Writes the setup and starts the card."""
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_START
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_START
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Start card failed with code {ret}.")
 
-    def _enable_triggers(self):
+    def _enable_triggers(self, hcard):
         """Enables detecting triggers."""
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_ENABLETRIGGER
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_ENABLETRIGGER
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Enable triggers failed with code {ret}.")
 
-    def _force_trigger(self):
+    def _force_trigger(self, hcard):
         """Sends a software trigger."""
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_FORCETRIGGER
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_FORCETRIGGER
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Force trigger failed with code {ret}.")
 
-    def _disable_triggers(self):
+    def _disable_triggers(self, hcard):
         """Disables detecting triggers."""
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_DISABLETRIGGER
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_DISABLETRIGGER
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Disable triggers failed with code {ret}.")
 
-    def _stop(self):
+    def _stop(self, hcard):
         """Stops the current run of the card."""
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_STOP
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_STOP
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Stop card failed with code {ret}.")
 
-    def _wait_for_trigger(self):
+    def _wait_for_trigger(self, hcard):
         """Waits until the first trigger event has been detected by the card."""
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_WAITTRIGGER
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_WAITTRIGGER
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Wait for trigger failed with code {ret}.")
 
-    def _wait_for_complete(self):
+    def _wait_for_complete(self, hcard):
         """Waits until the card has completed the current run."""
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_WAITREADY
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_CARD_WAITREADY
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Wait for complete failed with code {ret}.")
 
     def _define_transfer_buffer(
         self,
+        hcard,
         data: np.ndarray,
         transfer_offset: int = 0,
     ) -> int:
@@ -284,7 +294,7 @@ class M4i6622:
         data = data.astype(np.int16).tobytes()
         self._aligned_buffer[:] = data
         ret = pyspcm.spcm_dwDefTransfer_i64(
-            self._hcard,
+            hcard,
             pyspcm.SPCM_BUF_DATA,
             pyspcm.SPCM_DIR_PCTOCARD,
             pyspcm.uint32(0),
@@ -296,70 +306,69 @@ class M4i6622:
             raise Exception(f"Define transfer buffer failed with code {ret}.")
         return len(self._aligned_buffer)
 
-    def _get_data_ready_to_transfer(self) -> int:
+    def _get_data_ready_to_transfer(self, hcard) -> int:
         value = pyspcm.int32(0)
         ret = pyspcm.spcm_dwGetParam_i32(
-            self._hcard, pyspcm.SPC_DATA_AVAIL_USER_LEN, pyspcm.byref(value)
+            hcard, pyspcm.SPC_DATA_AVAIL_USER_LEN, pyspcm.byref(value)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get data ready to transfer failed with code {ret}.")
         return value.value
 
-    def _set_data_ready_to_transfer(self, data_bytes: int):
+    def _set_data_ready_to_transfer(self, hcard, data_bytes: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_DATA_AVAIL_CARD_LEN, pyspcm.int32(data_bytes)
+            hcard, pyspcm.SPC_DATA_AVAIL_CARD_LEN, pyspcm.int32(data_bytes)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set data ready to transfer failed with code {ret}.")
 
-    def _start_dma_transfer(self, wait: bool = False):
+    def _start_dma_transfer(self, hcard, wait: bool = False):
         if wait:
             value = pyspcm.M2CMD_DATA_STARTDMA | pyspcm.M2CMD_DATA_WAITDMA
         else:
             value = pyspcm.M2CMD_DATA_STARTDMA
-        ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, value
-        )
+        ret = pyspcm.spcm_dwSetParam_i32(hcard, pyspcm.SPC_M2CMD, value)
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Start DMA transfer failed with code {ret}.")
 
-    def _wait_dma_transfer(self):
+    def _wait_dma_transfer(self, hcard):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_DATA_WAITDMA
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_DATA_WAITDMA
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Wait DMA transfer failed with code {ret}.")
 
-    def _stop_dma_transfer(self):
+    def _stop_dma_transfer(self, hcard):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_DATA_STOPDMA
+            hcard, pyspcm.SPC_M2CMD, pyspcm.M2CMD_DATA_STOPDMA
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Stop DMA transfer failed with code {ret}.")
 
-    def _set_memory_size(self, samples_per_channel: int):
+    def _set_memory_size(self, hcard, samples_per_channel: int):
         ret = pyspcm.spcm_dwSetParam_i64(
-            self._hcard, pyspcm.SPC_MEMSIZE, pyspcm.int64(samples_per_channel)
+            hcard, pyspcm.SPC_MEMSIZE, pyspcm.int64(samples_per_channel)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set memory size failed with code {ret}.")
 
-    def _set_segment_size(self, samples_per_segment: int):
+    def _set_segment_size(self, hcard, samples_per_segment: int):
         ret = pyspcm.spcm_dwSetParam_i64(
-            self._hcard, pyspcm.SPC_SEGMENTSIZE, pyspcm.int64(samples_per_segment)
+            hcard, pyspcm.SPC_SEGMENTSIZE, pyspcm.int64(samples_per_segment)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set segment size failed with code {ret}.")
 
-    def _set_number_of_loops(self, loops: int):
+    def _set_number_of_loops(self, hcard, loops: int):
         ret = pyspcm.spcm_dwSetParam_i64(
-            self._hcard, pyspcm.SPC_LOOPS, pyspcm.int64(loops)
+            hcard, pyspcm.SPC_LOOPS, pyspcm.int64(loops)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set number of loops failed with code {ret}.")
 
     def _set_clock_mode(
         self,
+        hcard,
         clock_mode: Literal[
             "internal_pll", "quartz2", "external_reference", "pxi_reference"
         ],
@@ -374,69 +383,69 @@ class M4i6622:
             value = pyspcm.SPC_CM_PXIREFCLOCK
         else:
             raise ValueError(f"Clock mode {clock_mode} is not valid.")
-        ret = pyspcm.spcm_dwSetParam_i32(self._hcard, pyspcm.SPC_CLOCKMODE, value)
+        ret = pyspcm.spcm_dwSetParam_i32(hcard, pyspcm.SPC_CLOCKMODE, value)
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set clock mode failed with code {ret}.")
 
-    def _get_sample_rate(self) -> int:
+    def _get_sample_rate(self, hcard) -> int:
         value = pyspcm.int64(0)
         ret = pyspcm.spcm_dwGetParam_i64(
-            self._hcard, pyspcm.SPC_SAMPLERATE, pyspcm.byref(value)
+            hcard, pyspcm.SPC_SAMPLERATE, pyspcm.byref(value)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get sample rate failed with code {ret}.")
         return value.value
 
-    def _set_sample_rate(self, sample_rate: int = MAX_SAMPLE_RATE):
+    def _set_sample_rate(self, hcard, sample_rate: int = MAX_SAMPLE_RATE):
         ret = pyspcm.spcm_dwSetParam_i64(
-            self._hcard, pyspcm.SPC_SAMPLERATE, pyspcm.int64(sample_rate)
+            hcard, pyspcm.SPC_SAMPLERATE, pyspcm.int64(sample_rate)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set sample rate failed with code {ret}.")
 
-    def _set_external_clock_frequency(self, clock_frequency: int):
+    def _set_external_clock_frequency(self, hcard, clock_frequency: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_REFERENCECLOCK, pyspcm.int32(clock_frequency)
+            hcard, pyspcm.SPC_REFERENCECLOCK, pyspcm.int32(clock_frequency)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set external clock frequency failed with code {ret}.")
 
-    def _set_trigger_or_mask(self, trigger_mask: int):
+    def _set_trigger_or_mask(self, hcard, trigger_mask: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_TRIG_ORMASK, pyspcm.int32(trigger_mask)
+            hcard, pyspcm.SPC_TRIG_ORMASK, pyspcm.int32(trigger_mask)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set trigger OR mask failed with code {ret}.")
 
-    def _set_trigger_and_mask(self, trigger_mask: int):
+    def _set_trigger_and_mask(self, hcard, trigger_mask: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_TRIG_ANDMASK, pyspcm.int32(trigger_mask)
+            hcard, pyspcm.SPC_TRIG_ANDMASK, pyspcm.int32(trigger_mask)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set trigger AND mask failed with code {ret}.")
 
     # TODO: implement external trigger EXT0 and EXT1 functions
 
-    def _set_multi_purpose_io_mode(self, line_number: Literal[0, 1, 2], mode: int):
+    def _set_multi_purpose_io_mode(self, hcard, line_number: Literal[0, 1, 2], mode: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard,
+            hcard,
             getattr(pyspcm, f"SPCM_X{line_number}_MODE"),
             pyspcm.int32(mode),
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set multiple purpose io mode failed with code {ret}.")
 
-    def _get_multi_purpose_io_output(self) -> tuple[bool, bool, bool]:
+    def _get_multi_purpose_io_output(self, hcard) -> tuple[bool, bool, bool]:
         mode = pyspcm.int32(0)
         ret = pyspcm.spcm_dwGetParam_i32(
-            self._hcard, pyspcm.SPCM_XX_ASYNCIO, pyspcm.byref(mode)
+            hcard, pyspcm.SPCM_XX_ASYNCIO, pyspcm.byref(mode)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get multi purpose io output failed with code {ret}.")
         return (mode.value & 1 != 0, mode.value & 2 != 0, mode.value & 4 != 0)
 
     def _set_multi_purpose_io_output(
-        self, x0_state: bool, x1_state: bool, x2_state: bool
+        self, hcard, x0_state: bool, x1_state: bool, x2_state: bool
     ):
         mode = 0
         if x0_state:
@@ -446,34 +455,35 @@ class M4i6622:
         if x2_state:
             mode += 4
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPCM_XX_ASYNCIO, pyspcm.int32(mode)
+            hcard, pyspcm.SPCM_XX_ASYNCIO, pyspcm.int32(mode)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set multi purpose io output failed with code {ret}.")
 
-    def _set_sequence_max_segments(self, segments: int):
+    def _set_sequence_max_segments(self, hcard, segments: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_SEQMODE_MAXSEGMENTS, pyspcm.int32(segments)
+            hcard, pyspcm.SPC_SEQMODE_MAXSEGMENTS, pyspcm.int32(segments)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set sequence max segments failed with code {ret}.")
 
-    def _set_sequence_write_segment(self, segment_number: int):
+    def _set_sequence_write_segment(self, hcard, segment_number: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_SEQMODE_WRITESEGMENT, pyspcm.int32(segment_number)
+            hcard, pyspcm.SPC_SEQMODE_WRITESEGMENT, pyspcm.int32(segment_number)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set sequence write segment failed with code {ret}.")
 
-    def _set_sequence_write_segment_size(self, segment_size: int):
+    def _set_sequence_write_segment_size(self, hcard, segment_size: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_SEQMODE_SEGMENTSIZE, pyspcm.int32(segment_size)
+            hcard, pyspcm.SPC_SEQMODE_SEGMENTSIZE, pyspcm.int32(segment_size)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set sequence write segment size failed with code {ret}.")
 
     def _set_sequence_step_memory(
         self,
+        hcard,
         step_number: int,
         segment_number: int,
         next_step: int,
@@ -493,41 +503,41 @@ class M4i6622:
         elif end == "end_sequence":
             end = pyspcm.SPCSEQ_END
         value = (end << 32) | (loops << 32) | (next_step << 16) | segment_number
-        ret = pyspcm.spcm_dwSetParam_i64(self._hcard, register, pyspcm.int64(value))
+        ret = pyspcm.spcm_dwSetParam_i64(hcard, register, pyspcm.int64(value))
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set sequence step memory failed with code {ret}.")
 
-    def _get_sequence_start_step(self) -> int:
+    def _get_sequence_start_step(self, hcard) -> int:
         value = pyspcm.int32(0)
         ret = pyspcm.spcm_dwGetParam_i32(
-            self._hcard, pyspcm.SPC_SEQMODE_STARTSTEP, pyspcm.byref(value)
+            hcard, pyspcm.SPC_SEQMODE_STARTSTEP, pyspcm.byref(value)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get sequence start step failed with code {ret}.")
         return value.value
 
-    def _set_sequence_start_step(self, start_step_number: int):
+    def _set_sequence_start_step(self, hcard, start_step_number: int):
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_SEQMODE_STARTSTEP, pyspcm.int32(start_step_number)
+            hcard, pyspcm.SPC_SEQMODE_STARTSTEP, pyspcm.int32(start_step_number)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set sequence start step failed with code {ret}.")
 
-    def _get_sequence_current_step(self) -> int:
+    def _get_sequence_current_step(self, hcard) -> int:
         value = pyspcm.int32(0)
         ret = pyspcm.spcm_dwSetParam_i32(
-            self._hcard, pyspcm.SPC_SEQMODE_STATUS, pyspcm.byref(value)
+            hcard, pyspcm.SPC_SEQMODE_STATUS, pyspcm.byref(value)
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Get sequence current step failed with code {ret}.")
         return value.value
 
-    def _get_error_information(self) -> (int, int, str):
+    def _get_error_information(self, hcard) -> (int, int, str):
         error_register = pyspcm.uint32(0)
         error_code = pyspcm.int32(0)
         text = pyspcm.create_string_buffer(1000)
         ret = pyspcm.spcm_dwGetErrorInfo_i32(
-            self._hcard, pyspcm.byref(error_register), pyspcm.byref(error_code), pyspcm.byref(text)
+            hcard, pyspcm.byref(error_register), pyspcm.byref(error_code), pyspcm.byref(text)
         )
         return (error_register.value, error_code.value, text.value.decode("utf-8"))
 
