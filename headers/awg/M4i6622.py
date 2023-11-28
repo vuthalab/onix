@@ -78,7 +78,7 @@ class M4i6622:
             if hcard is None:
                 raise Exception(f"No card is found at {address}.")
             self._hcards.append(hcard)
-        self._number_of_cards = len(self._hcards)  # TODO: progress
+        self._number_of_cards = len(self._hcards)
 
         for hcard in self._hcards:
             self._reset(hcard)
@@ -114,7 +114,10 @@ class M4i6622:
                 self._set_channel_filter(hcard, awg_channel)
 
         # Maps of TTL channels mixing with AWG channels
-        self._ttl_awg_map = {0: 0, 1: 1, 2: 2}
+        self._ttl_awg_map = {}
+        for index in range(len(self._hcards)):
+            for kk in range(3):
+                self._ttl_awg_map[index * 3 + kk] = index * 4 + kk
         for ttl_channel in self._ttl_awg_map:
             mode = pyspcm.SPCM_XMODE_DIGOUT
             mode = mode | getattr(
@@ -122,14 +125,16 @@ class M4i6622:
             )
             mode = mode | pyspcm.SPCM_XMODE_DIGOUTSRC_BIT15
             for hcard in self._hcards:
-                self._set_multi_purpose_io_mode(hcard, ttl_channel, mode)  # TODO: progress 19:21
+                self._set_multi_purpose_io_mode(hcard, ttl_channel, mode)
 
         # implements the sine segments.
         self._next_sine_segment = 0
         self._awg_parameters = {}
         for channel in self._awg_channels:
             self._awg_parameters[channel] = {"frequency": 0 * ureg.Hz, "amplitude": 0}
-        self._ttl_parameters = [False, False, False]
+        self._ttl_parameters = []
+        for channel in self._ttl_channels:
+            self._ttl_parameters.append(False)
         self._sine_segment_duration = 100 * ureg.us
         self._sine_segments = {
             "__sine_0": Segment("__sine_0", duration=self._sine_segment_duration),
@@ -568,93 +573,115 @@ class M4i6622:
                 next_step = self._sine_segment_steps[kk]
             else:
                 next_step = self._sine_segment_steps[1 - kk]
-            self._set_sequence_step_memory(
-                step_number=self._sine_segment_steps[kk],
-                segment_number=kk,
-                next_step=next_step,
-                loops=1,
-                end="end_loop",
-            )
+            for hcard in self._hcards:
+                self._set_sequence_step_memory(
+                    hcard,
+                    step_number=self._sine_segment_steps[kk],
+                    segment_number=kk,
+                    next_step=next_step,
+                    loops=1,
+                    end="end_loop",
+                )
 
     def _set_sequence_steps(self):
         last_step = -1
         for step_info in self._current_sequence.steps:
-            self._set_sequence_step_memory(*step_info)
+            for hcard in self._hcards:
+                self._set_sequence_step_memory(hcard, *step_info)
             last_step = step_info[0]
 
         self._sine_segment_steps = [last_step + 1, last_step + 2]
         for kk in range(2):
-            self._set_sequence_step_memory(
-                step_number=self._sine_segment_steps[kk],
-                segment_number=kk,
-                next_step=self._sine_segment_steps[kk],
-                loops=1,
-                end="end_loop",
-            )
+            for hcard in self._hcards:
+                self._set_sequence_step_memory(
+                    hcard,
+                    step_number=self._sine_segment_steps[kk],
+                    segment_number=kk,
+                    next_step=self._sine_segment_steps[kk],
+                    loops=1,
+                    end="end_loop",
+                )
 
     def _write_segment(self, segment_number: int, segment: Segment):
-        self._set_sequence_write_segment(segment_number)
+        for hcard in self._hcards:
+            self._set_sequence_write_segment(hcard, segment_number)
 
         duration = segment.duration
         size = int(duration.to("s").magnitude * self._sample_rate)
         size = (size + 31) // 32 * 32  # the sample size must be a multiple of 32.
         if size < 96:
             size = 96  # minimum 96 samples for 4 channels.
-        self._set_sequence_write_segment_size(size)
+        for hcard in self._hcards:
+            self._set_sequence_write_segment_size(hcard, size)
 
-        data = segment.get_sample_data(
-            self._awg_channels,
-            self._ttl_awg_map,
-            np.arange(size),
-            self._sample_rate,
-        )
-        data_length = self._define_transfer_buffer(data)
-        self._set_data_ready_to_transfer(data_length)
-        self._start_dma_transfer()
-        self._wait_dma_transfer()
+        for index, hcard in enumerate(self._hcards):
+            awg_channels = [4 * index + kk for kk in range(4)]
+            ttl_awg_map = {3 * index + kk: 4 * index + kk for kk in range(3)}
+            data = segment.get_sample_data(
+                awg_channels,
+                ttl_awg_map,
+                np.arange(size),
+                self._sample_rate,
+            )
+            data_length = self._define_transfer_buffer(hcard, data)
+            self._set_data_ready_to_transfer(hcard, data_length)
+            self._start_dma_transfer(hcard)
+        for hcard in self._hcards:
+            self._wait_dma_transfer(hcard)
 
     # public functions
     def setup_sequence(self, sequence: Sequence):
         """Sets up a sequence """
+        if self._number_of_cards > 1:
+            sequence._segments["__start"].add_ttl_function(0, TTLOn())
         sequence.insert_segments(self._sine_segments)
         self._current_sequence = sequence
 
-        self._set_mode("sequence")
+        for hcard in self._hcards:
+            self._set_mode(hcard, "sequence")
         segments = self._current_sequence.segments
         min_num_segments = int(np.power(2, np.ceil(np.log2(len(segments)))))
-        self._set_sequence_max_segments(min_num_segments)
+        for hcard in self._hcards:
+            self._set_sequence_max_segments(hcard, min_num_segments)
 
         segment_number = -1
         for segment_number in range(len(segments)):
             self._write_segment(segment_number, segments[segment_number])
 
         self._set_sequence_steps()
-        self._write_setup()
+        for hcard in self._hcards:
+            self._write_setup(hcard)
 
     def start_sequence(self):
         """Starts the sequence."""
         if self._sine_segment_running:
-            self._stop()
-            self._sine_segment_running = False
-        self._set_sequence_start_step(0)
-        self._start()
-        self._enable_triggers()
+            self.stop_sine_outputs()
+        for hcard in reversed(self._hcards):  # start the first card the last to trigger other cards
+            self._set_sequence_start_step(hcard, 0)
+            self._start()
+            self._enable_triggers()
 
     def wait_for_sequence_complete(self):
         """Waits for the programmed sequence to be done."""
-        self._wait_for_complete()
+        for hcard in self._hcards:
+            self._wait_for_complete(hcard)
 
     def stop_sequence(self):
         """Stops the sequence."""
-        self._stop()
+        for hcard in self._hcards:
+            self._stop(hcard)
 
     def start_sine_outputs(self):
         """Starts the sine output mode."""
         if self._sine_segment_running:
             raise Exception("Sine outputs are already on.")
-        self._set_sequence_start_step(self._sine_segment_steps[self._next_sine_segment])
-        self._start()
-        self._enable_triggers()
+        for hcard in self._hcards:
+            self._set_sequence_start_step(hcard, self._sine_segment_steps[self._next_sine_segment])
+            self._set_trigger_or_mask(hcard, pyspcm.SPC_TMASK_SOFTWARE)
+
+        for hcard in self._hcards:
+            self._start(hcard)
+            self._enable_triggers(hcard)
         self._sine_segment_running = True
 
     def set_sine_output(
@@ -684,11 +711,14 @@ class M4i6622:
         if not self._sine_segment_running:
             raise Exception("Sine outputs are already off.")
         self._sine_segment_running = False
-        self._stop()
+        for hcard in self._hcards:
+            self._stop(hcard)
+            self._set_trigger_or_mask(hcard, pyspcm.SPC_TMASK_EXT0)
 
     def get_and_clear_error(self):
         """Get and clear the error."""
-        print(self._get_error_information())
+        for hcard in self._hcards:
+            print(hcard, self._get_error_information(hcard))
 
     """
     def replace_segment(self, new_segment_name, old_segment_name):

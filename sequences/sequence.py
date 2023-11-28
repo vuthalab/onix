@@ -393,11 +393,22 @@ class SegmentEmpty(Segment):
         super().__init__(name, duration)
 
 
+class SegmentStart(SegmentEmpty):
+    def __init__(self):
+        super().__init__("__start", 1 * ureg.us)
+
+
+class SegmentEnd(SegmentEmpty):
+    def __init__(self):
+        super().__init__("__end", 1 * ureg.us)
+
+
 class Sequence:
     def __init__(self):
         self._segments: Dict[str, Segment] = {}
         self._segment_steps: List[Tuple[str, int]] = []
-        self.add_segment(SegmentEmpty("__empty", 1 * ureg.us))
+        self.add_segment(SegmentStart())
+        self.add_segment(SegmentEnd())
 
     def add_segment(self, segment: Segment):
         name = segment.name
@@ -416,16 +427,17 @@ class Sequence:
 
     def setup_sequence(self, segment_steps: List[Tuple[str, int]]):
         self._segment_steps = []
-        self._segment_steps.append(("__empty", 1))
+        self._segment_steps.append(("__start", 1))
         for name, repeat in segment_steps:
             if repeat == 0:
                 continue
             if name in self._segments:
-                self._segment_steps.append((name, repeat))
+                if self._segments[name].duration > 0 * ureg.s:
+                    self._segment_steps.append((name, repeat))
             else:
                 self._segment_steps = []
                 raise ValueError(f"Segment {name} is not defined.")
-        self._segment_steps.append(("__empty", 1))
+        self._segment_steps.append(("__end", 1))
 
     @property
     def segments(self) -> List[Segment]:
