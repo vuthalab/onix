@@ -1,5 +1,4 @@
-import time
-from typing import List, Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import onix.headers.awg.pyspcm as pyspcm
@@ -54,18 +53,36 @@ class M4i6622:
     When switching from sine output to a pulse sequence, it automatically turns off the
     sine output if on, and will not turn the sine output back on automatically at the end
     of the sequence.
+
+    Update:
+        Added capability to control multiple cards to provide more rf and digital channels.
+        To use multiple cards, initialize the class with a list of strs.
+        It assumes all cards are M4i6622.
+        Assumes that the star-hub option is not used, and the GPIO output channel 0 of the first
+        card is connected to the trigger ext0 of all other cards.
     """
 
     def __init__(
         self,
-        address: str = "/dev/spcm0",
+        address: Union[list[str], str] = "/dev/spcm0",
         external_clock_frequency: Optional[int] = None,
     ):
-        self._hcard = pyspcm.spcm_hOpen(
-            pyspcm.create_string_buffer(address.encode("ascii"))
-        )
-        if self._hcard is None:
-            raise Exception("No card is found.")
+        if isinstance(address, list):
+            self._hcard = [
+                pyspcm.spcm_hOpen(
+                    pyspcm.create_string_buffer(kk.encode("ascii"))
+                ) for kk in address
+            ]
+            self._number_of_cards = len(self._hcard)
+            if None in self._hcard:
+                raise Exception(f"No card is found at {address[self._hcard.index(None)]}.")
+        else:
+            self._hcard = pyspcm.spcm_hOpen(
+                pyspcm.create_string_buffer(address.encode("ascii"))
+            )
+            self._number_of_cards = 1
+            if self._hcard is None:
+                raise Exception(f"No card is found at {address}.")  # TODO: current progress.
 
         self._reset()
         self._bytes_per_sample = self._get_bytes_per_sample()
@@ -124,7 +141,7 @@ class M4i6622:
             raise Exception(f"Get bytes per sample failed with code {ret}.")
         return value.value
 
-    def _select_channels(self, channels: List[CHANNEL_TYPE]):
+    def _select_channels(self, channels: list[CHANNEL_TYPE]):
         if len(channels) == 3:
             raise ValueError("Cannot enable 3 channels. Enable 4 channels instead.")
         value = 0
@@ -409,7 +426,7 @@ class M4i6622:
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set multiple purpose io mode failed with code {ret}.")
 
-    def _get_multi_purpose_io_output(self) -> Tuple[bool, bool, bool]:
+    def _get_multi_purpose_io_output(self) -> tuple[bool, bool, bool]:
         mode = pyspcm.int32(0)
         ret = pyspcm.spcm_dwGetParam_i32(
             self._hcard, pyspcm.SPCM_XX_ASYNCIO, pyspcm.byref(mode)
