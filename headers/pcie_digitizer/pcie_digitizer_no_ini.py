@@ -253,7 +253,6 @@ class Digitizer:
             print('Invalid trigger holdoff. Using 0 \n')
             system_config["TriggerHoldoff"] = 0
         
-
         if isinstance(trigger_timeout, int):
             system_config['TriggerTimeout'] = trigger_timeout
         elif self.trigger_timeout is None:
@@ -263,7 +262,6 @@ class Digitizer:
         else:
             print('Invalid trigger timeout. Using -1 \n')
             system_config['TriggerTimeout'] = -1
-
 
         status = PyGage.SetAcquisitionConfig(self._handle, system_config)
         if status < 0:
@@ -293,7 +291,6 @@ class Digitizer:
                 return status
 
         status = PyGage.Commit(self._handle)
-
         self._system_info = PyGage.GetSystemInfo(self._handle)
         error_string = PyGage.GetErrorString(status)
         return error_string
