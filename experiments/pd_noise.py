@@ -25,7 +25,7 @@ params = {
     "ao": {
         "channel": 0,
         "frequency": 80e6, # Hz
-        "amplitude": 2200
+        "amplitude": 600
     },
 
     "detect": {
@@ -94,7 +94,7 @@ for kk in range(repeats):
     Vt = np.append(Vt, dg.get_data()[0], axis=0)
 
 m4i.stop_sequence()
-Vtavg = np.mean(Vt, axis=0)
+Vtavg = np.mean(Vt)
 print(Vtavg)
 
 ##
