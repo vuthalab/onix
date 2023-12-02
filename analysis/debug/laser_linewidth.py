@@ -27,12 +27,14 @@ class LaserLinewidth:
             time_resolution: float,
             discriminator_slope: float,
             max_points_per_decade: Optional[int] = None,
+            correlation_error_signals = None,
         ):
         self._error_signals = error_signals
         self._time_resolution = time_resolution
         self._duration = time_resolution * len(error_signals[0])
         self._discriminator_slope = discriminator_slope
         self._max_points_per_decade = max_points_per_decade
+        self._correlation_error_signals = correlation_error_signals
         self._get_voltage_noise_spectrum()
         self._get_frequency_and_phase_noise_spectra()
         self._get_phase_noise_integral()
@@ -88,12 +90,22 @@ class LaserLinewidth:
                     self._frequency_start_bin_index = kk - 1
                     break
                 old_number = number
-        self._W_V = np.zeros(len(self._f))
-        for voltages in self._error_signals:
-            V_T = voltages / np.sqrt(self._duration)
-            V_f = np.fft.fft(V_T) * self._time_resolution
-            W_V = np.abs(V_f) ** 2
-            self._W_V += 2 * W_V[fft_mask]
+        if self._correlation_error_signals is None:
+            self._W_V = np.zeros(len(self._f))
+            for voltages in self._error_signals:
+                V_T = voltages / np.sqrt(self._duration)
+                V_f = np.fft.fft(V_T) * self._time_resolution
+                W_V = np.abs(V_f) ** 2
+                self._W_V += 2 * W_V[fft_mask]
+        else:
+            self._W_V = np.zeros(len(self._f), dtype=complex)
+            for kk in range(len(self._error_signals)):
+                V_T = self._error_signals[kk] / np.sqrt(self._duration)
+                V_f = np.fft.fft(V_T) * self._time_resolution
+                V_T_cor = self._correlation_error_signals[kk] / np.sqrt(self._duration)
+                V_f_cor = np.fft.fft(V_T_cor) * self._time_resolution
+                W_V = np.conjugate(V_f) * V_f_cor
+                self._W_V += 2 * W_V[fft_mask]
         self._W_V /= len(self._error_signals)
 
     def _get_frequency_and_phase_noise_spectra(self):

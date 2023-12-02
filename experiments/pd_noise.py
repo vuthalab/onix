@@ -21,6 +21,7 @@ m4i = M4i6622()
 
 params = {
     "digitizer_channel": 0,
+    "channels": 2,
 
     "ao": {
         "channel": 0,
@@ -50,10 +51,10 @@ T = params["detect"]["sample_time"]
 sample_rate = int(1e8)
 segment_size = int(T * sample_rate)
 segment_count = 10
-repeats = 10
+repeats = 6
 dg = Digitizer(False)
 val = dg.configure_system(
-    mode = 1,
+    mode = 2,
     sample_rate = sample_rate,
     segment_size = segment_size,
     segment_count = segment_count,
@@ -81,6 +82,7 @@ val = dg.configure_trigger(
 
 ##
 Vt = np.zeros((0, segment_size))
+Vm = np.zeros((0, segment_size))
 
 for kk in range(repeats):
     dg.arm_digitizer()
@@ -92,18 +94,34 @@ for kk in range(repeats):
 
     #Vt, Vm = dg.get_waveforms([1,2], records=(1,segment_count))
     Vt = np.append(Vt, dg.get_data()[0], axis=0)
+    Vm = np.append(Vm, dg.get_data()[1], axis=0)
 
 m4i.stop_sequence()
 Vtavg = np.mean(Vt)
-print(Vtavg)
+Vmavg = np.mean(Vm)
+print(Vtavg, Vmavg)
 
 ##
-spectrum = LaserLinewidth(
+spectrum0 = LaserLinewidth(
     error_signals = Vt,
     time_resolution = 1 / sample_rate,
     discriminator_slope = 1,  # not used
     max_points_per_decade = 100,
 )
+if params["channels"] == 2:
+    spectrum1 = LaserLinewidth(
+        error_signals = Vm,
+        time_resolution = 1 / sample_rate,
+        discriminator_slope = 1,  # not used
+        max_points_per_decade = 100,
+    )
+    spectrum_correlation = LaserLinewidth(
+        error_signals = Vt,
+        time_resolution = 1 / sample_rate,
+        discriminator_slope = 1,  # not used
+        max_points_per_decade = 100,
+        correlation_error_signals = Vm,
+    )
 
 
 ##
@@ -118,8 +136,11 @@ plt.show()
 #plt.ylabel(r"Avg voltage spectrum - baseline $\mathrm{V}/\sqrt{\mathrm{Hz}}$")
 plt.ylabel(r"Avg voltage spectrum $\mathrm{V}/\sqrt{\mathrm{Hz}}$")
 plt.xlabel("Frequency (Hz)")
-plt.loglog(spectrum.f, np.sqrt(spectrum.W_V))
-
+plt.loglog(spectrum0.f, np.sqrt(spectrum0.W_V), label="channel 1", alpha=0.6)
+if params["channels"] == 2:
+    plt.loglog(spectrum1.f, np.sqrt(spectrum1.W_V), label="channel 2", alpha=0.6)
+    plt.loglog(spectrum_correlation.f, np.sqrt(spectrum_correlation.W_V), label="correlation", alpha=0.6)
+    plt.legend()
 #plt.legend()
 plt.show()
 
@@ -128,18 +149,28 @@ plt.show()
 ## Save Data
 
 data = {
-    "f": spectrum.f,
-    "W_V": spectrum.W_V,
+    "f": spectrum0.f,
+    "W_V1": spectrum0.W_V,
     "Vtavg": Vtavg,
 }
+if params["channels"] == 2:
+    data["Vmavg"] = Vmavg
+    data["W_V2"] = spectrum1.W_V
+    data["W_V_correlation"] = spectrum_correlation.W_V
+
 headers = {
     "params": params,
 }
 name = "PD Noise Spectra"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)
-del spectrum
+del spectrum0
 del Vt
 del Vtavg
+if params["channels"] == 2:
+    del spectrum1
+    del spectrum_correlation
+    del Vm
+    del Vmavg
 
 ##
