@@ -7,6 +7,8 @@ from typing import Any, Union
 
 import zmq
 
+PORT = 38573
+
 
 class SchedulerBackend:
     def __init__(self):
@@ -27,7 +29,7 @@ class SchedulerBackend:
     def _server_worker(self):
         context = zmq.Context()
         self._socket = context.socket(zmq.REP)
-        self._socket_port = self._socket.bind_to_random_port("tcp://*")
+        self._socket_port = self._socket.bind(f"tcp://*:{PORT}")
         while True:
             try:
                 command, data = self._socket.recv_pyobj()
