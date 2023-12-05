@@ -13,6 +13,7 @@ class LaserLinewidth:
         discriminator_slope: float, error signal slope in V/Hz.
         max_points_per_decade: int or None. If int, it averages points if the points are denser than
             the set value.
+        correlation_error_signals: 2D list or np.array of floats or None. If None, error_signals is 
 
     Properties:
         f: np.array, frequency axis for Fourier-transformed data.
