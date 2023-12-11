@@ -19,12 +19,12 @@ m4i = M4i6622()
 
 params = {
     "digitizer_channel": 0,
-    "channels": 2,
+    "channels": 1,
 
     "ao": {
         "channel": 0,
         "frequency": 80e6, # Hz
-        "amplitude": 600
+        "amplitude": 0
     },
 
     "detect": {
@@ -52,7 +52,7 @@ segment_count = 10
 repeats = 6
 dg = Digitizer(False)
 val = dg.configure_system(
-    mode = 2,
+    mode = params["channels"],
     sample_rate = sample_rate,
     segment_size = segment_size,
     segment_count = segment_count,
@@ -92,12 +92,15 @@ for kk in range(repeats):
 
     #Vt, Vm = dg.get_waveforms([1,2], records=(1,segment_count))
     Vt = np.append(Vt, dg.get_data()[0], axis=0)
-    Vm = np.append(Vm, dg.get_data()[1], axis=0)
+    if params["channels"] == 2:
+        Vm = np.append(Vm, dg.get_data()[1], axis=0)
 
 m4i.stop_sequence()
 Vtavg = np.mean(Vt)
-Vmavg = np.mean(Vm)
-print(Vtavg, Vmavg)
+print(Vtavg)
+if params["channels"] == 2:
+    Vmavg = np.mean(Vm)
+    print(Vtavg, Vmavg)
 
 ##
 spectrum0 = LaserLinewidth(
