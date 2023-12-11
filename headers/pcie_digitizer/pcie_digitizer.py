@@ -146,7 +146,7 @@ class Digitizer:
         self.voltage_range = voltage_range
         self.segment_size = segment_size
 
-        filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
+        filename = "/home/icarus/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
 
         acq, sts = gs.LoadAcquisitionConfiguration(self._handle, filename)
 
@@ -329,7 +329,7 @@ class Digitizer:
         val = dg.configure_trigger(source = 'software')
         """
 
-        filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
+        filename = "/home/icarus/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
         trig, sts = gs.LoadTriggerConfiguration(self._handle, 1, filename)
 
         if source is not None:
@@ -454,7 +454,7 @@ class Digitizer:
         The second dimension iterates over all segments.
         The third dimension stores data in each segment.
         """
-        filename = "/home/onix/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
+        filename = "/home/icarus/Documents/code/onix/headers/pcie_digitizer/digitizerParameters.ini"
 
         mode = PyGage.GetAcquisitionConfig(self._handle)["Mode"]
 

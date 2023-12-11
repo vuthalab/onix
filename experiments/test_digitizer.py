@@ -3,11 +3,19 @@ import time
 import matplotlib.pyplot as plt
 
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.headers.awg.M4i6622 import M4i6622
 import onix.headers.pcie_digitizer.GageSupport as gs
 
-m4i = M4i6622()
+from onix.headers.awg.M4i6622 import M4i6622
+
+m4i = M4i6622(address="/dev/spcm0")
 m4i.start_sine_outputs()
+m4i.set_sine_output(1, 1e5, 1 / 2.5 * 32768)
+m4i.stop_sine_outputs()
+
+m4i1 = M4i6622(address="/dev/spcm1")
+m4i1.start_sine_outputs()
+m4i1.set_sine_output(1, 1e5, 1 / 2.5 * 32768)
+m4i1.stop_sine_outputs()
 
 ###
 def set_channel_output(amplitude_V):
