@@ -320,6 +320,7 @@ class SchedulerGUI(QtWidgets.QWidget):
 
     def _update_worker(self):
         while True:
+            self._update_experiments()
             self._update_queue()
             time.sleep(0.25)
 
