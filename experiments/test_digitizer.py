@@ -32,7 +32,7 @@ dg = Digitizer(False)
 
 val = dg.configure_system(
     mode=1,
-    sample_rate = int(1e6),
+    sample_rate = 1e6,
     segment_size = 400,
     voltage_range = 1
 )

@@ -212,8 +212,8 @@ class Digitizer:
             system_config['Mode'] = 2
             print('Invalid Mode. Setting to 2 \n')
             
-        if self.sample_rate in possible_sample_rates :
-            system_config["SampleRate"] = self.sample_rate
+        if self.sample_rate in possible_sample_rates:
+            system_config["SampleRate"] = int(self.sample_rate)
         else:
             print('Invalid sample rate. Using 100MS/s \n')
             system_config["SampleRate"] = 100000000

@@ -43,10 +43,6 @@ class Segment:
                 raise KeyError(
                     f"AWG channel {channel} is not defined in the {self.name} segment."
                 )
-        if len(self._awg_pulses) > len(awg_channels):
-            raise Exception(
-                f"More AWG channels are defined than used in the {self.name} segment."
-            )
         return functions
 
     def _ttl_functions(self, ttl_channels: List[int]):
@@ -58,10 +54,6 @@ class Segment:
                 raise KeyError(
                     f"TTL channel {channel} is not defined in the {self.name} segment."
                 )
-        if len(self._ttl_pulses) > len(ttl_channels):
-            raise Exception(
-                f"More TTL channels are defined than used in the {self.name} segment."
-            )
         return functions
 
     def get_sample_data(

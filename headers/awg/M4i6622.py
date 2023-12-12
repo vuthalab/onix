@@ -67,7 +67,7 @@ class M4i6622:
         addresses: Union[list[str], str] = "/dev/spcm0",
         external_clock_frequency: Optional[int] = None,
     ):
-        if not isinstance(address, list):
+        if not isinstance(addresses, list):
             addresses = [addresses]
 
         self._hcards = []
@@ -95,36 +95,39 @@ class M4i6622:
         for hcard in self._hcards:
             self._set_sample_rate(hcard)
         self._sample_rate = self._get_sample_rate(self._hcards[0])
-        
+
         self._set_trigger_or_mask(self._hcards[0], pyspcm.SPC_TMASK_SOFTWARE)
         self._set_trigger_and_mask(self._hcards[0], pyspcm.SPC_TMASK_NONE)
         for hcard in self._hcards[1:]:
             self._set_trigger_or_mask(hcard, pyspcm.SPC_TMASK_EXT0)
             self._set_trigger_and_mask(hcard, pyspcm.SPC_TMASK_NONE)
-        # TODO: set up trigger parameters for other cards.
+            self._set_ext0_trigger_impedance(hcard, is_50_ohm = True)
+            self._set_ext0_trigger_level(hcard, level = 750)
+            self._set_ext0_trigger_rising_edge(hcard)
 
         self._awg_channels = list(range(4 * self._number_of_cards))
         self._ttl_channels = list(range(3 * self._number_of_cards))
         for hcard in self._hcards:
-            self._select_channels(hcard, 4)
-        for awg_channel in self._awg_channels:
+            self._select_channels(hcard, [0,1,2,3])
+
+        for awg_channel in [0, 1, 2, 3]:
             for hcard in self._hcards:
                 self._enable_channel(hcard, awg_channel)
                 self._set_channel_amplitude(hcard, awg_channel)
                 self._set_channel_filter(hcard, awg_channel)
 
         # Maps of TTL channels mixing with AWG channels
-        self._ttl_awg_map = {}
-        for index in range(len(self._hcards)):
-            for kk in range(3):
-                self._ttl_awg_map[index * 3 + kk] = index * 4 + kk
-        for ttl_channel in self._ttl_awg_map:
-            mode = pyspcm.SPCM_XMODE_DIGOUT
-            mode = mode | getattr(
-                pyspcm, f"SPCM_XMODE_DIGOUTSRC_CH{self._ttl_awg_map[ttl_channel]}"
-            )
-            mode = mode | pyspcm.SPCM_XMODE_DIGOUTSRC_BIT15
-            for hcard in self._hcards:
+        self._ttl_awg_map = {0: 0, 1: 1, 2: 2}
+
+        for hcard in self._hcards:
+            for ttl_channel in [0,1,2]:
+                mode = pyspcm.SPCM_XMODE_DIGOUT
+
+                mode = mode | getattr(
+                    pyspcm, f"SPCM_XMODE_DIGOUTSRC_CH{self._ttl_awg_map[ttl_channel]}"
+                )
+
+                mode = mode | pyspcm.SPCM_XMODE_DIGOUTSRC_BIT15
                 self._set_multi_purpose_io_mode(hcard, ttl_channel, mode)
 
         # implements the sine segments.
@@ -429,7 +432,59 @@ class M4i6622:
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set trigger AND mask failed with code {ret}.")
 
-    # TODO: implement external trigger EXT0 and EXT1 functions
+    def _set_ext0_trigger_impedance(self, hcard, is_50_ohm = True):
+        """Set the trigger impedance"""
+        if is_50_ohm:
+            ret = pyspcm.spcm_dwSetParam_i32(
+                hcard, pyspcm.SPC_TRIG_TERM, pyspcm.int32(1)
+            )
+        else:
+            ret = pyspcm.spcm_dwSetParam_i32(
+                hcard, pyspcm.SPC_TRIG_TERM, pyspcm.int32(0)
+            )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Set trigger impedance failed with code {ret}.")
+
+    def _set_ext0_trigger_level(self, hcard, level):
+        """Set the trigger level"""
+        ret = pyspcm.spcm_dwSetParam_i32(
+            hcard, pyspcm.SPC_TRIG_EXT0_LEVEL0, pyspcm.int32(level)
+        )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Set trigger level failed with code {ret}.")
+
+    def _set_ext0_trigger_rising_edge(self, hcard):
+        """Set trigger edge to rising or falling"""
+        ret = pyspcm.spcm_dwSetParam_i32(
+            hcard, pyspcm.SPC_TRIG_EXT0_MODE, pyspcm.SPC_TM_POS
+        )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Set trigger edge to rising failed with code {ret}.")
+
+    def _set_ext0_trigger_falling_edge(self, hcard):
+        """Set trigger edge to falling"""
+        ret = pyspcm.spcm_dwSetParam_i32(
+            hcard, pyspcm.SPC_TRIG_EXT0_MODE, pyspcm.SPC_TM_NEG
+        )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Set trigger edge to falling failed with code {ret}.")
+
+    def _set_ext0_trigger_level_high(self, hcard):
+        """Trigger detection for high levels (signal above level 0)"""
+        ret = pyspcm.spcm_dwSetParam_i32(
+            hcard, pyspcm.SPC_TRIG_EXT0_MODE, pyspcm.SPC_TM_HIGH
+        )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Set trigger level to high failed with code {ret}.")
+
+    def _set_ext0_trigger_level_low(self, hcard):
+        """Trigger detection for low levels (signal below level 0)"""
+        ret = pyspcm.spcm_dwSetParam_i32(
+            hcard, pyspcm.SPC_TRIG_EXT0_MODE, pyspcm.SPC_TM_LOW
+        )
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Set trigger level to low failed with code {ret}.")
+
 
     def _set_multi_purpose_io_mode(self, hcard, line_number: Literal[0, 1, 2], mode: int):
         ret = pyspcm.spcm_dwSetParam_i32(
@@ -658,8 +713,8 @@ class M4i6622:
             self.stop_sine_outputs()
         for hcard in reversed(self._hcards):  # start the first card the last to trigger other cards
             self._set_sequence_start_step(hcard, 0)
-            self._start()
-            self._enable_triggers()
+            self._start(hcard)
+            self._enable_triggers(hcard)
 
     def wait_for_sequence_complete(self):
         """Waits for the programmed sequence to be done."""
