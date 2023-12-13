@@ -79,6 +79,7 @@ class M4i6622:
                 raise Exception(f"No card is found at {address}.")
             self._hcards.append(hcard)
         self._number_of_cards = len(self._hcards)
+        self._aligned_buffer = [None for kk in self._hcards]
 
         for hcard in self._hcards:
             self._reset(hcard)
@@ -294,25 +295,27 @@ class M4i6622:
     def _define_transfer_buffer(
         self,
         hcard,
+        index: int,
         data: np.ndarray,
         transfer_offset: int = 0,
     ) -> int:
-        self._aligned_buffer = pvAllocMemPageAligned(len(data) * self._bytes_per_sample)
+        self._aligned_buffer[index] = pvAllocMemPageAligned(len(data) * self._bytes_per_sample)
         # this variable must maintain a reference after exit.
-        data = data.astype(np.int16).tobytes()
-        self._aligned_buffer[:] = data
+        data = data.astype(np.int16)
+        #self._aligned_buffer[index][:] = data
+        pyspcm.memmove(self._aligned_buffer[index], data.ctypes.data, len(data))  # NOTE: check if this works.
         ret = pyspcm.spcm_dwDefTransfer_i64(
             hcard,
             pyspcm.SPCM_BUF_DATA,
             pyspcm.SPCM_DIR_PCTOCARD,
             pyspcm.uint32(0),
-            self._aligned_buffer,
+            self._aligned_buffer[index],
             pyspcm.uint64(transfer_offset),
-            pyspcm.uint64(len(self._aligned_buffer)),
+            pyspcm.uint64(len(self._aligned_buffer[index])),
         )
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Define transfer buffer failed with code {ret}.")
-        return len(self._aligned_buffer)
+        return len(self._aligned_buffer[index])
 
     def _get_data_ready_to_transfer(self, hcard) -> int:
         value = pyspcm.int32(0)
@@ -678,7 +681,7 @@ class M4i6622:
                 np.arange(size),
                 self._sample_rate,
             )
-            data_length = self._define_transfer_buffer(hcard, data)
+            data_length = self._define_transfer_buffer(hcard, index, data)
             self._set_data_ready_to_transfer(hcard, data_length)
             self._start_dma_transfer(hcard)
         for hcard in self._hcards:
