@@ -1,10 +1,14 @@
 from typing import Any
 
 from onix.models.hyperfine import energies
-from onix.sequences.sequence import (AWGSinePulse, Segment, SegmentEmpty,
-                                     Sequence, TTLOn)
-from onix.sequences.shared import (antihole_segment, chasm_segment,
-                                   detect_segment)
+from onix.sequences.sequence import (
+    AWGConstant,
+    AWGSinePulse,
+    Segment,
+    SegmentEmpty,
+    Sequence,
+)
+from onix.sequences.shared import antihole_segment, chasm_segment, detect_segment
 from onix.units import ureg
 
 
@@ -45,6 +49,7 @@ class RFSpectroscopy(Sequence):
             "antihole",
             self._ao_parameters,
             self._eos_parameters,
+            self._field_plate_parameters,
             self._antihole_parameters,
         )
         self.add_segment(segment)
@@ -61,7 +66,12 @@ class RFSpectroscopy(Sequence):
     def _add_rf_segment(self):
         lower_state = self._rf_parameters["transition"][0]
         upper_state = self._rf_parameters["transition"][1]
-        frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + self._rf_parameters["offset"] + self._rf_parameters["detuning"]
+        frequency = (
+            energies["7F0"][upper_state]
+            - energies["7F0"][lower_state]
+            + self._rf_parameters["offset"]
+            + self._rf_parameters["detuning"]
+        )
         print("rf", round(frequency, 2))
         segment = Segment("rf", self._rf_parameters["duration"])
         rf_pulse = AWGSinePulse(frequency, self._rf_parameters["amplitude"])
@@ -73,32 +83,45 @@ class RFSpectroscopy(Sequence):
         segment = SegmentEmpty("break", break_time)
         self.add_segment(segment)
 
-        segment = Segment("field_plate", break_time)
-        field_plate_trigger = TTLOn()
-        segment.add_ttl_function(self._field_plate_parameters["trigger_channel"], field_plate_trigger)
+        segment = Segment("field_plate_break", break_time)
+        if self._field_plate_parameters["use"]:
+            field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
+            segment.add_awg_function(
+                self._field_plate_parameters["channel"], field_plate
+            )
         self.add_segment(segment)
+        self._field_plate_repeats = (
+            self._field_plate_parameters["padding_time"] / break_time
+        )
 
     def setup_sequence(self):
-        detect_fast_repeats = self._detect_parameters["fast_repeats"]
-        detect_repeats = self._detect_parameters["repeats"]
-        field_plate_delay_repeats = 100
+        detect_chasm_repeats = self._detect_parameters["chasm_repeats"]
+        detect_antihole_repeats = self._detect_parameters["antihole_repeats"]
+        detect_rf_repeats = self._detect_parameters["rf_repeats"]
 
         segment_repeats = []
 
         segment_repeats.append(("chasm", self._chasm_repeats))
         segment_repeats.append(("break", 1))
-        segment_repeats.append(("detect", detect_fast_repeats))
+        segment_repeats.append(("detect", detect_chasm_repeats))
 
-        segment_repeats.append(("field_plate", 1))  # trigger the field plate
-        segment_repeats.append(("break", field_plate_delay_repeats - 1))  # wait for E field to increase
+        segment_repeats.append(
+            ("field_plate_break", self._field_plate_repeats)
+        )  # waiting for the field plate to go high
         segment_repeats.append(("antihole", self._antihole_repeats))
-        segment_repeats.append(("break", field_plate_delay_repeats))  # wait for E field to decrease
-        segment_repeats.append(("detect", detect_repeats))
+        segment_repeats.append(
+            ("break", self._field_plate_repeats)
+        )  # waiting for the field plate to go low
+        segment_repeats.append(("detect", detect_antihole_repeats))
 
         segment_repeats.append(("rf", 1))
         segment_repeats.append(("break", 1))
-        segment_repeats.append(("detect", detect_repeats))
+        segment_repeats.append(("detect", detect_rf_repeats))
         return super().setup_sequence(segment_repeats)
 
     def num_of_records(self) -> int:
-        return self._detect_parameters["fast_repeats"] + 2 * self._detect_parameters["repeats"]
+        return (
+            self._detect_parameters["chasm_repeats"]
+            + self._detect_parameters["antihole_repeats"]
+            + self._detect_parameters["rf_repeats"]
+        )

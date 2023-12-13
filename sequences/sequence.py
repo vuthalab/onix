@@ -73,14 +73,20 @@ class Segment:
         ttl_functions = self._ttl_functions(ttl_channels)
 
         times = sample_indices / sample_rate
-        awg_data = [awg_function(times).astype(np.int16) for awg_function in awg_functions]
-        ttl_data = [ttl_function(times).astype(np.int16) for ttl_function in ttl_functions]
+        awg_data = [
+            awg_function(times).astype(np.int16) for awg_function in awg_functions
+        ]
+        ttl_data = [
+            ttl_function(times).astype(np.int16) for ttl_function in ttl_functions
+        ]
         for kk, ttl_channel in enumerate(ttl_channels_map_to_awg_channels):
             awg_index = awg_channels.index(
                 ttl_channels_map_to_awg_channels[ttl_channel]
             )
             awg_data[awg_index] = np.bitwise_or(
-                np.right_shift(awg_data[awg_index].view(np.uint16), 1),  # right_shift only works properly on non-negative numbers.
+                np.right_shift(
+                    awg_data[awg_index].view(np.uint16), 1
+                ),  # right_shift only works properly on non-negative numbers.
                 np.left_shift(ttl_data[kk], 15),
             )
         return np.array(awg_data).flatten("F")
@@ -130,12 +136,16 @@ class MultiSegments(Segment):
             segment._fill_all_channels(list(awg_channels), list(ttl_channels))
         for awg_channel in awg_channels:
             awg_pulse = AWGMultiFunctions(
-                [segment._awg_pulses[awg_channel] for segment in segments], start_times, end_times
+                [segment._awg_pulses[awg_channel] for segment in segments],
+                start_times,
+                end_times,
             )
             self.add_awg_function(awg_channel, awg_pulse)
         for ttl_channel in ttl_channels:
             ttl_pulse = TTLMultiFunctions(
-                [segment._ttl_pulses[ttl_channel] for segment in segments], start_times, end_times
+                [segment._ttl_pulses[ttl_channel] for segment in segments],
+                start_times,
+                end_times,
             )
             self.add_ttl_function(ttl_channel, ttl_pulse)
 
@@ -152,6 +162,15 @@ class AWGFunction:
 class AWGZero(AWGFunction):
     def output(self, times):
         return np.zeros(len(times))
+
+
+class AWGConstant(AWGFunction):
+    def __init__(self, amplitude: float):
+        super().__init__()
+        self._amplitude = amplitude
+
+    def output(self, times):
+        return np.ones(len(times)) * self._amplitude
 
 
 class AWGSinePulse(AWGFunction):

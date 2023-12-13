@@ -2,8 +2,15 @@ from typing import Any
 
 import numpy as np
 from onix.models.hyperfine import energies
-from onix.sequences.sequence import (AWGSinePulse, AWGSineSweep, AWGSineTrain,
-                                     MultiSegments, Segment, TTLPulses)
+from onix.sequences.sequence import (
+    AWGSinePulse,
+    AWGConstant,
+    AWGSineSweep,
+    AWGSineTrain,
+    MultiSegments,
+    Segment,
+    TTLPulses,
+)
 from onix.units import Q_, ureg
 
 PIECEWISE_TIME = 10 * ureg.ms
@@ -46,9 +53,12 @@ def chasm_segment(
                 duration,
                 scan,
                 detuning + field_plate_parameters["stark_shift"] * polarity,
-            ) for polarity in polarities
+            )
+            for polarity in polarities
         ]
-        segment = MultiSegments(name, [segment for (segment, repeats) in segment_repeats])
+        segment = MultiSegments(
+            name, [segment for (segment, repeats) in segment_repeats]
+        )
         return (segment, segment_repeats[0][1])
 
 
@@ -56,6 +66,7 @@ def antihole_segment(
     name: str,
     ao_parameters: dict[str, Any],
     eos_parameters: dict[str, Any],
+    field_plate_parameters: dict[str, Any],
     antihole_parameters: dict[str, Any],
     reverse_transition_order: bool = False,
 ):
@@ -75,9 +86,15 @@ def antihole_segment(
             duration,
             scan,
             detuning,
-        ) for transition in transitions
+        )
+        for transition in transitions
     ]
+    if field_plate_parameters["use"]:
+        for segment in segment_repeats:
+            field_plate = AWGConstant(field_plate_parameters["amplitude"])
+            segment.add_awg_function(field_plate_parameters["channel"], field_plate)
     segment = MultiSegments(name, [segment for (segment, repeats) in segment_repeats])
+
     return (segment, segment_repeats[0][1])
 
 
@@ -101,12 +118,18 @@ def detect_segment(
     if transition is not None:
         F_state = transition[0]
         D_state = transition[1]
-        frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+        frequency = (
+            energies["5D0"][D_state]
+            - energies["7F0"][F_state]
+            + eo_parameters["offset"]
+        )
     print(name, round(frequency, 2))
-    
+
     detect_detunings = detect_parameters["detunings"]
     if field_plate_parameters["use"]:
-        all_detunings = np.empty((detect_detunings.size * 2,), dtype=detect_detunings.dtype)
+        all_detunings = np.empty(
+            (detect_detunings.size * 2,), dtype=detect_detunings.dtype
+        )
         all_detunings[0::2] = detect_detunings - field_plate_parameters["stark_shift"]
         all_detunings[1::2] = detect_detunings + field_plate_parameters["stark_shift"]
         detect_detunings = all_detunings
@@ -116,17 +139,18 @@ def detect_segment(
     start_time = ttl_start_time + detect_padding_time
     on_time = detect_parameters["on_time"]
     off_time = detect_parameters["off_time"]
-    end_time = start_time + (on_time + off_time) * len(detect_detunings) + detect_padding_time
+    end_time = (
+        start_time + (on_time + off_time) * len(detect_detunings) + detect_padding_time
+    )
     eo_amplitude = eo_parameters["amplitude"]
     eo_pulse = AWGSinePulse(
-        frequency,
-        eo_amplitude,
-        start_time=start_time,
-        end_time=end_time
+        frequency, eo_amplitude, start_time=start_time, end_time=end_time
     )
     segment.add_awg_function(eo_parameters["channel"], eo_pulse)
 
-    ao_frequencies = ao_parameters["frequency"] + detect_detunings / ao_parameters["order"]
+    ao_frequencies = (
+        ao_parameters["frequency"] + detect_detunings / ao_parameters["order"]
+    )
     ao_pulse = AWGSineTrain(
         on_time,
         off_time,
@@ -135,17 +159,20 @@ def detect_segment(
         start_time=start_time + off_time / 2,
     )
     segment.add_awg_function(ao_parameters["channel"], ao_pulse)
+
     detect_pulse_times = [
         (
             detect_padding_time + off_time / 2 + kk * (on_time + off_time),
             detect_padding_time + off_time / 2 + on_time + kk * (on_time + off_time),
-        ) for kk in range(len(detect_detunings))
+        )
+        for kk in range(len(detect_detunings))
     ]
     detect_pulse_times = [
         (
             (pulse_start + ao_parameters["rise_delay"]).to("s").magnitude,
             (pulse_end + ao_parameters["fall_delay"]).to("s").magnitude,
-        ) for (pulse_start, pulse_end) in detect_pulse_times
+        )
+        for (pulse_start, pulse_end) in detect_pulse_times
     ]
     analysis_parameters = {
         "detect_detunings": detect_detunings,
@@ -171,7 +198,9 @@ def _scan_segment(
         duration = duration / repeats
     F_state = transition[0]
     D_state = transition[1]
-    frequency = energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+    frequency = (
+        energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+    )
     print(name, round(frequency, 2))
     segment = Segment(name, duration)
     start = ao_parameters["frequency"] + (detuning - scan) / ao_parameters["order"]
