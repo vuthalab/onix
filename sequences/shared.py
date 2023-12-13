@@ -1,4 +1,5 @@
 from typing import Any
+import warnings
 
 import numpy as np
 from onix.models.hyperfine import energies
@@ -90,7 +91,7 @@ def antihole_segment(
         for transition in transitions
     ]
     if field_plate_parameters["use"]:
-        for segment in segment_repeats:
+        for segment, repeats in segment_repeats:
             field_plate = AWGConstant(field_plate_parameters["amplitude"])
             segment.add_awg_function(field_plate_parameters["channel"], field_plate)
     segment = MultiSegments(name, [segment for (segment, repeats) in segment_repeats])
@@ -130,11 +131,14 @@ def detect_segment(
         all_detunings = np.empty(
             (detect_detunings.size * 2,), dtype=detect_detunings.dtype
         )
+        all_detunings *= detect_detunings.units
         all_detunings[0::2] = detect_detunings - field_plate_parameters["stark_shift"]
         all_detunings[1::2] = detect_detunings + field_plate_parameters["stark_shift"]
         detect_detunings = all_detunings
     if detect_parameters["randomize"]:
-        np.random.shuffle(detect_detunings)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            np.random.shuffle(detect_detunings)
 
     start_time = ttl_start_time + detect_padding_time
     on_time = detect_parameters["on_time"]
