@@ -61,7 +61,7 @@ params = {
     },
     "detect": {
         "transition": "bb",
-        "trigger_channel": 0,
+        "trigger_channel": 1,
         "detunings": np.linspace(-1, 1, 8) * ureg.MHz,
         "randomize": True,
         "on_time": 10 * ureg.us,
