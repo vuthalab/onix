@@ -1,6 +1,5 @@
 import time
 
-import matplotlib.pyplot as plt
 import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
@@ -15,9 +14,8 @@ m4i = M4i6622()
 params = {
     "wm_channel": 5,
     "repeats": 20,
-
     "ao": {
-        "channel": 0,
+        "channel": 1,
         "order": 2,
         "frequency": 80 * ureg.MHz,
         "amplitude": 2000,
@@ -25,27 +23,27 @@ params = {
     },
     "eos": {
         "ac": {
-            "channel": 1,
-            "amplitude": 500,
-            "offset": 0 * ureg.MHz,
-        },
-        "bb": {
             "channel": 2,
             "amplitude": 500,
             "offset": 0 * ureg.MHz,
         },
+        "bb": {
+            "channel": 4,
+            "amplitude": 500,
+            "offset": 0 * ureg.MHz,
+        },
         "ca": {
-            "channel": 3,
+            "channel": 5,
             "amplitude": 500,
             "offset": 0 * ureg.MHz,
         },
     },
     "field_plate": {
-        "trigger_channel": 1,
-        "output_channel": 1,
+        "channel": 6,
         "use": True,
-        "voltage": 1 * ureg.V,
+        "amplitude": 100,
         "stark_shift": 1 * ureg.MHz,
+        "padding_time": 1 * ureg.ms,
     },
     "chasm": {
         "transition": "bb",
@@ -70,9 +68,8 @@ params = {
         "fast_repeats": 10,
     },
     "rf": {
+        "channel": 0,
         "transition": "ab",
-        "trigger_channel": 2,
-        "output_channel": 2,
         "offset": 0 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 1 * ureg.ms,
@@ -82,34 +79,31 @@ params = {
 ## setup sequence
 sequence = RFSpectroscopy(
     ao_parameters=params["ao"],
-    eo_parameters=params["eo"],
-    detect_ao_parameters=params["detect_ao"],
-    burn_parameters=params["burn"],
-    repop_parameters=params["repop"],
-    flop_parameters=params["flop"],
+    eos_parameters=params["eos"],
+    field_plate_parameters=params["field_plate"],
+    chasm_parameters=params["chasm"],
+    antihole_parameters=params["antihole"],
+    rf_parameters=params["rf"],
     detect_parameters=params["detect"],
-    digitizer_channel=params["digitizer_channel"],
-    rf_channel=params["rf_channel"],
 )
 sequence.setup_sequence()
 
 ## setup the awg and digitizer
 m4i.setup_sequence(sequence)
+digitizer_time_s = sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
 
 ## take data
 sample_rate = 1e8
 dg = Digitizer(False)
 val = dg.configure_system(
-    mode=2,
+    mode=1,
     sample_rate=sample_rate,
-    segment_size=int(sequence.detect_time.to("s").magnitude * sample_rate),
-    segment_count=sequence.num_of_records() * params['repeats'],
+    segment_size=int(digitizer_time_s * sample_rate),
+    segment_count=sequence.num_of_records() * params["repeats"],
 )
-acq_params = dg.get_acquisition_parameters()
 
 epoch_times = []
 transmissions = None
-reflections = None
 for kk in range(0):
     m4i.start_sequence()
     m4i.wait_for_sequence_complete()
@@ -125,23 +119,17 @@ m4i.stop_sequence()
 
 digitizer_data = dg.get_data()
 transmissions = np.array(digitizer_data[0])
-reflections = np.array(digitizer_data[1])
 
 photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
-
-## plot
-#plt.plot(photodiode_times, np.transpose(photodiode_voltages)); plt.legend(); plt.show();
 
 ## save data
 data = {
     "times": photodiode_times,
     "transmissions": transmissions,
-    "monitors": reflections,
     "epoch_times": epoch_times,
 }
 headers = {
     "params": params,
-    "wavemeter_frequency": wavemeter_frequency(),
 }
 name = "RF Spectroscopy"
 data_id = save_experiment_data(name, data, headers)
