@@ -780,3 +780,4 @@ class M4i6622:
         segments = self._current_sequence.segments
         index_to_replace = segments.index(old_segment_name)
         self._write_segment(index_to_replace, new_segment_name)
+    """
