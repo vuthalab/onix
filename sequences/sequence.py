@@ -75,7 +75,7 @@ class Segment:
         times = sample_indices / sample_rate
         awg_data = [
             awg_function(times).astype(np.int16) for awg_function in awg_functions
-        ]
+        ]  # TODO: slow
         ttl_data = [
             ttl_function(times).astype(np.int16) for ttl_function in ttl_functions
         ]
@@ -89,7 +89,7 @@ class Segment:
                 ),  # right_shift only works properly on non-negative numbers.
                 np.left_shift(ttl_data[kk], 15),
             )
-        return np.array(awg_data).flatten("F")
+        return np.array(awg_data).flatten("F")  # TODO: slow
 
     @property
     def duration(self) -> Q_:

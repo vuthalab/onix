@@ -54,7 +54,7 @@ params = {
     },
     "antihole": {
         "transitions": ["ac", "ca"],
-        "scan": 0.6 * ureg.MHz,
+        "scan": 0.1 * ureg.MHz,
         "scan_rate": 1 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
