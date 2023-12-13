@@ -183,6 +183,7 @@ def detect_segment(
         "digitizer_duration": segment.duration - ttl_start_time,
         "detect_pulse_times": detect_pulse_times,
     }
+    segment._duration = segment.duration + 4 * ureg.us  # make sure that the digitizer can trigger again
     return (segment, analysis_parameters)
 
 

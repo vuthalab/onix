@@ -10,40 +10,39 @@ from onix.units import ureg
 m4i = M4i6622()
 
 ## parameters
-
 params = {
     "wm_channel": 5,
-    "repeats": 20,
+    "repeats": 2,
     "ao": {
         "channel": 0,
         "order": 2,
         "frequency": 80 * ureg.MHz,
-        "amplitude": 2000,
-        "detect_amplitude": 140,
+        "amplitude": 0,
+        "detect_amplitude": 0,
         "rise_delay": 1 * ureg.us,
         "fall_delay": 1 * ureg.us,
     },
     "eos": {
         "ac": {
             "channel": 4,
-            "amplitude": 500,
+            "amplitude": 0,
             "offset": -300 * ureg.MHz,
         },
         "bb": {
             "channel": 1,
-            "amplitude": 500,
+            "amplitude": 0,
             "offset": -300 * ureg.MHz,
         },
         "ca": {
             "channel": 5,
-            "amplitude": 500,
+            "amplitude": 0,
             "offset": -300 * ureg.MHz,
         },
     },
     "field_plate": {
         "channel": 6,
         "use": True,
-        "amplitude": 100,
+        "amplitude": 0,
         "stark_shift": 1 * ureg.MHz,
         "padding_time": 1 * ureg.ms,
     },
@@ -61,7 +60,7 @@ params = {
     },
     "detect": {
         "transition": "bb",
-        "trigger_channel": 1,
+        "trigger_channel": 2,
         "detunings": np.linspace(-1, 1, 8) * ureg.MHz,
         "randomize": True,
         "on_time": 10 * ureg.us,
@@ -73,7 +72,7 @@ params = {
     "rf": {
         "channel": 2,
         "transition": "ab",
-        "amplitude": 1000,
+        "amplitude": 0,
         "offset": 0 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 1 * ureg.ms,
@@ -92,25 +91,27 @@ sequence = RFSpectroscopy(
 )
 sequence.setup_sequence()
 
-## setup the awg and digitizer
+## setup the awg
 m4i.setup_sequence(sequence)
 digitizer_time_s = sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
 
-## take data
+## setup digitizer
 sample_rate = 1e8
 dg = Digitizer(False)
-val = dg.configure_system(
+dg.configure_system(
     mode=1,
     sample_rate=sample_rate,
     segment_size=int(digitizer_time_s * sample_rate),
     segment_count=sequence.num_of_records() * params["repeats"],
+    voltage_range=2,
+)
+dg.configure_trigger(
+    source="external",
 )
 
+## take data
 epoch_times = []
 transmissions = None
-for kk in range(0):
-    m4i.start_sequence()
-    m4i.wait_for_sequence_complete()
 dg.arm_digitizer()
 time.sleep(0.1)
 

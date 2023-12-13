@@ -90,7 +90,7 @@ class RFSpectroscopy(Sequence):
                 self._field_plate_parameters["channel"], field_plate
             )
         self.add_segment(segment)
-        self._field_plate_repeats = (
+        self._field_plate_repeats = int(
             self._field_plate_parameters["padding_time"] / break_time
         )
 
