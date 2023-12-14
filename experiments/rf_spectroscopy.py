@@ -19,7 +19,7 @@ params = {
         "frequency": 80 * ureg.MHz,
         "amplitude": 0,
         "detect_amplitude": 0,
-        "rise_delay": 1 * ureg.us,
+        "rise_delay": 2 * ureg.us,
         "fall_delay": 1 * ureg.us,
     },
     "eos": {
@@ -109,6 +109,31 @@ dg.configure_trigger(
     source="external",
 )
 
+## Data cleaning
+
+def data_cleaning(data):
+    pulse_times = sequence.analysis_parameters["detect_pulse_times"]
+    data_avg = []
+    data_err = []
+
+    for run in data:
+
+        scans_avg = []
+        scans_err = []
+
+        for pulse in pulse_times:
+            start = int(pulse[0] * sample_rate)
+            end = int(pulse[1] * sample_rate)
+
+            scans_avg.append(np.mean(run[start: end]))
+            scans_err.append(np.std(run[start:end])/ np.sqrt(len(run[start:end])))
+
+        data_avg.append(scans_avg)
+        data_err.append(scans_err)
+
+    return data_avg, data_err
+
+
 ## take data
 epoch_times = []
 transmissions = None
@@ -127,11 +152,16 @@ transmissions = np.array(digitizer_data[0])
 
 photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
 
+transmissions_avg, transmissions_err = data_cleaning(transmissions)
+
+
 ## save data
 data = {
     "times": photodiode_times,
-    "transmissions": transmissions,
+    "transmissions_avg": transmissions_avg,
+    "transmissions_err": transmissions_err
     "epoch_times": epoch_times,
+    "detunings:" sequence.analysis_parameters["detect_detunings"]
 }
 headers = {
     "params": params,

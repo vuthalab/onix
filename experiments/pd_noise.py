@@ -10,10 +10,10 @@ from onix.analysis.debug.laser_linewidth import LaserLinewidth
 
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.headers.digitizer import DigitizerVisa
-from onix.headers.awg.M4i6622 import M4i6622
+#from onix.headers.awg.M4i6622 import M4i6622
 
 
-m4i = M4i6622()
+#m4i = M4i6622()
 
 ##
 
@@ -28,7 +28,7 @@ params = {
     },
 
     "detect": {
-        "sample_time" : 100e-3, # s
+        "sample_time" : 1000e-3, # s
         "buffer": 10e-3 # s
     }
 
@@ -48,8 +48,8 @@ m4i.setup_sequence(sequence)
 T = params["detect"]["sample_time"]
 sample_rate = int(1e8)
 segment_size = int(T * sample_rate)
-segment_count = 10
-repeats = 6
+segment_count = 2
+repeats = 10
 dg = Digitizer(False)
 val = dg.configure_system(
     mode = params["channels"],
@@ -60,7 +60,7 @@ val = dg.configure_system(
 )
 
 val = dg.configure_trigger(
-    source = "external",
+    source = "software",
 )
 
 ## Digitizer setup Agilent
@@ -86,9 +86,9 @@ for kk in range(repeats):
     dg.arm_digitizer()
     #dg.initiate_data_acquisition()
 
-    for i in tqdm(range(segment_count)):
-        m4i.start_sequence()
-        m4i.wait_for_sequence_complete()
+    #for i in tqdm(range(segment_count)):
+    #    m4i.start_sequence()
+    #    m4i.wait_for_sequence_complete()
 
     #Vt, Vm = dg.get_waveforms([1,2], records=(1,segment_count))
     Vt = np.append(Vt, dg.get_data()[0], axis=0)
