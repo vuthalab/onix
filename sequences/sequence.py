@@ -4,7 +4,7 @@ import numbers
 
 import numpy as np
 from onix.units import Q_, ureg
-
+from onix.awg_maps import awg_channels
 
 class Segment:
     def __init__(self, name: str, duration: Optional[Union[float, Q_]] = None):
@@ -18,6 +18,8 @@ class Segment:
     def add_awg_function(self, channel: int, function):
         if not isinstance(channel, int):
             raise ValueError(f"Channel {channel} must be an integer.")
+        if function.max_amplitude > awg_channels[channel]["max_allowed_amplitude"]:
+            raise ValueError(f"Channel {channel} exceeded maximum allowable amplitude.")
         self._awg_pulses[channel] = function
 
     def add_ttl_function(self, channel: int, function):
@@ -157,12 +159,18 @@ class AWGFunction:
     @property
     def min_duration(self) -> Q_:
         return 0 * ureg.s
-
+    
+    @property
+    def max_amplitude(self):
+        raise NotImplementedError("Maximum amplitude must be defined.")
 
 class AWGZero(AWGFunction):
     def output(self, times):
         return np.zeros(len(times))
 
+    @property
+    def max_amplitude(self):
+        return 0
 
 class AWGConstant(AWGFunction):
     def __init__(self, amplitude: float):
@@ -172,6 +180,9 @@ class AWGConstant(AWGFunction):
     def output(self, times):
         return np.ones(len(times)) * self._amplitude
 
+    @property
+    def max_amplitude(self):
+        return self._amplitude
 
 class AWGSinePulse(AWGFunction):
     def __init__(
@@ -218,6 +229,9 @@ class AWGSinePulse(AWGFunction):
             return self._start_time
         return 0 * ureg.s
 
+    @property
+    def max_amplitude(self):
+        return self._amplitude
 
 class AWGSineSweep(AWGFunction):
     def __init__(
@@ -267,6 +281,9 @@ class AWGSineSweep(AWGFunction):
     def min_duration(self) -> Q_:
         return self._end_time
 
+    @property
+    def max_amplitude(self):
+        return self._amplitude
 
 class AWGSineTrain(AWGFunction):
     def __init__(
@@ -374,6 +391,9 @@ class AWGSineTrain(AWGFunction):
             self._on_time + self._off_time
         )
 
+    @property
+    def max_amplitude(self):
+        return np.max(self._amplitudes)
 
 class AWGMultiFunctions(AWGFunction):
     def __init__(self, functions: List[AWGFunction], start_times: Q_, end_times: Q_):
@@ -400,7 +420,10 @@ class AWGMultiFunctions(AWGFunction):
     def min_duration(self) -> Q_:
         return max(self._end_times)
 
-
+    @property
+    def max_amplitude(self):
+        return np.max([function.max_amplitude for function in self._functions])
+    
 class TTLFunction:
     def output(self, times):
         raise NotImplementedError()
