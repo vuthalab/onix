@@ -5,42 +5,44 @@ from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.sequences.rf_spectroscopy import RFSpectroscopy
+from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
 m4i = M4i6622()
+
 
 ## parameters
 params = {
     "wm_channel": 5,
     "repeats": 2,
     "ao": {
-        "channel": 0,
+        "name": "ao_dp",
         "order": 2,
         "frequency": 80 * ureg.MHz,
         "amplitude": 0,
-        "detect_amplitude": 0,
-        "rise_delay": 2 * ureg.us,
-        "fall_delay": 1 * ureg.us,
+        "detect_amplitude": 1100,
+        "rise_delay": 1.1 * ureg.us,
+        "fall_delay": 0.6 * ureg.us,
     },
     "eos": {
         "ac": {
-            "channel": 4,
+            "name": "eo_ac",
             "amplitude": 0,
             "offset": -300 * ureg.MHz,
         },
         "bb": {
-            "channel": 1,
+            "name": "eo_bb",
             "amplitude": 0,
             "offset": -300 * ureg.MHz,
         },
         "ca": {
-            "channel": 5,
+            "name": "eo_ca",
             "amplitude": 0,
             "offset": -300 * ureg.MHz,
         },
     },
     "field_plate": {
-        "channel": 6,
+        "name": "field_plate",
         "use": True,
         "amplitude": 0,
         "stark_shift": 1 * ureg.MHz,
@@ -70,7 +72,7 @@ params = {
         "rf_repeats": 100,
     },
     "rf": {
-        "channel": 2,
+        "name": "rf_coil",
         "transition": "ab",
         "amplitude": 0,
         "offset": 0 * ureg.kHz,
@@ -109,33 +111,7 @@ dg.configure_trigger(
     source="external",
 )
 
-## Data cleaning
-
-def data_cleaning(data):
-    pulse_times = sequence.analysis_parameters["detect_pulse_times"]
-    data_avg = []
-    data_err = []
-
-    for run in data:
-
-        scans_avg = []
-        scans_err = []
-
-        for pulse in pulse_times:
-            start = int(pulse[0] * sample_rate)
-            end = int(pulse[1] * sample_rate)
-
-            scans_avg.append(np.mean(run[start: end]))
-            scans_err.append(np.std(run[start:end])/ np.sqrt(len(run[start:end])))
-
-        data_avg.append(scans_avg)
-        data_err.append(scans_err)
-
-    return data_avg, data_err
-
-
 ## take data
-epoch_times = []
 transmissions = None
 dg.arm_digitizer()
 time.sleep(0.1)
@@ -151,20 +127,17 @@ digitizer_data = dg.get_data()
 transmissions = np.array(digitizer_data[0])
 
 photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
-
-transmissions_avg, transmissions_err = data_cleaning(transmissions)
+transmissions_avg, transmissions_err = data_averaging(transmissions, sample_rate, sequence.analysis_parameters["detect_pulse_times"])
 
 
 ## save data
 data = {
-    "times": photodiode_times,
     "transmissions_avg": transmissions_avg,
-    "transmissions_err": transmissions_err
-    "epoch_times": epoch_times,
-    "detunings:" sequence.analysis_parameters["detect_detunings"]
+    "transmissions_err": transmissions_err,
 }
 headers = {
     "params": params,
+    "detunings": sequence.analysis_parameters["detect_detunings"]
 }
 name = "RF Spectroscopy"
 data_id = save_experiment_data(name, data, headers)

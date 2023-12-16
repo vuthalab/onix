@@ -13,6 +13,7 @@ from onix.sequences.sequence import (
     TTLPulses,
 )
 from onix.units import Q_, ureg
+from onix.awg_maps import get_channel_from_name
 
 PIECEWISE_TIME = 10 * ureg.ms
 
@@ -93,7 +94,8 @@ def antihole_segment(
     if field_plate_parameters["use"]:
         for segment, repeats in segment_repeats:
             field_plate = AWGConstant(field_plate_parameters["amplitude"])
-            segment.add_awg_function(field_plate_parameters["channel"], field_plate)
+            field_plate_channel = get_channel_from_name(field_plate_parameters["name"])
+            segment.add_awg_function(field_plate_channel, field_plate)
     segment = MultiSegments(name, [segment for (segment, repeats) in segment_repeats])
 
     return (segment, segment_repeats[0][1])
@@ -150,7 +152,8 @@ def detect_segment(
     eo_pulse = AWGSinePulse(
         frequency, eo_amplitude, start_time=start_time, end_time=end_time
     )
-    segment.add_awg_function(eo_parameters["channel"], eo_pulse)
+    eo_channel = get_channel_from_name(eo_parameters["name"])
+    segment.add_awg_function(eo_channel, eo_pulse)
 
     ao_frequencies = (
         ao_parameters["frequency"] + detect_detunings / ao_parameters["order"]
@@ -162,7 +165,8 @@ def detect_segment(
         ao_parameters["detect_amplitude"],
         start_time=start_time + off_time / 2,
     )
-    segment.add_awg_function(ao_parameters["channel"], ao_pulse)
+    ao_channel = get_channel_from_name(ao_parameters["name"])
+    segment.add_awg_function(ao_channel, ao_pulse)
 
     detect_pulse_times = [
         (
@@ -211,7 +215,9 @@ def _scan_segment(
     start = ao_parameters["frequency"] + (detuning - scan) / ao_parameters["order"]
     end = ao_parameters["frequency"] + (detuning + scan) / ao_parameters["order"]
     ao_pulse = AWGSineSweep(start, end, ao_parameters["amplitude"], 0, duration)
-    segment.add_awg_function(ao_parameters["channel"], ao_pulse)
+    ao_channel = get_channel_from_name(ao_parameters["name"])
+    segment.add_awg_function(ao_channel, ao_pulse)
     eo_pulse = AWGSinePulse(frequency, eo_parameters["amplitude"])
-    segment.add_awg_function(eo_parameters["channel"], eo_pulse)
+    eo_channel = get_channel_from_name(eo_parameters["name"])
+    segment.add_awg_function(eo_channel, eo_pulse)
     return (segment, repeats)

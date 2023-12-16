@@ -10,6 +10,7 @@ from onix.sequences.sequence import (
 )
 from onix.sequences.shared import antihole_segment, chasm_segment, detect_segment
 from onix.units import ureg
+from onix.awg_maps import get_channel_from_name
 
 
 class RFSpectroscopy(Sequence):
@@ -75,7 +76,8 @@ class RFSpectroscopy(Sequence):
         print("rf", round(frequency, 2))
         segment = Segment("rf", self._rf_parameters["duration"])
         rf_pulse = AWGSinePulse(frequency, self._rf_parameters["amplitude"])
-        segment.add_awg_function(self._rf_parameters["channel"], rf_pulse)
+        rf_channel = get_channel_from_name(self._rf_parameters["name"])
+        segment.add_awg_function(rf_channel, rf_pulse)
         self.add_segment(segment)
 
     def _add_helper_segments(self):
@@ -86,9 +88,8 @@ class RFSpectroscopy(Sequence):
         segment = Segment("field_plate_break", break_time)
         if self._field_plate_parameters["use"]:
             field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
-            segment.add_awg_function(
-                self._field_plate_parameters["channel"], field_plate
-            )
+            field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            segment.add_awg_function(field_plate_channel, field_plate)
         self.add_segment(segment)
         self._field_plate_repeats = int(
             self._field_plate_parameters["padding_time"] / break_time

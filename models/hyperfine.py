@@ -302,7 +302,7 @@ Zeeman_tensor_D = {
     "5D0": rotate(
         rotate(
             Zeeman_tensor_own_frame(**Zeeman_tensor_magnitudes_MHz_per_T["5D0"]),
-            **quadrupole_angles["5D0"],
+            **Zeeman_angles["5D0"],
         ),
         **dielectric_angles,
     ),

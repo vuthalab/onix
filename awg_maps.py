@@ -2,7 +2,7 @@ awg_channels = {
     0 : {
         "name" : "channel_0",
         "desc" : "not connected",
-        "max_allowed_amplitude" : 32768, 
+        "max_allowed_amplitude" : 32768,
     },
     1 : {
         "name" : "ao_dp",
@@ -22,7 +22,7 @@ awg_channels = {
     4 : {
         "name" : "channel_4",
         "desc" : "not connected",
-        "max_allowed_amplitude" : 32768, 
+        "max_allowed_amplitude" : 32768,
     },
     5 : {
         "name" : "eo_ca",
@@ -40,4 +40,11 @@ awg_channels = {
         "max_allowed_amplitude" : 32768,
     },
 }
- 
+
+
+
+def get_channel_from_name(name: str) -> int:
+    for channel in awg_channels:
+        if awg_channels[channel]["name"] == name:
+            return channel
+    raise ValueError(f"Channel {name} is not defined.")

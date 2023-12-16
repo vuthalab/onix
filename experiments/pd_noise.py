@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import time
 
 from onix.data_tools import save_experiment_data
 from onix.units import ureg, Q_
@@ -86,7 +87,8 @@ for kk in range(repeats):
     dg.arm_digitizer()
     #dg.initiate_data_acquisition()
 
-    #for i in tqdm(range(segment_count)):
+    for i in tqdm(range(segment_count)):
+        time.sleep(T)
     #    m4i.start_sequence()
     #    m4i.wait_for_sequence_complete()
 
@@ -95,7 +97,7 @@ for kk in range(repeats):
     if params["channels"] == 2:
         Vm = np.append(Vm, dg.get_data()[1], axis=0)
 
-m4i.stop_sequence()
+#m4i.stop_sequence()
 Vtavg = np.mean(Vt)
 print(Vtavg)
 if params["channels"] == 2:
