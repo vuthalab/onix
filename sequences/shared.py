@@ -15,7 +15,7 @@ from onix.sequences.sequence import (
 from onix.units import Q_, ureg
 from onix.awg_maps import get_channel_from_name
 
-PIECEWISE_TIME = 10 * ureg.ms
+PIECEWISE_TIME = 20 * ureg.ms
 
 
 def chasm_segment(
@@ -30,7 +30,7 @@ def chasm_segment(
     scan = chasm_parameters["scan"]
     scan_rate = chasm_parameters["scan_rate"]
     detuning = chasm_parameters["detuning"]
-    duration = scan / scan_rate
+    duration = scan * 2 / scan_rate
     if not field_plate_parameters["use"]:
         return _scan_segment(
             name,
@@ -71,6 +71,7 @@ def antihole_segment(
     field_plate_parameters: dict[str, Any],
     antihole_parameters: dict[str, Any],
     reverse_transition_order: bool = False,
+    return_separate_segments: bool = False,
 ):
     transitions: list[str] = antihole_parameters["transitions"]
     if reverse_transition_order:
@@ -78,10 +79,13 @@ def antihole_segment(
     scan = antihole_parameters["scan"]
     scan_rate = antihole_parameters["scan_rate"]
     detuning = antihole_parameters["detuning"]
-    duration = scan / scan_rate
+    if scan.to("Hz").magnitude == 0:
+        duration = antihole_parameters["duration_no_scan"]
+    else:
+        duration = scan / scan_rate
     segment_repeats = [
         _scan_segment(
-            name,
+            name + "_" + transition,
             ao_parameters,
             eos_parameters,
             transition,
@@ -96,9 +100,12 @@ def antihole_segment(
             field_plate = AWGConstant(field_plate_parameters["amplitude"])
             field_plate_channel = get_channel_from_name(field_plate_parameters["name"])
             segment.add_awg_function(field_plate_channel, field_plate)
-    segment = MultiSegments(name, [segment for (segment, repeats) in segment_repeats])
 
-    return (segment, segment_repeats[0][1])
+    if not return_separate_segments:
+        segment = MultiSegments(name, [segment for (segment, repeats) in segment_repeats])
+        return (segment, segment_repeats[0][1])
+    else:
+        return segment_repeats
 
 
 def detect_segment(
@@ -126,7 +133,7 @@ def detect_segment(
             - energies["7F0"][F_state]
             + eo_parameters["offset"]
         )
-    print(name, round(frequency, 2))
+    print(name, transition, round(frequency, 2))
 
     detect_detunings = detect_parameters["detunings"]
     if field_plate_parameters["use"]:
@@ -208,12 +215,12 @@ def _scan_segment(
     F_state = transition[0]
     D_state = transition[1]
     frequency = (
-        energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+        energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"] + detuning
     )
-    print(name, round(frequency, 2))
+    print(name, transition, round(frequency, 2))
     segment = Segment(name, duration)
-    start = ao_parameters["frequency"] + (detuning - scan) / ao_parameters["order"]
-    end = ao_parameters["frequency"] + (detuning + scan) / ao_parameters["order"]
+    start = ao_parameters["frequency"] - scan / ao_parameters["order"]
+    end = ao_parameters["frequency"] + scan / ao_parameters["order"]
     ao_pulse = AWGSineSweep(start, end, ao_parameters["amplitude"], 0, duration)
     ao_channel = get_channel_from_name(ao_parameters["name"])
     segment.add_awg_function(ao_channel, ao_pulse)

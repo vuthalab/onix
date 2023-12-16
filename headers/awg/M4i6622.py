@@ -1,3 +1,6 @@
+# TODO: after stop sine output cannot program new sequence
+# TODO: start_sequence incorrectly starts sine output on the first board.
+
 from typing import Literal, Optional, Union
 
 import numpy as np

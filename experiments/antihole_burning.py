@@ -4,7 +4,7 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.sequences.rf_spectroscopy import RFSpectroscopy
+from onix.sequences.antihole_burning import AntiholeBurning
 from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
@@ -41,13 +41,6 @@ params = {
             "offset": -300 * ureg.MHz,
         },
     },
-    "field_plate": {
-        "name": "field_plate",
-        "use": False,
-        "amplitude": 0,
-        "stark_shift": 1 * ureg.MHz,
-        "padding_time": 1 * ureg.ms,
-    },
     "chasm": {
         "transition": "bb",
         "scan": 5 * ureg.MHz,
@@ -59,7 +52,8 @@ params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.1 * ureg.s
+        "duration_no_scan": 0.05 * ureg.s,
+        "repeats_one_frequency": 1,
     },
     "detect": {
         "transition": "bb",
@@ -70,26 +64,15 @@ params = {
         "off_time": 2 * ureg.us,
         "chasm_repeats": 10,
         "antihole_repeats": 10,
-        "rf_repeats": 10,
-    },
-    "rf": {
-        "name": "rf_coil",
-        "transition": "ab",
-        "amplitude": 0,
-        "offset": 0 * ureg.kHz,
-        "detuning": 0 * ureg.kHz,
-        "duration": 1 * ureg.ms,
     },
 }
 
 ## setup sequence
-sequence = RFSpectroscopy(
+sequence = AntiholeBurning(
     ao_parameters=params["ao"],
     eos_parameters=params["eos"],
-    field_plate_parameters=params["field_plate"],
     chasm_parameters=params["chasm"],
     antihole_parameters=params["antihole"],
-    rf_parameters=params["rf"],
     detect_parameters=params["detect"],
 )
 sequence.setup_sequence()
@@ -102,7 +85,7 @@ digitizer_time_s = sequence.analysis_parameters["digitizer_duration"].to("s").ma
 dg = Digitizer(False)
 sample_rate = 1e8
 dg.configure_system(
-    mode=2,
+    mode=1,
     sample_rate=sample_rate,
     segment_size=int(digitizer_time_s * sample_rate),
     segment_count=sequence.num_of_records() * params["repeats"],
@@ -125,11 +108,9 @@ m4i.stop_sequence()
 
 digitizer_data = dg.get_data()
 transmissions = np.array(digitizer_data[0])
-monitors = np.array(digitizer_data[1])
 
 photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
 transmissions_avg, transmissions_err = data_averaging(transmissions, sample_rate, sequence.analysis_parameters["detect_pulse_times"])
-monitors_avg, monitors_err = data_averaging(monitors, sample_rate, sequence.analysis_parameters["detect_pulse_times"])
 
 
 ## plot transmissions
@@ -142,14 +123,12 @@ monitors_avg, monitors_err = data_averaging(monitors, sample_rate, sequence.anal
 data = {
     "transmissions_avg": transmissions_avg,
     "transmissions_err": transmissions_err,
-    "monitors_avg": monitors_avg,
-    "monitors_err": monitors_err,
 }
 headers = {
     "params": params,
     "detunings": sequence.analysis_parameters["detect_detunings"]
 }
-name = "RF Spectroscopy"
+name = "Antihole Burning"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)
 
