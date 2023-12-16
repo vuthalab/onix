@@ -229,15 +229,15 @@ quadrupole_angles = {
 }
 
 
-# Harish's notebook, for 153Eu3+:YSO. Probably comes from scaling the 151Eu number by the nuclear magnetic dipole moment ratio.
+# Yano1991 and Yano1992. Sign comes from Cruzeiro2018.
 quadrupole_tensor_magnitudes_MHz = {
     "7F0": {
-        "D": -32.02,
-        "E": -7.19,
+        "D": -32.0,
+        "E": -32.0 * 0.674 / 3,
     },
     "5D0": {
-        "D": 69.67,
-        "E": 15.33,
+        "D": 69.7,
+        "E": 69.7 * 0.660 / 3,
     },
 }
 
@@ -275,17 +275,18 @@ Zeeman_angles = {
 }
 
 
-# Cruzeiro2018, for 151Eu3+:YSO.
+_mu_ratio = 1.5324 / 3.4718 # https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html
+# Cruzeiro2018, for 151Eu3+:YSO, scaled by the 153 / 151 nuclear magnetic dipole moment.
 Zeeman_tensor_magnitudes_MHz_per_T = {
     "7F0": {
-        "g_1": 4.3,
-        "g_2": 5.559,
-        "g_3": -10.891,
+        "g_1": 4.3 * _mu_ratio,
+        "g_2": 5.559 * _mu_ratio,
+        "g_3": -10.891 * _mu_ratio,
     },
     "5D0": {
-        "g_1": 9.11,
-        "g_2": 9.158,
-        "g_3": 9.069,
+        "g_1": 9.11 * _mu_ratio,
+        "g_2": 9.158 * _mu_ratio,
+        "g_3": 9.069 * _mu_ratio,
     },
 }
 

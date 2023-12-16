@@ -302,8 +302,7 @@ class M4i6622:
         self._aligned_buffer[index] = pvAllocMemPageAligned(len(data) * self._bytes_per_sample)
         # this variable must maintain a reference after exit.
         data = data.astype(np.int16)
-        #self._aligned_buffer[index][:] = data
-        pyspcm.memmove(self._aligned_buffer[index], data.ctypes.data, len(data))  # NOTE: check if this works.
+        pyspcm.memmove(self._aligned_buffer[index], data.ctypes.data, 2 * len(data))
         ret = pyspcm.spcm_dwDefTransfer_i64(
             hcard,
             pyspcm.SPCM_BUF_DATA,
