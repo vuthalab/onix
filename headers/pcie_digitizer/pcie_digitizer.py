@@ -5,6 +5,8 @@ All voltages values are in volts and amplitudes, not peak to peak.
 The +- 1V setting for acquisition does not work. 
 If you set the trigger level too low (below 10%) sometimes it will work, sometimes it will throw an error.
 
+
+Problem: it crashes when we initialize the header object many times in an experiment.
  
 Last Updated by: Alek Radak
 Last Update: 11/28/23
@@ -453,7 +455,7 @@ class Digitizer:
         if status < 0:
             return status
 
-    def get_data(self):
+    def get_data(self):  # TODO: fix the function so we don't need to reinitialize and set the parameters every time.
         """Returns the digitizer data in 3-dim np.array.
         
         The first dimension iterates over all channels.

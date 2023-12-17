@@ -73,7 +73,7 @@ class RFSpectroscopy(Sequence):
             + self._rf_parameters["offset"]
             + self._rf_parameters["detuning"]
         )
-        print("rf", round(frequency, 2))
+        print("rf", round(frequency, 3))
         segment = Segment("rf", self._rf_parameters["duration"])
         rf_pulse = AWGSinePulse(frequency, self._rf_parameters["amplitude"])
         rf_channel = get_channel_from_name(self._rf_parameters["name"])

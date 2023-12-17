@@ -222,9 +222,11 @@ def _scan_segment(
     start = ao_parameters["frequency"] - scan / ao_parameters["order"]
     end = ao_parameters["frequency"] + scan / ao_parameters["order"]
     ao_pulse = AWGSineSweep(start, end, ao_parameters["amplitude"], 0, duration)
+    #print("ao", start, end, ao_parameters["amplitude"], 0, duration)
     ao_channel = get_channel_from_name(ao_parameters["name"])
     segment.add_awg_function(ao_channel, ao_pulse)
     eo_pulse = AWGSinePulse(frequency, eo_parameters["amplitude"])
+    #print("eo", frequency, eo_parameters["amplitude"])
     eo_channel = get_channel_from_name(eo_parameters["name"])
     segment.add_awg_function(eo_channel, eo_pulse)
     return (segment, repeats)
