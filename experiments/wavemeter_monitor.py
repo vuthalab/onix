@@ -37,7 +37,7 @@ def save_data():
 frequencies = []
 times = []
 
-total_time = 12 * 60 # minutes
+total_time = 48 * 60 # minutes
 measurement_period = 5 # min
 
 measurements = int(total_time / measurement_period)

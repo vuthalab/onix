@@ -142,7 +142,7 @@ def get_data(handle: int, system_info: dict):
 
 
 if __name__ == "__main__":
-    use_header = False
+    use_header = True
 
     if not use_header:
         config_file = "/home/onix/Documents/code/onix/digitizer_test/Acquire.ini"
@@ -155,10 +155,14 @@ if __name__ == "__main__":
             get_data(handle, system_info)
     else:
         dg = Digitizer()
-        dg.configure_system(mode=1, sample_rate=1e8, segment_size=8160, segment_count=1, voltage_range=2)
-        dg.configure_trigger(source="software")
+        dg.set_acquisition_config(num_channels=1, sample_rate=1e8, segment_size=8120, segment_count=1)
+        dg.set_channel_config(channel=1, range=0.1)
+        dg.set_trigger_source_software()
+        dg.write_configs_to_device()
+
         for kk in range(50):
             print(kk)
-            dg.arm_digitizer()
-            time.sleep(0.1)
-            print(len(dg.get_data()[0][0]))
+            dg.start_capture()
+            dg.wait_for_data_ready()
+            data_sample_rate, data = dg.get_data()
+            print(data.shape)
