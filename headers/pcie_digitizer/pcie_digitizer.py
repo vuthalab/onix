@@ -1,15 +1,8 @@
-"""
-PCIE Digitizer Header file
+"""PCIE Digitizer Header file
 
-All voltages values are in volts and amplitudes, not peak to peak.
-The +- 1V setting for acquisition does not work.
-If you set the trigger level too low (below 10%) sometimes it will work, sometimes it will throw an error.
-
-
-Problem: it crashes when we initialize the header object many times in an experiment.
-
-Last Updated by: Alek Radak
-Last Update: 11/28/23
+Updated 12/18/23 by Mingyu Fan
+  - Digitizer can take many repetitions of data without crashing.
+  - Allows individual control of the input voltage ranges of channels.
 """
 import sys
 from builtins import int
@@ -89,7 +82,7 @@ class Digitizer:
     def get_acquisition_config(self) -> dict:
         return PyGage.GetAcquisitionConfig(self._handle)
 
-    def set_acquisition_config(  # TODO: add support for external clock.
+    def set_acquisition_config(
         self,
         num_channels: Literal[1, 2],
         sample_rate: VALID_SAMPLE_RATES,
@@ -129,7 +122,7 @@ class Digitizer:
     def get_channel_config(self, channel: int) -> dict:
         return PyGage.GetChannelConfig(self._handle, channel)
 
-    def set_channel_config(  # dc offset, filter, direct adc, diff input
+    def set_channel_config(  # dc offset
         self,
         channel: Literal[1, 2],
         range: float,
@@ -149,7 +142,7 @@ class Digitizer:
             self._system_info["ChannelCount"],
             self._system_info["BoardCount"],
         )  # channel increment when multiple boards are installed.
-        channel = 1 + (channel - 1) * channel_increment  # TODO: double check all channel_increment
+        channel = 1 + (channel - 1) * channel_increment
 
         chan_config = default_chan_config.copy()
         full_range_mV = int(range * 2000)
@@ -201,8 +194,8 @@ class Digitizer:
 
     def set_trigger_source_edge(
         self,
-        range: float,
-        level: float,
+        range: float = 5.0,
+        level: float = 1.2,
         positive_slope: bool = True,
         ac_coupled: bool = False,
         high_impedance: bool = False,
@@ -211,12 +204,12 @@ class Digitizer:
             "Condition": gc.CS_TRIG_COND_POS_SLOPE,
             "Level": 30,
             "Source": gc.CS_TRIG_SOURCE_EXT,
-            "ExtRange": 5000,
+            "ExtRange": 10000,
             "ExtImpedance": 50,
         }
         trigger_config = default_trigger_config.copy()
         trigger_config["Source"] = gc.CS_TRIG_SOURCE_EXT
-        trigger_config["ExtRange"] = int(range * 1000)
+        trigger_config["ExtRange"] = int(range * 2000)
         trigger_config["Level"] = int(level / range * 100)
         if positive_slope:
             trigger_config["Condition"] = gc.CS_TRIG_COND_POS_SLOPE
@@ -273,12 +266,11 @@ class Digitizer:
                 if isinstance(data, int):
                     self._raise_error("TransferData", data)
 
-                print(data)
                 data = np.array(data[0])
                 data = data[:data_length - self._overflow]
 
                 full_range_mV = self.get_channel_config(channel)["InputRange"]
-                data = data / (full_range_mV * 1e-3 / 2**16)
+                data = data * (full_range_mV * 1e-3 / 2**16)
                 segment_data.append(data)
             segment_data = np.array(segment_data)
             channel_data.append(segment_data)

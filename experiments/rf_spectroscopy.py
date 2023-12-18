@@ -18,7 +18,7 @@ try:
     dg
     print("dg is already defined.")
 except Exception:
-    dg = Digitizer(False)
+    dg = Digitizer()
 
 ## parameters
 default_params = {
@@ -60,7 +60,7 @@ default_params = {
     "chasm": {
         "transition": "bb",
         "scan": 2 * ureg.MHz,
-        "scan_rate": 0.5 * ureg.MHz / ureg.s,
+        "scan_rate": 5 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -103,16 +103,16 @@ default_sequence.setup_sequence()
 
 digitizer_time_s = default_sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
 sample_rate = 1e8
-dg.configure_system(
-    mode=2,
-    sample_rate=sample_rate,
+dg.set_acquisition_config(
+    num_channels=2,
+    sample_rate=1e8,
     segment_size=int(digitizer_time_s * sample_rate),
-    segment_count=default_sequence.num_of_records() * default_params["repeats"],
-    voltage_range=2,
+    segment_count=default_sequence.num_of_records() * default_params["repeats"]
 )
-dg.configure_trigger(
-    source="external",
-)
+dg.set_channel_config(channel=1, range=2)
+dg.set_channel_config(channel=2, range=0.5)
+dg.set_trigger_source_edge()
+dg.write_configs_to_device()
 
 
 ## function to run the experiment
@@ -127,25 +127,10 @@ def run_experiment(params):
         detect_parameters=params["detect"],
     )
     sequence.setup_sequence()
-
-    digitizer_time_s = sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
-    dg.initialize()
-    sample_rate = 1e8
-    dg.configure_system(
-        mode=2,
-        sample_rate=sample_rate,
-        segment_size=int(digitizer_time_s * sample_rate),
-        segment_count=sequence.num_of_records() * params["repeats"],
-        voltage_range=2,
-    )
-    dg.configure_trigger(
-        source="external",
-    )
-
     m4i.setup_sequence(sequence)
 
     transmissions = None
-    dg.arm_digitizer()
+    dg.start_capture()
     time.sleep(0.1)
 
     for kk in range(params["repeats"]):
@@ -154,13 +139,14 @@ def run_experiment(params):
         m4i.wait_for_sequence_complete()
     m4i.stop_sequence()
 
-    digitizer_data = dg.get_data()
+    dg.wait_for_data_ready()
+    digitizer_sample_rate, digitizer_data = dg.get_data()
     transmissions = np.array(digitizer_data[0])
     monitors = np.array(digitizer_data[1])
 
-    photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
-    transmissions_avg, transmissions_err = data_averaging(transmissions, sample_rate, sequence.analysis_parameters["detect_pulse_times"])
-    monitors_avg, monitors_err = data_averaging(monitors, sample_rate, sequence.analysis_parameters["detect_pulse_times"])
+    photodiode_times = [kk / digitizer_sample_rate for kk in range(len(transmissions[0]))]
+    transmissions_avg, transmissions_err = data_averaging(transmissions, digitizer_sample_rate, sequence.analysis_parameters["detect_pulse_times"])
+    monitors_avg, monitors_err = data_averaging(monitors, digitizer_sample_rate, sequence.analysis_parameters["detect_pulse_times"])
 
     data = {
         "transmissions_avg": transmissions_avg,
@@ -175,7 +161,7 @@ def run_experiment(params):
     name = "RF Spectroscopy"
     data_id = save_experiment_data(name, data, headers)
     print(data_id)
-    dg.close()
+    print()
 
 ## scan
 rf_frequencies = np.linspace(80, 200, 30) * ureg.kHz
