@@ -60,7 +60,7 @@ default_params = {
     "chasm": {
         "transition": "bb",
         "scan": 2 * ureg.MHz,
-        "scan_rate": 2 * ureg.MHz / ureg.s,
+        "scan_rate": 5 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -68,26 +68,26 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.1 * ureg.s
+        "duration_no_scan": 0.2 * ureg.s
     },
     "detect": {
         "transition": "bb",
         "trigger_channel": 2,
         "detunings": np.linspace(-1., 1, 40) * ureg.MHz,
         "randomize": True,
-        "on_time": 5 * ureg.us,
+        "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
-        "chasm_repeats": 1,  # change the names of detection repeats
-        "antihole_repeats": 1,
-        "rf_repeats": 1,
+        "chasm_repeats": 5,  # change the names of detection repeats
+        "antihole_repeats": 5,
+        "rf_repeats": 40,
     },
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 4200,
+        "amplitude": 4200,  # 4200
         "offset": 100 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "duration": 0.1 * ureg.ms,
+        "duration": 10 * ureg.ms,
     },
 }
 default_sequence = RFSpectroscopy(
@@ -168,13 +168,12 @@ def run_experiment(params):
     print()
 
 ## scan
-rf_frequencies = np.linspace(80, 200, 4) * ureg.kHz
-#rf_frequencies = np.array([100]) * ureg.kHz
-antihole_center_frequencies = np.linspace(74, 74, 4) * ureg.MHz
+rf_frequencies = np.linspace(0, 200, 2)
+#np.random.shuffle(rf_frequencies)
+rf_frequencies *= ureg.kHz
 params = default_params.copy()
 for kk in range(len(rf_frequencies)):
     params["rf"]["offset"] = rf_frequencies[kk]
-    params["ao"]["frequency"] = antihole_center_frequencies[kk]
     run_experiment(params)
 
 ## empty

@@ -46,14 +46,16 @@ class RFSpectroscopy(Sequence):
         )
         self.add_segment(segment)
 
-        segment, self._antihole_repeats = antihole_segment(
+        self._antihole_segments_and_repeats = antihole_segment(
             "antihole",
             self._ao_parameters,
             self._eos_parameters,
             self._field_plate_parameters,
             self._antihole_parameters,
+            return_separate_segments=True,
         )
-        self.add_segment(segment)
+        for segment, repeats in self._antihole_segments_and_repeats:
+            self.add_segment(segment)
 
         segment, self.analysis_parameters = detect_segment(
             "detect",
@@ -100,6 +102,8 @@ class RFSpectroscopy(Sequence):
         detect_antihole_repeats = self._detect_parameters["antihole_repeats"]
         detect_rf_repeats = self._detect_parameters["rf_repeats"]
 
+        antihole_repeats_one_frequency = 1
+
         segment_repeats = []
 
         segment_repeats.append(("chasm", self._chasm_repeats))
@@ -109,7 +113,9 @@ class RFSpectroscopy(Sequence):
         segment_repeats.append(
             ("field_plate_break", self._field_plate_repeats)
         )  # waiting for the field plate to go high
-        segment_repeats.append(("antihole", self._antihole_repeats))
+        for kk in range(self._antihole_segments_and_repeats[0][1] // antihole_repeats_one_frequency):
+            for segment, repeats in self._antihole_segments_and_repeats:
+                segment_repeats.append((segment.name, antihole_repeats_one_frequency))
         segment_repeats.append(
             ("break", self._field_plate_repeats)
         )  # waiting for the field plate to go low
