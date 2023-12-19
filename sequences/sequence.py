@@ -411,7 +411,9 @@ class AWGMultiFunctions(AWGFunction):
         for kk in range(len(self._start_times)):
             start_time = self._start_times[kk].to("s").magnitude
             end_time = self._end_times[kk].to("s").magnitude
-            funclist.append(self._functions[kk].output)
+            def output(function, start_time, times):
+                return function.output(times - start_time)
+            funclist.append(partial(output, self._functions[kk], start_time))
             condlist.append(np.logical_and(times > start_time, times <= end_time))
         funclist.append(zero)
         return np.piecewise(times, condlist, funclist)
@@ -498,7 +500,9 @@ class TTLMultiFunctions(TTLFunction):
         for kk in range(len(self._start_times)):
             start_time = self._start_times[kk].to("s").magnitude
             end_time = self._end_times[kk].to("s").magnitude
-            funclist.append(self._functions[kk].output)
+            def output(function, start_time, times):
+                return function.output(times - start_time)
+            funclist.append(partial(output, self._functions[kk], start_time))
             condlist.append(np.logical_and(times > start_time, times <= end_time))
         funclist.append(zero)
         return np.piecewise(times, condlist, funclist)
