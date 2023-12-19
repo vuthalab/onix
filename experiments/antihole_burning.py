@@ -9,6 +9,7 @@ from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
 m4i = M4i6622()
+dg = Digitizer()
 
 
 ## parameters
@@ -43,7 +44,7 @@ params = {
     },
     "chasm": {
         "transition": "bb",
-        "scan": 5 * ureg.MHz,
+        "scan": 2 * ureg.MHz,
         "scan_rate": 2 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
@@ -52,18 +53,18 @@ params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.05 * ureg.s,
+        "duration_no_scan": 0.1 * ureg.s,
         "repeats_one_frequency": 1,
     },
     "detect": {
         "transition": "bb",
         "trigger_channel": 2,
-        "detunings": np.linspace(-4., 4, 40) * ureg.MHz,
+        "detunings": np.linspace(-1., 1, 40) * ureg.MHz,
         "randomize": True,
         "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
-        "chasm_repeats": 10,
-        "antihole_repeats": 10,
+        "chasm_repeats": 1,
+        "antihole_repeats": 1,
     },
 }
 
@@ -82,22 +83,20 @@ m4i.setup_sequence(sequence)
 digitizer_time_s = sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
 
 ## setup digitizer
-dg = Digitizer(False)
 sample_rate = 1e8
-dg.configure_system(
-    mode=1,
-    sample_rate=sample_rate,
+dg.set_acquisition_config(
+    num_channels=1,
+    sample_rate=1e8,
     segment_size=int(digitizer_time_s * sample_rate),
-    segment_count=sequence.num_of_records() * params["repeats"],
-    voltage_range=2,
+    segment_count=sequence.num_of_records() * params["repeats"]
 )
-dg.configure_trigger(
-    source="external",
-)
+dg.set_channel_config(channel=1, range=2)
+dg.set_trigger_source_edge()
+dg.write_configs_to_device()
 
 ## take data
 transmissions = None
-dg.arm_digitizer()
+dg.start_capture()
 time.sleep(0.1)
 
 for kk in range(params["repeats"]):
@@ -106,7 +105,8 @@ for kk in range(params["repeats"]):
     m4i.wait_for_sequence_complete()
 m4i.stop_sequence()
 
-digitizer_data = dg.get_data()
+dg.wait_for_data_ready()
+digitizer_sample_rate, digitizer_data = dg.get_data()
 transmissions = np.array(digitizer_data[0])
 
 photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]

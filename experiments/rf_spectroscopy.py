@@ -60,7 +60,7 @@ default_params = {
     "chasm": {
         "transition": "bb",
         "scan": 2 * ureg.MHz,
-        "scan_rate": 5 * ureg.MHz / ureg.s,
+        "scan_rate": 2 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -75,7 +75,7 @@ default_params = {
         "trigger_channel": 2,
         "detunings": np.linspace(-1., 1, 40) * ureg.MHz,
         "randomize": True,
-        "on_time": 10 * ureg.us,
+        "on_time": 5 * ureg.us,
         "off_time": 2 * ureg.us,
         "chasm_repeats": 1,  # change the names of detection repeats
         "antihole_repeats": 1,
@@ -148,6 +148,10 @@ def run_experiment(params):
     transmissions_avg, transmissions_err = data_averaging(transmissions, digitizer_sample_rate, sequence.analysis_parameters["detect_pulse_times"])
     monitors_avg, monitors_err = data_averaging(monitors, digitizer_sample_rate, sequence.analysis_parameters["detect_pulse_times"])
 
+    #import matplotlib.pyplot as plt
+    #plt.plot(photodiode_times, transmissions[0])
+    #plt.show()
+
     data = {
         "transmissions_avg": transmissions_avg,
         "transmissions_err": transmissions_err,
@@ -164,9 +168,9 @@ def run_experiment(params):
     print()
 
 ## scan
-rf_frequencies = np.linspace(80, 200, 30) * ureg.kHz
+rf_frequencies = np.linspace(80, 200, 4) * ureg.kHz
 #rf_frequencies = np.array([100]) * ureg.kHz
-antihole_center_frequencies = np.linspace(70, 85, 30) * ureg.MHz
+antihole_center_frequencies = np.linspace(74, 74, 4) * ureg.MHz
 params = default_params.copy()
 for kk in range(len(rf_frequencies)):
     params["rf"]["offset"] = rf_frequencies[kk]
