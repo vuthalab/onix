@@ -1,4 +1,4 @@
-# TODO: after stop sine output cannot program new sequence
+# TODO: after stop sine output cannot run new sequence
 # TODO: start_sequence incorrectly starts sine output on the first board.
 
 from typing import Literal, Optional, Union

@@ -23,7 +23,7 @@ except Exception:
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 2,
+    "repeats": 10,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -41,7 +41,7 @@ default_params = {
         },
         "bb": {
             "name": "eo_bb",
-            "amplitude": 2000,  #2000
+            "amplitude": 1900,  #1900
             "offset": -300 * ureg.MHz,
         },
         "ca": {
@@ -59,7 +59,7 @@ default_params = {
     },
     "chasm": {
         "transition": "bb",
-        "scan": 2 * ureg.MHz,
+        "scan": 2.5 * ureg.MHz,
         "scan_rate": 5 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
@@ -68,26 +68,26 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.2 * ureg.s
+        "duration_no_scan": 0.5 * ureg.s
     },
     "detect": {
         "transition": "bb",
         "trigger_channel": 2,
-        "detunings": np.linspace(-1., 1, 40) * ureg.MHz,
+        "detunings": np.linspace(-1.5, 1.5, 20) * ureg.MHz,
         "randomize": True,
         "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
-        "chasm_repeats": 5,  # change the names of detection repeats
-        "antihole_repeats": 5,
-        "rf_repeats": 40,
+        "chasm_repeats": 100,  # change the names of detection repeats
+        "antihole_repeats": 100,
+        "rf_repeats": 100,
     },
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
         "amplitude": 4200,  # 4200
-        "offset": 100 * ureg.kHz,
+        "offset": -35.6 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "duration": 10 * ureg.ms,
+        "duration": 0.05 * ureg.ms,
     },
 }
 default_sequence = RFSpectroscopy(
@@ -168,12 +168,14 @@ def run_experiment(params):
     print()
 
 ## scan
-rf_frequencies = np.linspace(0, 200, 2)
-#np.random.shuffle(rf_frequencies)
-rf_frequencies *= ureg.kHz
+# rf_frequencies = np.array([0])
+# np.random.shuffle(rf_frequencies)
+# rf_frequencies *= ureg.kHz
+# params = default_params.copy()
+# for kk in range(len(rf_frequencies)):
+#     params["rf"]["offset"] = rf_frequencies[kk]
+#     run_experiment(params)
 params = default_params.copy()
-for kk in range(len(rf_frequencies)):
-    params["rf"]["offset"] = rf_frequencies[kk]
-    run_experiment(params)
+run_experiment(params)
 
 ## empty
