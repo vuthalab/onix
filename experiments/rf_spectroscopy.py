@@ -20,100 +20,6 @@ try:
 except Exception:
     dg = Digitizer()
 
-## parameters
-default_params = {
-    "wm_channel": 5,
-    "repeats": 10,
-    "ao": {
-        "name": "ao_dp",
-        "order": 2,
-        "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
-        "amplitude": 2000,
-        "detect_amplitude": 650,
-        "rise_delay": 1.1 * ureg.us,
-        "fall_delay": 0.6 * ureg.us,
-    },
-    "eos": {
-        "ac": {
-            "name": "eo_ac",
-            "amplitude": 4500,  #4500
-            "offset": -300 * ureg.MHz,
-        },
-        "bb": {
-            "name": "eo_bb",
-            "amplitude": 1900,  #1900
-            "offset": -300 * ureg.MHz,
-        },
-        "ca": {
-            "name": "eo_ca",
-            "amplitude": 1400,  #1400
-            "offset": -300 * ureg.MHz,
-        },
-    },
-    "field_plate": {
-        "name": "field_plate",
-        "use": False,
-        "amplitude": 0,
-        "stark_shift": 1 * ureg.MHz,
-        "padding_time": 1 * ureg.ms,
-    },
-    "chasm": {
-        "transition": "bb",
-        "scan": 2.5 * ureg.MHz,
-        "scan_rate": 5 * ureg.MHz / ureg.s,
-        "detuning": 0 * ureg.MHz,
-    },
-    "antihole": {
-        "transitions": ["ac", "ca"],
-        "scan": 0 * ureg.MHz,
-        "scan_rate": 0 * ureg.MHz / ureg.s,
-        "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.5 * ureg.s
-    },
-    "detect": {
-        "transition": "bb",
-        "trigger_channel": 2,
-        "detunings": np.linspace(-1.5, 1.5, 20) * ureg.MHz,
-        "randomize": True,
-        "on_time": 10 * ureg.us,
-        "off_time": 2 * ureg.us,
-        "chasm_repeats": 100,  # change the names of detection repeats
-        "antihole_repeats": 100,
-        "rf_repeats": 100,
-    },
-    "rf": {
-        "name": "rf_coil",
-        "transition": "ab",
-        "amplitude": 4200,  # 4200
-        "offset": -35.6 * ureg.kHz,
-        "detuning": 0 * ureg.kHz,
-        "duration": 0.05 * ureg.ms,
-    },
-}
-default_sequence = RFSpectroscopy(
-    ao_parameters=default_params["ao"],
-    eos_parameters=default_params["eos"],
-    field_plate_parameters=default_params["field_plate"],
-    chasm_parameters=default_params["chasm"],
-    antihole_parameters=default_params["antihole"],
-    rf_parameters=default_params["rf"],
-    detect_parameters=default_params["detect"],
-)
-default_sequence.setup_sequence()
-
-digitizer_time_s = default_sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
-sample_rate = 1e8
-dg.set_acquisition_config(
-    num_channels=2,
-    sample_rate=1e8,
-    segment_size=int(digitizer_time_s * sample_rate),
-    segment_count=default_sequence.num_of_records() * default_params["repeats"]
-)
-dg.set_channel_config(channel=1, range=2)
-dg.set_channel_config(channel=2, range=0.5)
-dg.set_trigger_source_edge()
-dg.write_configs_to_device()
-
 
 ## function to run the experiment
 def run_experiment(params):
@@ -167,15 +73,109 @@ def run_experiment(params):
     print(data_id)
     print()
 
+
+## parameters
+default_params = {
+    "wm_channel": 5,
+    "repeats": 10,
+    "ao": {
+        "name": "ao_dp",
+        "order": 2,
+        "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
+        "amplitude": 2000,
+        "detect_amplitude": 650,
+        "rise_delay": 1.1 * ureg.us,
+        "fall_delay": 0.6 * ureg.us,
+    },
+    "eos": {
+        "ac": {
+            "name": "eo_ac",
+            "amplitude": 4500,  #4500
+            "offset": -300 * ureg.MHz,
+        },
+        "bb": {
+            "name": "eo_bb",
+            "amplitude": 1900,  #1900
+            "offset": -300 * ureg.MHz,
+        },
+        "ca": {
+            "name": "eo_ca",
+            "amplitude": 1400,  #1400
+            "offset": -300 * ureg.MHz,
+        },
+    },
+    "field_plate": {
+        "name": "field_plate",
+        "use": False,
+        "amplitude": 0,
+        "stark_shift": 1 * ureg.MHz,
+        "padding_time": 1 * ureg.ms,
+    },
+    "chasm": {
+        "transition": "bb",
+        "scan": 2.8 * ureg.MHz,
+        "scan_rate": 5 * ureg.MHz / ureg.s,
+        "detuning": 0 * ureg.MHz,
+    },
+    "antihole": {
+        "transitions": ["ac", "ca"],
+        "scan": 0 * ureg.MHz,
+        "scan_rate": 0 * ureg.MHz / ureg.s,
+        "detuning": 0 * ureg.MHz,
+        "duration_no_scan": 0.5 * ureg.s
+    },
+    "detect": {
+        "transition": "bb",
+        "trigger_channel": 2,
+        "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
+        "randomize": True,
+        "on_time": 10 * ureg.us,
+        "off_time": 2 * ureg.us,
+        "chasm_repeats": 100,  # change the names of detection repeats
+        "antihole_repeats": 100,
+        "rf_repeats": 100,
+    },
+    "rf": {
+        "name": "rf_coil",
+        "transition": "ab",
+        "amplitude": 1000,  # 4200
+        "offset": -35.6 * ureg.kHz,
+        "detuning": 0 * ureg.kHz,
+        "duration": 1 * ureg.ms,
+    },
+}
+default_sequence = RFSpectroscopy(
+    ao_parameters=default_params["ao"],
+    eos_parameters=default_params["eos"],
+    field_plate_parameters=default_params["field_plate"],
+    chasm_parameters=default_params["chasm"],
+    antihole_parameters=default_params["antihole"],
+    rf_parameters=default_params["rf"],
+    detect_parameters=default_params["detect"],
+)
+default_sequence.setup_sequence()
+
+digitizer_time_s = default_sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
+sample_rate = 1e8
+dg.set_acquisition_config(
+    num_channels=2,
+    sample_rate=1e8,
+    segment_size=int(digitizer_time_s * sample_rate),
+    segment_count=default_sequence.num_of_records() * default_params["repeats"]
+)
+dg.set_channel_config(channel=1, range=2)
+dg.set_channel_config(channel=2, range=0.5)
+dg.set_trigger_source_edge()
+dg.write_configs_to_device()
+
+
 ## scan
-# rf_frequencies = np.array([0])
-# np.random.shuffle(rf_frequencies)
-# rf_frequencies *= ureg.kHz
-# params = default_params.copy()
-# for kk in range(len(rf_frequencies)):
-#     params["rf"]["offset"] = rf_frequencies[kk]
-#     run_experiment(params)
+rf_frequencies = np.linspace(0.01, 4.0, 20)
+np.random.shuffle(rf_frequencies)
+rf_frequencies *= ureg.ms
 params = default_params.copy()
-run_experiment(params)
+for kk in range(len(rf_frequencies)):
+    params["rf"]["duration"] = rf_frequencies[kk]
+    run_experiment(params)
 
 ## empty
