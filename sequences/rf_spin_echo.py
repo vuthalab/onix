@@ -1,3 +1,4 @@
+from functools import partial
 import numbers
 from typing import Any, Union
 
@@ -16,63 +17,68 @@ from onix.units import ureg, Q_
 from onix.awg_maps import get_channel_from_name
 
 
-class AWGCQB(AWGFunction):
+class AWGSpinEcho(AWGFunction):
     def __init__(
         self,
-        pulse_time: Union[float, Q_],
+        piov2_time: Union[float, Q_],
+        pi_time: Union[float, Q_],
         delay_time: Union[float, Q_],
-        frequency_1: Union[float, Q_],
-        frequency_2: Union[float, Q_],
-        amplitude_1: float,
-        amplitude_2: float,
-        phase_1: float = 0,
-        phase_2: float = 0,
+        frequency: Union[float, Q_],
+        amplitude: float,
+        phase: float = 0,
     ):
         super().__init__()
-        if isinstance(pulse_time, numbers.Number):
-            pulse_time = pulse_time * ureg.s
+        if isinstance(piov2_time, numbers.Number):
+            piov2_time = piov2_time * ureg.s
+        if isinstance(pi_time, numbers.Number):
+            pi_time = pi_time * ureg.s
         if isinstance(delay_time, numbers.Number):
             delay_time = delay_time * ureg.s
-        if isinstance(frequency_1, numbers.Number):
-            frequency_1 = frequency_1 * ureg.Hz
-        if isinstance(frequency_2, numbers.Number):
-            frequency_2 = frequency_2 * ureg.Hz
-        self._pulse_time = pulse_time
+        if isinstance(frequency, numbers.Number):
+            frequency = frequency * ureg.Hz
+        self._piov2_time = piov2_time
+        self._pi_time = pi_time
         self._delay_time = delay_time
-        self._frequency_1 = frequency_1
-        self._frequency_2 = frequency_2
-        self._amplitude_1 = amplitude_1
-        self._amplitude_2 = amplitude_2
-        self._phase_1 = phase_1
-        self._phase_2 = phase_2
+        self._frequency = frequency
+        self._amplitude = amplitude
+        self._phase = phase
 
     def output(self, times):
-        def sine_sum(times):
-            frequency_1 = self._frequency_1.to("Hz").magnitude
-            frequency_2 = self._frequency_2.to("Hz").magnitude
-            term1 = self._amplitude_1 * np.sin(2 * np.pi * frequency_1 * times + self._phase_1)
-            term2 = self._amplitude_2 * np.sin(2 * np.pi * frequency_2 * times + self._phase_2)
-            return term1 + term2
+        def sine(frequency, amplitude, phase, times):
+            return amplitude* np.sin(2 * np.pi * frequency * times + phase)
 
         def zero(times):
             return np.zeros(len(times))
 
-        pulse_time = self._pulse_time.to("s").magnitude
+        piov2_time = self._piov2_time.to("s").magnitude
+        pi_time = self._pi_time.to("s").magnitude
         delay_time = self._delay_time.to("s").magnitude
-        condlist = [np.logical_or(times < pulse_time, times > delay_time)]
-        funclist = [sine_sum, zero]
+        condlist = [
+            times < piov2_time,
+            np.logical_and(times >= piov2_time, times < piov2_time + delay_time),
+            np.logical_and(times >= piov2_time + delay_time, times < piov2_time + delay_time + pi_time),
+            np.logical_and(times >= piov2_time + delay_time + pi_time, times < piov2_time + 2 * delay_time + pi_time),
+            times >= piov2_time + 2 * delay_time + pi_time,
+        ]
+        funclist = [
+            partial(sine, self._frequency.to("Hz").magnitude, self._amplitude, 0),
+            zero,
+            partial(sine, self._frequency.to("Hz").magnitude, self._amplitude, 0),
+            zero,
+            partial(sine, self._frequency.to("Hz").magnitude, self._amplitude, self._phase),
+        ]
         return np.piecewise(times, condlist, funclist)
 
     @property
     def min_duration(self) -> Q_:
-        return self._pulse_time + self._delay_time
+        return 2 * self._piov2_time + 2 * self._delay_time + self._pi_time
 
     @property
     def max_amplitude(self):
-        return np.max([self._amplitude_1, self._amplitude_2])
+        return self._amplitude
 
 
-class RFCQB(Sequence):
+class RFSpinEcho(Sequence):
     def __init__(
         self,
         ao_parameters: dict[str, Any],
@@ -128,30 +134,23 @@ class RFCQB(Sequence):
     def _add_rf_segment(self):
         lower_state = self._rf_parameters["transition"][0]
         upper_state = self._rf_parameters["transition"][1]
-        frequency_1 = (
+        frequency = (
             energies["7F0"][upper_state]
             - energies["7F0"][lower_state]
-            + self._rf_parameters["offset_1"]
-            + self._rf_parameters["detuning_1"]
+            + self._rf_parameters["offset"]
+            + self._rf_parameters["detuning"]
         )
-        frequency_2 = (
-            energies["7F0"][upper_state]
-            - energies["7F0"][lower_state]
-            + self._rf_parameters["offset_2"]
-            + self._rf_parameters["detuning_2"]
-        )
-        pulse_time = self._rf_parameters["pulse_time"]
+        piov2_time = self._rf_parameters["piov2_time"]
+        pi_time = self._rf_parameters["pi_time"]
         delay_time = self._rf_parameters["delay_time"]
-        segment = Segment("rf", pulse_time + delay_time)
-        rf_pulse = AWGCQB(
-            pulse_time,
+        segment = Segment("rf")
+        rf_pulse = AWGSpinEcho(
+            piov2_time,
+            pi_time,
             delay_time,
-            frequency_1,
-            frequency_2,
-            self._rf_parameters["amplitude_1"],
-            self._rf_parameters["amplitude_2"],
-            self._rf_parameters["phase_1"],
-            self._rf_parameters["phase_2"],
+            frequency,
+            self._rf_parameters["amplitude"],
+            self._rf_parameters["phase"],
         )
         rf_channel = get_channel_from_name(self._rf_parameters["name"])
         segment.add_awg_function(rf_channel, rf_pulse)

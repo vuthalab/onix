@@ -83,7 +83,7 @@ default_params = {
         "order": 2,
         "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 650,
+        "detect_amplitude": 800,  # 650
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -131,21 +131,23 @@ default_params = {
         "randomize": True,
         "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
-        "chasm_repeats": 100,  # change the names of detection repeats
-        "antihole_repeats": 100,
-        "rf_repeats": 100,
+        "chasm_repeats": 10,  # change the names of detection repeats
+        "antihole_repeats": 10,
+        "rf_repeats": 10,
     },
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 1000,  # 4200
-        "amplitude_2": 1000,  # 4200
-        "offset_1": -35.6 * ureg.kHz,
-        "offset_2": -35.6 * ureg.kHz,
+        "amplitude_1": 4200,  # 4200
+        "amplitude_2": 1100,  # 4200
+        "offset_1": -200 * ureg.kHz,
+        "offset_2": 100 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
-        "pulse_time": 1 * ureg.ms,
-        "delay_time": 1 * ureg.ms,
+        "phase_1": 0,
+        "phase_2": 0,
+        "pulse_time": 0.18 * ureg.ms,
+        "delay_time": 0.3 * ureg.ms,
     },
 }
 default_sequence = RFCQB(
@@ -174,12 +176,21 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_frequencies = np.linspace(0.01, 4.0, 20)
-np.random.shuffle(rf_frequencies)
-rf_frequencies *= ureg.ms
+# rf_delay_times = np.linspace(0.5, 0.7, 1)
+# np.random.shuffle(rf_delay_times)
+# rf_delay_times *= ureg.ms
+# params = default_params.copy()
+# for kk in range(len(rf_delay_times)):
+#     params["rf"]["delay_time"] = rf_delay_times[kk]
+#     run_experiment(params)
+
+#rf_phase_diffs = np.linspace(0, 2 * np.pi, 20)
+rf_phase_diffs = np.linspace(1.65, 1.65, 1)
+np.random.shuffle(rf_phase_diffs)
 params = default_params.copy()
-for kk in range(len(rf_frequencies)):
-    params["rf"]["duration"] = rf_frequencies[kk]
+for kk in range(len(rf_phase_diffs)):
+    params["rf"]["phase_1"] = rf_phase_diffs[kk]
+    params["rf"]["phase_2"] = rf_phase_diffs[kk]
     run_experiment(params)
 
 ## empty

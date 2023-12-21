@@ -4,7 +4,7 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.sequences.rf_spectroscopy import RFSpectroscopy
+from onix.sequences.rf_spin_echo import RFSpinEcho
 from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
@@ -23,7 +23,7 @@ except Exception:
 
 ## function to run the experiment
 def run_experiment(params):
-    sequence = RFSpectroscopy(  # Only change the part that changed
+    sequence = RFSpinEcho(  # Only change the part that changed
         ao_parameters=params["ao"],
         eos_parameters=params["eos"],
         field_plate_parameters=params["field_plate"],
@@ -68,7 +68,7 @@ def run_experiment(params):
         "params": params,
         "detunings": sequence.analysis_parameters["detect_detunings"]
     }
-    name = "RF Spectroscopy"
+    name = "RF Spin Echo"
     data_id = save_experiment_data(name, data, headers)
     print(data_id)
     print()
@@ -138,13 +138,16 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 1400,  # 4200
-        "offset": 100 * ureg.kHz,
+        "amplitude": 4200,  # 4200
+        "offset": -35.6 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "duration": 1 * ureg.ms,
+        "piov2_time": 0.05 * ureg.ms,
+        "pi_time": 0.1 * ureg.ms,
+        "delay_time": 1 * ureg.ms,
+        "phase": 0,
     },
 }
-default_sequence = RFSpectroscopy(
+default_sequence = RFSpinEcho(
     ao_parameters=default_params["ao"],
     eos_parameters=default_params["eos"],
     field_plate_parameters=default_params["field_plate"],
@@ -170,12 +173,11 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_frequencies = np.linspace(0.01, 2.0, 20) # duration
-np.random.shuffle(rf_frequencies)
-rf_frequencies *= ureg.ms
+rf_phase_diffs = np.linspace(0, 2 * np.pi, 20)
+np.random.shuffle(rf_phase_diffs)
 params = default_params.copy()
-for kk in range(len(rf_frequencies)):
-    params["rf"]["duration"] = rf_frequencies[kk]
+for kk in range(len(rf_phase_diffs)):
+    params["rf"]["phase"] = rf_phase_diffs[kk]
     run_experiment(params)
 
 ## empty
