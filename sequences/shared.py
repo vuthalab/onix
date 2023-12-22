@@ -104,9 +104,12 @@ def antihole_segment(
     if "rf_assist" in antihole_parameters:
         rf_assist_parameters = antihole_parameters["rf_assist"]
         for segment, repeats in segment_repeats:
-            rf_channel = get_channel_from_name(rf_assist_parameters["name"])
             if rf_assist_parameters["use"] == True:
-                rf_assist_pulse = AWGSineSweep(rf_assist_parameters["offset_start"], rf_assist_parameters["offset_end"], rf_assist_parameters["amplitude"], 0, segment.duration)
+                rf_channel = get_channel_from_name(rf_assist_parameters["name"])
+                lower_state = rf_assist_parameters["transition"][0]
+                upper_state = rf_assist_parameters["transition"][1]
+                frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state]
+                rf_assist_pulse = AWGSineSweep(rf_assist_parameters["offset_start"] + frequency, rf_assist_parameters["offset_end"] + frequency, rf_assist_parameters["amplitude"], 0, segment.duration)
                 segment.add_awg_function(rf_channel, rf_assist_pulse)
 
     if not return_separate_segments:
