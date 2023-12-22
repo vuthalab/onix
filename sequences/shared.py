@@ -63,7 +63,6 @@ def chasm_segment(
         )
         return (segment, segment_repeats[0][1])
 
-
 def antihole_segment(
     name: str,
     ao_parameters: dict[str, Any],
@@ -79,6 +78,7 @@ def antihole_segment(
     scan = antihole_parameters["scan"]
     scan_rate = antihole_parameters["scan_rate"]
     detuning = antihole_parameters["detuning"]
+
     if scan.to("Hz").magnitude == 0:
         duration = antihole_parameters["duration_no_scan"]
     else:
@@ -100,6 +100,14 @@ def antihole_segment(
             field_plate = AWGConstant(field_plate_parameters["amplitude"])
             field_plate_channel = get_channel_from_name(field_plate_parameters["name"])
             segment.add_awg_function(field_plate_channel, field_plate)
+
+    if "rf_assist" in antihole_parameters:
+        rf_assist_parameters = antihole_parameters["rf_assist"]
+        for segment, repeats in segment_repeats:
+            rf_channel = get_channel_from_name(rf_assist_parameters["name"])
+            if rf_assist_parameters["use"] == True:
+                rf_assist_pulse = AWGSineSweep(rf_assist_parameters["offset_start"], rf_assist_parameters["offset_end"], rf_assist_parameters["amplitude"], 0, segment.duration)
+                segment.add_awg_function(rf_channel, rf_assist_pulse)
 
     if not return_separate_segments:
         segment = MultiSegments(name, [segment for (segment, repeats) in segment_repeats])

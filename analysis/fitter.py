@@ -241,9 +241,9 @@ class Fitter:
         for _kk, name in enumerate(self.parameters):
             results_str += self.result_str(name) + "\n"
         try:
-            results_str += "Reduce chi-square = {0:.2f}".format(self.reduced_chi)
+            results_str += "Reduced chi-square = {0:.2f}".format(self.reduced_chi)
         except Exception:
-            results_str += "Reduce chi-square is undefined."
+            results_str += "Reduced chi-square is undefined."
         return results_str
 
     def residuals(self):

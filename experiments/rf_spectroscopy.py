@@ -122,7 +122,15 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.5 * ureg.s
+        "duration_no_scan": 0.5 * ureg.s,
+        "rf_assist": {
+            "use": True,
+            "name": "rf_coil",
+            "transition": "ab",
+            "offset_start": -220 * ureg.kHz,
+            "offset_end": -180 * ureg.kHz,
+            "amplitude": 4200,
+        }
     },
     "detect": {
         "transition": "bb",
