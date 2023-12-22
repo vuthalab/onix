@@ -150,7 +150,6 @@ default_params = {
         "offset": 100 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 1 * ureg.ms,
-        "new_random": 1,
     },
 }
 default_sequence = RFSpectroscopy(
