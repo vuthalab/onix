@@ -8,7 +8,7 @@ from onix.sequences.sequence import (
     SegmentEmpty,
     Sequence,
 )
-from onix.sequences.shared import antihole_segment, chasm_segment, detect_segment
+from onix.sequences.shared import antihole_segment, chasm_segment, detect_segment, rf_assist_segment
 from onix.units import ureg
 from onix.awg_maps import get_channel_from_name
 
@@ -56,6 +56,10 @@ class RFSpectroscopy(Sequence):
         )
         for segment, repeats in self._antihole_segments_and_repeats:
             self.add_segment(segment)
+        self._rf_assist_segment = rf_assist_segment(
+            "rf_assist",
+            self._antihole_parameters["rf_assist"]
+        )
 
         segment, self.analysis_parameters = detect_segment(
             "detect",
@@ -116,6 +120,8 @@ class RFSpectroscopy(Sequence):
         for kk in range(self._antihole_segments_and_repeats[0][1] // antihole_repeats_one_frequency):
             for segment, repeats in self._antihole_segments_and_repeats:
                 segment_repeats.append((segment.name, antihole_repeats_one_frequency))
+                if segment.name == "antihole_ac" and self._antihole_parameters["rf_assist"]["use_sequential"]:
+                    segment_repeats.append(("rf_assist", antihole_repeats_one_frequency))
         segment_repeats.append(
             ("break", self._field_plate_repeats)
         )  # waiting for the field plate to go low
