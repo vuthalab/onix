@@ -24,6 +24,16 @@ def _get_current_date_directory() -> List[str]:
     return (year + "_" + month, day)
 
 
+def get_last_expts_data_number():
+    dnum_file = op.join(expt_folder, "last_dnum")
+    with open(dnum_file, "r") as f:
+        try:
+            last_dnum = int(f.readline())
+        except ValueError:
+            pass
+    return last_dnum
+
+
 def _increment_last_data_number(folder: str) -> int:
     """Increases the "last_dnum" file counter by 1 and returns the increased number."""
     os.makedirs(folder, exist_ok=True)

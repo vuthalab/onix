@@ -4,7 +4,7 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.sequences.rf_cqb import RFCQB
+from onix.sequences.rf_ramsey import RFRamsey
 from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
@@ -23,7 +23,7 @@ except Exception:
 
 ## function to run the experiment
 def run_experiment(params):
-    sequence = RFCQB(  # Only change the part that changed
+    sequence = RFRamsey(  # Only change the part that changed
         ao_parameters=params["ao"],
         eos_parameters=params["eos"],
         field_plate_parameters=params["field_plate"],
@@ -68,7 +68,7 @@ def run_experiment(params):
         "params": params,
         "detunings": sequence.analysis_parameters["detect_detunings"]
     }
-    name = "RF CQB"
+    name = "RF Ramsey"
     data_id = save_experiment_data(name, data, headers)
     print(data_id)
     print()
@@ -83,7 +83,7 @@ default_params = {
         "order": 2,
         "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 800,  # 650
+        "detect_amplitude": 650,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -138,19 +138,15 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 4200,  # 4200
-        "amplitude_2": 1100,  # 4200
-        "offset_1": -203 * ureg.kHz,
-        "offset_2": 95 * ureg.kHz,
-        "detuning_1": 0 * ureg.kHz,
-        "detuning_2": 0 * ureg.kHz,
-        "phase_1": 0,
-        "phase_2": 0,
-        "pulse_time": 0.21 * ureg.ms,
-        "delay_time": 0.3 * ureg.ms,
+        "amplitude": 4200,  # 4200
+        "offset": -203 * ureg.kHz,
+        "detuning": 0 * ureg.kHz,
+        "piov2_time": 0.2 * ureg.ms,
+        "delay_time": 0.2 * ureg.ms,
+        "phase": 0,
     },
 }
-default_sequence = RFCQB(
+default_sequence = RFRamsey(
     ao_parameters=default_params["ao"],
     eos_parameters=default_params["eos"],
     field_plate_parameters=default_params["field_plate"],
@@ -176,28 +172,11 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_delay_times = np.arange(1.0, 1.01, 0.0005)
-rf_offset_1s = np.arange(-220, -200, 0.5)
-
-# np.random.shuffle(rf_delay_times)
-
+rf_offsets = np.arange(-44, -36, 0.5)
+#np.random.shuffle(rf_offsets)
 params = default_params.copy()
-for kk in range(len(rf_delay_times)):
-    for ll in range(len(rf_offset_1s)):
-        params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
-        params["rf"]["offset_1"] = rf_offset_1s[ll] * ureg.kHz
-        print(params["rf"]["delay_time"])
-        print(params["rf"]["offset_1"])
-        run_experiment(params)
-
-#rf_phase_diffs = np.linspace(0, 2 * np.pi, 20)
-# rf_phase_diffs = np.linspace(1.65, 1.65, 1)
-# np.random.shuffle(rf_phase_diffs)
-# params = default_params.copy()
-# for kk in range(len(rf_phase_diffs)):
-#     params["rf"]["phase_1"] = rf_phase_diffs[kk]
-#     params["rf"]["phase_2"] = rf_phase_diffs[kk]
-#     run_experiment(params)
-
+for kk in range(len(rf_offsets)):
+    params["rf"]["offset"] = rf_offsets[kk] * ureg.kHz
+    run_experiment(params)
 
 ## empty

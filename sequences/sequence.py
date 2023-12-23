@@ -305,11 +305,10 @@ class AWGSineTrain(AWGFunction):
         if isinstance(frequencies, numbers.Number):
             frequencies = frequencies * ureg.Hz
         elif not isinstance(frequencies, Q_):
-            new_frequencies = []
-            for frequency in frequencies:
-                if isinstance(frequency, numbers.Number):
-                    frequency = frequency * ureg.Hz
-            frequencies = Q_.from_list(new_frequencies)
+            for kk in range(len(frequencies)):
+                if isinstance(frequencies[kk], numbers.Number):
+                    frequencies[kk] = frequencies[kk] * ureg.Hz
+            frequencies = Q_.from_list(frequencies, "Hz")
         self._frequencies: Q_ = frequencies
         self._amplitudes = amplitudes
         self._phases = phases
@@ -325,21 +324,21 @@ class AWGSineTrain(AWGFunction):
             self._frequencies[0]
             is_list_freq = True
             length = len(self._frequencies)
-        except TypeError:
+        except Exception:
             is_list_freq = False
 
         try:
             self._amplitudes[0]
             is_list_amp = True
             length = len(self._amplitudes)
-        except TypeError:
+        except Exception:
             is_list_amp = False
 
         try:
             self._phases[0]
             is_list_phase = True
             length = len(self._phases)
-        except TypeError:
+        except Exception:
             is_list_phase = False
 
         if length is None:

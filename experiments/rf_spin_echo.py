@@ -139,11 +139,11 @@ default_params = {
         "name": "rf_coil",
         "transition": "ab",
         "amplitude": 4200,  # 4200
-        "offset": -35.6 * ureg.kHz,
+        "offset": -203 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "piov2_time": 0.05 * ureg.ms,
-        "pi_time": 0.1 * ureg.ms,
-        "delay_time": 1 * ureg.ms,
+        "piov2_time": 0.2 * ureg.ms,
+        "pi_time": 0.4 * ureg.ms,
+        "delay_time": 5 * ureg.ms,
         "phase": 0,
     },
 }
