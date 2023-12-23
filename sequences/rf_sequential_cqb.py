@@ -102,7 +102,7 @@ class AWGSEQCQB(AWGFunction):
         return np.max([self._amplitude_1, self._amplitude_2])
 
 
-class RFCQB(Sequence):
+class RFSEQCQB(Sequence):
     def __init__(
         self,
         ao_parameters: dict[str, Any],
