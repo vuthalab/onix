@@ -15,7 +15,7 @@ from onix.sequences.sequence import (
 from onix.units import Q_, ureg
 from onix.awg_maps import get_channel_from_name
 
-PIECEWISE_TIME = 20 * ureg.ms
+PIECEWISE_TIME = 5 * ureg.ms
 
 
 def chasm_segment(

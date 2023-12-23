@@ -77,13 +77,13 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 20,
+    "repeats": 10,
     "ao": {
         "name": "ao_dp",
         "order": 2,
         "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 800,  # 650
+        "detect_amplitude": 650,  # 650
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -139,16 +139,16 @@ default_params = {
         "name": "rf_coil",
         "transition": "ab",
         "amplitude_1": 4200,  # 4200
-        "amplitude_2": 1100,  # 4200
+        "amplitude_2": 4200,  # 4200
         "offset_1": -203 * ureg.kHz,
         "offset_2": 95 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
-        "delay_time_1": 0,
-        "delay_time_2": 0,
-        "delay_time_3": 0,
-        "piov2_time": 0.21 * ureg.ms,
-        "pi_time": 0.3 * ureg.ms,
+        "delay_time_1": 0.1 * ureg.ms,
+        "delay_time_2": 1 * ureg.ms,
+        "delay_time_3": 0.1 * ureg.ms,
+        "piov2_time": 0.3 * ureg.ms,
+        "pi_time": 0.1 * ureg.ms,
     },
 }
 default_sequence = RFSEQCQB(
@@ -177,28 +177,25 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_delay_times = np.arange(1.0, 1.01, 0.0005)
-rf_offset_1s = np.arange(-220, -200, 0.5)
-
-# np.random.shuffle(rf_delay_times)
-
+rf_delay_times = np.arange(1.0, 1.01, 0.0003)
 params = default_params.copy()
 for kk in range(len(rf_delay_times)):
-    for ll in range(len(rf_offset_1s)):
-        params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
-        params["rf"]["offset_1"] = rf_offset_1s[ll] * ureg.kHz
-        print(params["rf"]["delay_time"])
-        print(params["rf"]["offset_1"])
-        run_experiment(params)
+    params["rf"]["delay_time_2"] = rf_delay_times[kk] * ureg.ms
+    print(params["rf"]["delay_time_2"])
+    run_experiment(params)
 
-#rf_phase_diffs = np.linspace(0, 2 * np.pi, 20)
-# rf_phase_diffs = np.linspace(1.65, 1.65, 1)
-# np.random.shuffle(rf_phase_diffs)
+# rf_delay_times = np.arange(1.0, 1.01, 0.0005)
+# rf_offset_1s = np.arange(-220, -200, 0.5)
+#
+#
 # params = default_params.copy()
-# for kk in range(len(rf_phase_diffs)):
-#     params["rf"]["phase_1"] = rf_phase_diffs[kk]
-#     params["rf"]["phase_2"] = rf_phase_diffs[kk]
-#     run_experiment(params)
+# for ll in range(len(rf_offset_1s)):
+#     for kk in range(len(rf_delay_times)):
+#         params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
+#         params["rf"]["offset_1"] = rf_offset_1s[ll] * ureg.kHz
+#         print(params["rf"]["delay_time"])
+#         print(params["rf"]["offset_1"])
+#         run_experiment(params)
 
 
 ## empty

@@ -106,10 +106,10 @@ default_params = {
     },
     "field_plate": {
         "name": "field_plate",
-        "use": True,
+        "use": False,
         "amplitude": 26000,
         "stark_shift": 2 * ureg.MHz,
-        "padding_time": 1 * ureg.ms,
+        "padding_time": 5 * ureg.ms,
     },
     "chasm": {
         "transition": "bb",
@@ -124,12 +124,14 @@ default_params = {
         "detuning": 0 * ureg.MHz,
         "duration_no_scan": 0.5 * ureg.s,
         "rf_assist": {
-            "use": True,
+            "use": False,
+            "use_sequential": True,
             "name": "rf_coil",
             "transition": "ab",
-            "offset_start": 200 * ureg.kHz, #-280 * ureg.kHz,  #200 * ureg.kHz
-            "offset_end": 320 * ureg.kHz, #-180 * ureg.kHz,  #320 * ureg.kHz
+            "offset_start": 30 * ureg.kHz, # -110 * ureg.kHz
+            "offset_end": 170 * ureg.kHz, # 20 * ureg.kHz
             "amplitude": 4200,
+            "duration": 5 * ureg.ms,
         }
     },
     "detect": {
@@ -177,8 +179,8 @@ dg.set_trigger_source_edge()
 dg.write_configs_to_device()
 
 
-## scan
-rf_frequencies = np.arange(-300, 300, 10)
+## scan freq
+rf_frequencies = np.arange(-300, 300, 15)
 rf_frequencies *= ureg.kHz
 params = default_params.copy()
 for kk in range(len(rf_frequencies)):

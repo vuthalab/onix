@@ -41,39 +41,23 @@ class AWGSEQCQB(AWGFunction):
         self._amplitude_2 = amplitude_2
 
     def output(self, times):
-        # def sine_sum(times):
-        #     frequency_1 = self._frequency_1.to("Hz").magnitude
-        #     frequency_2 = self._frequency_2.to("Hz").magnitude
-        #     term1 = self._amplitude_1 * np.sin(2 * np.pi * frequency_1 * times + self._phase_1)
-        #     term2 = self._amplitude_2 * np.sin(2 * np.pi * frequency_2 * times + self._phase_2)
-        #     return term1 + term2
-
-        # def zero(times):
-        #     return np.zeros(len(times))
-
-        # pulse_time = self._pulse_time.to("s").magnitude
-        # delay_time = self._delay_time.to("s").magnitude
-        # condlist = [np.logical_or(times < pulse_time, times > delay_time)]
-        # funclist = [sine_sum, zero]
-        # return np.piecewise(times, condlist, funclist)
-
         def sine_rect(times, t0, T, freq):
             # return np.heaviside(times + T/2 + t0, 1) - np.heaviside(times - T/2 - t0, 1)
-            return np.heaviside(times - t0, 1) - np.heaviside(times - t0 - T, 1) * np.exp(1j*times*freq)
+            return (np.heaviside(times - t0, 1) - np.heaviside(times - t0 - T, 1)) * np.exp(1j*times*freq)
         
         def four_pulse_train(times):
             frequency_1 = self._frequency_1.to("Hz").magnitude
             frequency_2 = self._frequency_2.to("Hz").magnitude
+
             piov2_time = self._piov2_time.to("s").magnitude
             pi_time = self._pi_time.to("s").magnitude
             delay_time_1 = self._delay_time_1.to("s").magnitude
             delay_time_2 = self._delay_time_2.to("s").magnitude
             delay_time_3 = self._delay_time_3.to("s").magnitude
             
-
             t0 = 0
             t1 = t0 + piov2_time + delay_time_1
-            t2 = t1 + piov2_time + delay_time_2
+            t2 = t1 + pi_time + delay_time_2
             t3 = t2 + pi_time + delay_time_3
 
             T0 = piov2_time
@@ -86,16 +70,19 @@ class AWGSEQCQB(AWGFunction):
             f2 = frequency_2
             f3 = frequency_1
 
-            return np.real(sine_rect(times, t0, T0, f0) + 
-                           sine_rect(times, t1, T1, f1) + 
-                           np.exp(1j*np.pi) * (sine_rect(times, t2, T2, f2) + 
-                                               sine_rect(times, t3, T3, f3)))
+            amplitude_1 = self._amplitude_1
+            amplitude_2 = self._amplitude_2
+
+            return np.real(amplitude_1*sine_rect(times, t0, T0, f0) + 
+                           amplitude_2*sine_rect(times, t1, T1, f1) + 
+                           np.exp(1j*np.pi) * (amplitude_2*sine_rect(times, t2, T2, f2) + 
+                                               amplitude_1*sine_rect(times, t3, T3, f3)))
 
         return four_pulse_train(times)
     
     @property
     def min_duration(self) -> Q_:
-        return self._pulse_time + self._delay_time
+        return self._delay_time_1 + self._delay_time_2 + self._delay_time_3 + 2*self._pi_time + 2*self._piov2_time
 
     @property
     def max_amplitude(self):
