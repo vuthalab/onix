@@ -63,6 +63,21 @@ def chasm_segment(
         )
         return (segment, segment_repeats[0][1])
 
+
+def rf_assist_segment(
+    name: str,
+    rf_assist_parameters: dict[str, Any],
+):
+    segment = Segment(name)
+    rf_channel = get_channel_from_name(rf_assist_parameters["name"])
+    lower_state = rf_assist_parameters["transition"][0]
+    upper_state = rf_assist_parameters["transition"][1]
+    frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state]
+    rf_assist_pulse = AWGSineSweep(rf_assist_parameters["offset_start"] + frequency, rf_assist_parameters["offset_end"] + frequency, rf_assist_parameters["amplitude"], 0, rf_assist_parameters["duration"])
+    segment.add_awg_function(rf_channel, rf_assist_pulse)
+    return segment
+
+
 def antihole_segment(
     name: str,
     ao_parameters: dict[str, Any],
