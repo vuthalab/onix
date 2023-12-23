@@ -177,25 +177,26 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_delay_times = np.arange(1.0, 1.01, 0.0003)
-params = default_params.copy()
-for kk in range(len(rf_delay_times)):
-    params["rf"]["delay_time_2"] = rf_delay_times[kk] * ureg.ms
-    print(params["rf"]["delay_time_2"])
-    run_experiment(params)
-
-# rf_delay_times = np.arange(1.0, 1.01, 0.0005)
-# rf_offset_1s = np.arange(-220, -200, 0.5)
-#
-#
+# rf_delay_times = np.arange(1.0, 1.01, 0.0003)
 # params = default_params.copy()
-# for ll in range(len(rf_offset_1s)):
-#     for kk in range(len(rf_delay_times)):
-#         params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
-#         params["rf"]["offset_1"] = rf_offset_1s[ll] * ureg.kHz
-#         print(params["rf"]["delay_time"])
-#         print(params["rf"]["offset_1"])
-#         run_experiment(params)
+# for kk in range(len(rf_delay_times)):
+#     params["rf"]["delay_time_2"] = rf_delay_times[kk] * ureg.ms
+#     print(params["rf"]["delay_time_2"])
+#     run_experiment(params)
 
+rf_delay_times = np.arange(1.0, 1.01, 0.0005)
+rf_offset_1s = np.arange(-220, -200, 0.5)
+
+
+params = default_params.copy()
+for ll in range(len(rf_offset_1s)):
+    for kk in range(len(rf_delay_times)):
+        params["rf"]["delay_time_2"] = rf_delay_times[kk] * ureg.ms
+        params["rf"]["offset_1"] = rf_offset_1s[ll] * ureg.kHz
+        print(params["rf"]["delay_time_2"])
+        print(params["rf"]["offset_1"])
+        run_experiment(params)
+
+# start 6350
 
 ## empty

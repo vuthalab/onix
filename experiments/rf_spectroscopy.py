@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 2,
+    "repeats": 4,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -128,8 +128,8 @@ default_params = {
             "use_sequential": True,
             "name": "rf_coil",
             "transition": "ab",
-            "offset_start": 30 * ureg.kHz, # -110 * ureg.kHz
-            "offset_end": 170 * ureg.kHz, # 20 * ureg.kHz
+            "offset_start": -110 * ureg.kHz, #30 * ureg.kHz
+            "offset_end": 20 * ureg.kHz, #170 * ureg.kHz
             "amplitude": 4200,
             "duration": 5 * ureg.ms,
         }
@@ -149,7 +149,7 @@ default_params = {
         "name": "rf_coil",
         "transition": "ab",
         "amplitude": 4200,  # 4200
-        "offset": 100 * ureg.kHz,
+        "offset": -203 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 0.5 * ureg.ms,
     },
@@ -180,11 +180,20 @@ dg.write_configs_to_device()
 
 
 ## scan freq
-rf_frequencies = np.arange(-300, 300, 15)
-rf_frequencies *= ureg.kHz
+# rf_frequencies = np.arange(200, 350, 15)
+# rf_frequencies *= ureg.kHz
+# params = default_params.copy()
+# for kk in range(len(rf_frequencies)):
+#     params["rf"]["offset"] = rf_frequencies[kk]
+#     run_experiment(params)
+
+
+## scan time
+rf_times = np.linspace(1, 2, 10)
+rf_times *= ureg.ms
 params = default_params.copy()
-for kk in range(len(rf_frequencies)):
-    params["rf"]["offset"] = rf_frequencies[kk]
+for kk in range(len(rf_times)):
+    params["rf"]["duration"] = rf_times[kk]
     run_experiment(params)
 
 ## empty

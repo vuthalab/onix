@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 10,
+    "repeats": 20,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -109,7 +109,7 @@ default_params = {
         "use": False,
         "amplitude": 0,
         "stark_shift": 1 * ureg.MHz,
-        "padding_time": 1 * ureg.ms,
+        "padding_time": 5 * ureg.ms,
     },
     "chasm": {
         "transition": "bb",
@@ -122,7 +122,17 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.5 * ureg.s
+        "duration_no_scan": 0.5 * ureg.s,
+        "rf_assist": {
+            "use": False,
+            "use_sequential": True,
+            "name": "rf_coil",
+            "transition": "ab",
+            "offset_start": 30 * ureg.kHz, # -110 * ureg.kHz
+            "offset_end": 170 * ureg.kHz, # 20 * ureg.kHz
+            "amplitude": 4200,
+            "duration": 5 * ureg.ms,
+        }
     },
     "detect": {
         "transition": "bb",
@@ -138,18 +148,18 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 4200,  # 4200
-        "offset": -203 * ureg.kHz,
+        "amplitude": 4200,  #4200
+        "offset": -46 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "piov2_time": 0.2 * ureg.ms,
-        "pi_time": 0.4 * ureg.ms,
-        "delay_time": 5 * ureg.ms,
+        "piov2_time": 0.025 * ureg.ms,
+        "pi_time": 0.09 * ureg.ms,
+        "delay_time": 3 * ureg.ms,
         "phase": 0,
     },
 }
 default_sequence = RFSpinEchoLongDelay(
     ao_parameters=default_params["ao"],
-    eos_parameters=default_params["eos"],
+    eos_parameters=default_params["eos"] ,
     field_plate_parameters=default_params["field_plate"],
     chasm_parameters=default_params["chasm"],
     antihole_parameters=default_params["antihole"],
@@ -173,11 +183,36 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_phase_diffs = np.linspace(0, 2 * np.pi, 20)
-np.random.shuffle(rf_phase_diffs)
+# rf_phase_diffs = np.linspace(0, 2 * np.pi, 15)
+# rf_delays = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160]) * ureg.ms
+# rf_offsets = np.array([-46, 250, 100, -203]) * ureg.kHz
+# rf_assist_offset_starts = np.array([30, 30, -110, -110]) * ureg.kHz
+# rf_assist_offset_ends = np.array([170, 170, 20, 20]) * ureg.kHz
+
+rf_phase_diffs = np.linspace(0, 2 * np.pi, 5)
+rf_delays = np.array([3]) * ureg.ms
+rf_offsets = np.array([-46, 100]) * ureg.kHz
+rf_assist_offset_starts = np.array([30, -110]) * ureg.kHz
+rf_assist_offset_ends = np.array([170, 20]) * ureg.kHz
+
 params = default_params.copy()
-for kk in range(len(rf_phase_diffs)):
-    params["rf"]["phase"] = rf_phase_diffs[kk]
-    run_experiment(params)
+for kk in range(len(rf_offsets)):
+    params["rf"]["offset"] = rf_offsets[kk]
+    params["antihole"]["rf_assist"]["offset_start"] = rf_assist_offset_starts[kk]
+    params["antihole"]["rf_assist"]["offset_end"] = rf_assist_offset_ends[kk]
+    for ll in range(len(rf_delays)):
+        params["rf"]["delay_time"] = rf_delays[ll]
+        for mm in range(len(rf_phase_diffs)):
+            params["rf"]["phase"] = rf_phase_diffs[kk]
+            run_experiment(params)
+# for kk in range(len(rf_offsets)):
+#     params["rf"]["offset"] = rf_offsets[kk]
+#     params["antihole"]["rf_assist"]["offset_start"] = rf_assist_offset_starts[kk]
+#     params["antihole"]["rf_assist"]["offset_end"] = rf_assist_offset_ends[kk]
+#     for ll in range(len(rf_delays)):
+#         params["rf"]["delay_time"] = rf_delays[ll]
+#         for mm in range(len(rf_phase_diffs)):
+#             params["rf"]["phase"] = rf_phase_diffs[kk]
+#             run_experiment(params)
 
 ## empty
