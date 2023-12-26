@@ -151,7 +151,7 @@ default_params = {
         "amplitude": 4200,  #4200
         "offset": -46 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "piov2_time": 0.025 * ureg.ms,
+        "piov2_time": 0.045 * ureg.ms,
         "pi_time": 0.09 * ureg.ms,
         "delay_time": 3 * ureg.ms,
         "phase": 0,
@@ -183,36 +183,24 @@ dg.write_configs_to_device()
 
 
 ## scan
-# rf_phase_diffs = np.linspace(0, 2 * np.pi, 15)
-# rf_delays = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160]) * ureg.ms
-# rf_offsets = np.array([-46, 250, 100, -203]) * ureg.kHz
-# rf_assist_offset_starts = np.array([30, 30, -110, -110]) * ureg.kHz
-# rf_assist_offset_ends = np.array([170, 170, 20, 20]) * ureg.kHz
-
-rf_phase_diffs = np.linspace(0, 2 * np.pi, 5)
-rf_delays = np.array([3]) * ureg.ms
-rf_offsets = np.array([-46, 100]) * ureg.kHz
-rf_assist_offset_starts = np.array([30, -110]) * ureg.kHz
-rf_assist_offset_ends = np.array([170, 20]) * ureg.kHz
+rf_phase_diffs = np.linspace(0, 2 * np.pi, 15)
+rf_delays = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160]) * ureg.ms
+rf_offsets = np.array([-46, 250, 100, -203]) * ureg.kHz
+rf_pi_times = np.array([0.09, 0.45, 0.1, 0.4]) * ureg.ms
+rf_assist_offset_starts = np.array([30, 30, -110, -110]) * ureg.kHz
+rf_assist_offset_ends = np.array([170, 170, 20, 20]) * ureg.kHz
 
 params = default_params.copy()
 for kk in range(len(rf_offsets)):
     params["rf"]["offset"] = rf_offsets[kk]
+    params["rf"]["pi_time"] = rf_pi_times[kk]
+    params["rf"]["piov2_time"] = rf_pi_times[kk] / 2
     params["antihole"]["rf_assist"]["offset_start"] = rf_assist_offset_starts[kk]
     params["antihole"]["rf_assist"]["offset_end"] = rf_assist_offset_ends[kk]
     for ll in range(len(rf_delays)):
         params["rf"]["delay_time"] = rf_delays[ll]
         for mm in range(len(rf_phase_diffs)):
-            params["rf"]["phase"] = rf_phase_diffs[kk]
+            params["rf"]["phase"] = rf_phase_diffs[mm]
             run_experiment(params)
-# for kk in range(len(rf_offsets)):
-#     params["rf"]["offset"] = rf_offsets[kk]
-#     params["antihole"]["rf_assist"]["offset_start"] = rf_assist_offset_starts[kk]
-#     params["antihole"]["rf_assist"]["offset_end"] = rf_assist_offset_ends[kk]
-#     for ll in range(len(rf_delays)):
-#         params["rf"]["delay_time"] = rf_delays[ll]
-#         for mm in range(len(rf_phase_diffs)):
-#             params["rf"]["phase"] = rf_phase_diffs[kk]
-#             run_experiment(params)
 
 ## empty
