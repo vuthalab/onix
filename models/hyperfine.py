@@ -333,6 +333,7 @@ states = {
 
 
 # hyperfine transition dipole matrix elements
+# make magnetic field an input parameter.
 optical_hyperfine_probabilities = {}
 g_energies, g_states = states["7F0"].energies_and_eigenstates()
 e_energies, e_states = states["5D0"].energies_and_eigenstates()
