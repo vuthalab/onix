@@ -83,7 +83,7 @@ default_params = {
         "order": 2,
         "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 800,  # 650
+        "detect_amplitude": 650,  # 650
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -128,8 +128,8 @@ default_params = {
             "use_sequential": True,
             "name": "rf_coil",
             "transition": "ab",
-            "offset_start": 30 * ureg.kHz, # -110 * ureg.kHz
-            "offset_end": 170 * ureg.kHz, # 20 * ureg.kHz
+            "offset_start": -110 * ureg.kHz, # 30 * ureg.kHz
+            "offset_end": 20 * ureg.kHz, # 170 * ureg.kHz
             "amplitude": 4200,
             "duration": 5 * ureg.ms,
         }
@@ -186,12 +186,11 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_delay_times = np.arange(1.0, 1.005, 0.0005)
+rf_delay_times = np.arange(1.1, 2, 0.1)
 params = default_params.copy()
 for kk in range(len(rf_delay_times)):
     params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
-    for ll in range(10):
-        run_experiment(params)
+    run_experiment(params)
 
 
 ## empty
