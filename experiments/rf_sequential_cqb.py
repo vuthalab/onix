@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 10,
+    "repeats": 50,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -122,7 +122,17 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.5 * ureg.s
+        "duration_no_scan": 0.5 * ureg.s,
+        "rf_assist": {
+            "use": False,
+            "use_sequential": True,
+            "name": "rf_coil",
+            "transition": "ab",
+            "offset_start": -110 * ureg.kHz, #30 * ureg.kHz
+            "offset_end": 20 * ureg.kHz, #170 * ureg.kHz
+            "amplitude": 4200,
+            "duration": 5 * ureg.ms,
+        }
     },
     "detect": {
         "transition": "bb",
@@ -138,17 +148,18 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 4200,  # 4200
-        "amplitude_2": 4200,  # 4200
-        "offset_1": -203 * ureg.kHz,
-        "offset_2": 95 * ureg.kHz,
-        "detuning_1": 0 * ureg.kHz,
-        "detuning_2": 0 * ureg.kHz,
-        "delay_time_1": 0.1 * ureg.ms,
-        "delay_time_2": 1 * ureg.ms,
-        "delay_time_3": 0.1 * ureg.ms,
-        "piov2_time": 0.3 * ureg.ms,
-        "pi_time": 0.1 * ureg.ms,
+        "piov2_time": 0.05 * ureg.ms,
+        "piov2_amplitude": 4200,
+        "piov2_offset": 95 * ureg.kHz,
+        "piov2_phase_shift": 0,
+        "pi_time": 0.45 * ureg.ms,
+        "pi_amplitude": 4200,
+        "pi_start_offset": 263 * ureg.kHz,
+        "pi_stop_offset": 263 * ureg.kHz,
+        "pi_phase_shift": 0,
+        "pi_reverse_frequency": False,
+        "delay_time_piov2_pi": 0.1 * ureg.ms,
+        "delay_time": 1 * ureg.ms,
     },
 }
 default_sequence = RFSEQCQB(
@@ -177,26 +188,11 @@ dg.write_configs_to_device()
 
 
 ## scan
-# rf_delay_times = np.arange(1.0, 1.01, 0.0003)
-# params = default_params.copy()
-# for kk in range(len(rf_delay_times)):
-#     params["rf"]["delay_time_2"] = rf_delay_times[kk] * ureg.ms
-#     print(params["rf"]["delay_time_2"])
-#     run_experiment(params)
-
-rf_delay_times = np.arange(1.0, 1.01, 0.0005)
-rf_offset_1s = np.arange(-220, -200, 0.5)
-
+rf_delay_times = np.arange(1.0, 1.02, 0.0005)
 
 params = default_params.copy()
-for ll in range(len(rf_offset_1s)):
-    for kk in range(len(rf_delay_times)):
-        params["rf"]["delay_time_2"] = rf_delay_times[kk] * ureg.ms
-        params["rf"]["offset_1"] = rf_offset_1s[ll] * ureg.kHz
-        print(params["rf"]["delay_time_2"])
-        print(params["rf"]["offset_1"])
-        run_experiment(params)
-
-# start 6350
+for kk in range(len(rf_delay_times)):
+    params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
+    run_experiment(params)
 
 ## empty
