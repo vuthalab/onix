@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 20,
+    "repeats": 50,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -122,7 +122,17 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.5 * ureg.s
+        "duration_no_scan": 0.5 * ureg.s,
+        "rf_assist": {
+            "use": False,
+            "use_sequential": True,
+            "name": "rf_coil",
+            "transition": "ab",
+            "offset_start": 30 * ureg.kHz, # -110 * ureg.kHz
+            "offset_end": 170 * ureg.kHz, # 20 * ureg.kHz
+            "amplitude": 4200,
+            "duration": 5 * ureg.ms,
+        }
     },
     "detect": {
         "transition": "bb",
@@ -140,14 +150,14 @@ default_params = {
         "transition": "ab",
         "amplitude_1": 4200,  # 4200
         "amplitude_2": 1100,  # 4200
-        "offset_1": -203 * ureg.kHz,
+        "offset_1": -208.5 * ureg.kHz,
         "offset_2": 95 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
         "phase_1": 0,
         "phase_2": 0,
-        "pulse_time": 0.21 * ureg.ms,
-        "delay_time": 0.3 * ureg.ms,
+        "pulse_time": 0.28 * ureg.ms,
+        "delay_time": 0.5 * ureg.ms,
     },
 }
 default_sequence = RFCQB(
@@ -176,28 +186,12 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_delay_times = np.arange(1.0, 1.01, 0.0005)
-rf_offset_1s = np.arange(-220, -200, 0.5)
-
-# np.random.shuffle(rf_delay_times)
-
+rf_delay_times = np.arange(1.0, 1.005, 0.0005)
 params = default_params.copy()
 for kk in range(len(rf_delay_times)):
-    for ll in range(len(rf_offset_1s)):
-        params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
-        params["rf"]["offset_1"] = rf_offset_1s[ll] * ureg.kHz
-        print(params["rf"]["delay_time"])
-        print(params["rf"]["offset_1"])
+    params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
+    for ll in range(10):
         run_experiment(params)
-
-#rf_phase_diffs = np.linspace(0, 2 * np.pi, 20)
-# rf_phase_diffs = np.linspace(1.65, 1.65, 1)
-# np.random.shuffle(rf_phase_diffs)
-# params = default_params.copy()
-# for kk in range(len(rf_phase_diffs)):
-#     params["rf"]["phase_1"] = rf_phase_diffs[kk]
-#     params["rf"]["phase_2"] = rf_phase_diffs[kk]
-#     run_experiment(params)
 
 
 ## empty

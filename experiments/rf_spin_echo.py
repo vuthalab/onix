@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 10,
+    "repeats": 20,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -122,7 +122,17 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.5 * ureg.s
+        "duration_no_scan": 0.5 * ureg.s,
+        "rf_assist": {
+            "use": False,
+            "use_sequential": True,
+            "name": "rf_coil",
+            "transition": "ab",
+            "offset_start": 30 * ureg.kHz, # -110 * ureg.kHz
+            "offset_end": 170 * ureg.kHz, # 20 * ureg.kHz
+            "amplitude": 4200,
+            "duration": 5 * ureg.ms,
+        }
     },
     "detect": {
         "transition": "bb",
@@ -145,6 +155,7 @@ default_params = {
         "pi_time": 0.4 * ureg.ms,
         "delay_time": 5 * ureg.ms,
         "phase": 0,
+        "phase_pi": 0,
     },
 }
 default_sequence = RFSpinEcho(
@@ -173,11 +184,27 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_phase_diffs = np.linspace(0, 2 * np.pi, 20)
-np.random.shuffle(rf_phase_diffs)
+rf_phase_pis = np.linspace(0, 2 * np.pi, 9)
+rf_phase_diffs = np.linspace(0, 2 * np.pi, 10)
+rf_delays = np.array([3, 5, 7, 9, 12, 15, 20, 25]) * ureg.ms
+rf_offsets = np.array([-203]) * ureg.kHz
+rf_pi_times = np.array([0.4]) * ureg.ms
+rf_assist_offset_starts = np.array([-110]) * ureg.kHz
+rf_assist_offset_ends = np.array([20]) * ureg.kHz
+
 params = default_params.copy()
-for kk in range(len(rf_phase_diffs)):
-    params["rf"]["phase"] = rf_phase_diffs[kk]
-    run_experiment(params)
+for kk in range(len(rf_offsets)):
+    params["rf"]["offset"] = rf_offsets[kk]
+    params["rf"]["pi_time"] = rf_pi_times[kk]
+    params["rf"]["piov2_time"] = rf_pi_times[kk] / 2
+    params["antihole"]["rf_assist"]["offset_start"] = rf_assist_offset_starts[kk]
+    params["antihole"]["rf_assist"]["offset_end"] = rf_assist_offset_ends[kk]
+    for ll in range(len(rf_delays)):
+        params["rf"]["delay_time"] = rf_delays[ll]
+        for mm in range(len(rf_phase_pis)):
+            params["rf"]["phase_pi"] = rf_phase_pis[mm]
+            for nn in range(len(rf_phase_diffs)):
+                params["rf"]["phase"] = rf_phase_diffs[nn]
+                run_experiment(params)
 
 ## empty

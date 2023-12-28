@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 10,
+    "repeats": 20,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -122,7 +122,17 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.5 * ureg.s
+        "duration_no_scan": 0.5 * ureg.s,
+        "rf_assist": {
+            "use": False,
+            "use_sequential": True,
+            "name": "rf_coil",
+            "transition": "ab",
+            "offset_start": -110 * ureg.kHz, # 30 * ureg.kHz
+            "offset_end": 20 * ureg.kHz, # 170 * ureg.kHz
+            "amplitude": 4200,
+            "duration": 5 * ureg.ms,
+        }
     },
     "detect": {
         "transition": "bb",
@@ -138,15 +148,15 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 4200,  # 4200
+        "amplitude_1": 2000,  # 4200
         "amplitude_2": 4200,  # 1100
         "offset_1": 95 * ureg.kHz,
         "offset_2": -203 * ureg.kHz,
-        "frequency_1_span": 5 * ureg.kHz,
+        "frequency_1_span": 0 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
-        "pulse_1_time": 1 * ureg.ms,
-        "pulse_2_time": 0.3 * ureg.ms,
+        "pulse_1_time": 0.2 * ureg.ms,
+        "pulse_2_time": 0.45 * ureg.ms,
         "delay_time": 1 * ureg.ms,
         # "simultaneous_driving": True,
 
@@ -178,8 +188,22 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_offset_2s = np.arange(-215, -195, 1)
-# np.random.shuffle(rf_freq_1)
+# rf_offset_2s = np.arange(-211, -207, 0.2)
+# rf_offset_2s *= ureg.kHz
+# params = default_params.copy()
+# for kk in range(len(rf_offset_2s)):
+#     params["rf"]["offset_2"] = rf_offset_2s[kk]
+#     run_experiment(params)
+
+# rf_offset_2s = np.arange(90.5, 99.5, 0.6)
+# rf_offset_2s *= ureg.kHz
+# params = default_params.copy()
+# for kk in range(len(rf_offset_2s)):
+#     params["rf"]["offset_2"] = rf_offset_2s[kk]
+#     run_experiment(params)
+
+params["rf"]["amplitude_2"] = 4200
+rf_offset_2s = np.arange(261, 265, 0.5)
 rf_offset_2s *= ureg.kHz
 params = default_params.copy()
 for kk in range(len(rf_offset_2s)):

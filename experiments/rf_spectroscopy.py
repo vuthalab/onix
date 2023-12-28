@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 4,
+    "repeats": 10,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -113,7 +113,7 @@ default_params = {
     },
     "chasm": {
         "transition": "bb",
-        "scan": 2.8 * ureg.MHz,
+        "scan": 3 * ureg.MHz,
         "scan_rate": 5 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
@@ -148,7 +148,7 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 4200,  # 4200
+        "amplitude": 0,  # 4200
         "offset": -203 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 0.5 * ureg.ms,
@@ -189,7 +189,7 @@ dg.write_configs_to_device()
 
 
 ## scan time
-rf_times = np.linspace(1, 2, 10)
+rf_times = np.linspace(1, 1, 100)
 rf_times *= ureg.ms
 params = default_params.copy()
 for kk in range(len(rf_times)):
