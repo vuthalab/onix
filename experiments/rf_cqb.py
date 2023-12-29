@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 50,
+    "repeats": 20,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -114,7 +114,7 @@ default_params = {
     "chasm": {
         "transition": "bb",
         "scan": 2.8 * ureg.MHz,
-        "scan_rate": 5 * ureg.MHz / ureg.s,
+        "scan_rate": 3 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -150,7 +150,7 @@ default_params = {
         "transition": "ab",
         "amplitude_1": 4200,  # 4200
         "amplitude_2": 1100,  # 4200
-        "offset_1": -208.5 * ureg.kHz,
+        "offset_1": -209 * ureg.kHz,
         "offset_2": 95 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
@@ -186,7 +186,8 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_delay_times = np.arange(1.1, 2, 0.1)
+rf_offsets = np.arange(-210, -208, 0.05)
+rf_delay_times = np.arange(0.5, 15, 0.5)
 params = default_params.copy()
 for kk in range(len(rf_delay_times)):
     params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms

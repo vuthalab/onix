@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 20,
+    "repeats": 10,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -106,15 +106,15 @@ default_params = {
     },
     "field_plate": {
         "name": "field_plate",
-        "use": False,
-        "amplitude": 0,
-        "stark_shift": 1 * ureg.MHz,
+        "use": True,
+        "amplitude": 4500,
+        "stark_shift": 2 * ureg.MHz,
         "padding_time": 1 * ureg.ms,
     },
     "chasm": {
         "transition": "bb",
-        "scan": 2.8 * ureg.MHz,
-        "scan_rate": 5 * ureg.MHz / ureg.s,
+        "scan": 4 * ureg.MHz,
+        "scan_rate": 2 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -137,7 +137,7 @@ default_params = {
     "detect": {
         "transition": "bb",
         "trigger_channel": 2,
-        "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
+        "detunings": np.linspace(-1.9, 1.9, 20) * ureg.MHz,
         "randomize": True,
         "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
@@ -148,14 +148,14 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 2000,  # 4200
+        "amplitude_1": 4200,  # 4200
         "amplitude_2": 4200,  # 1100
         "offset_1": 95 * ureg.kHz,
         "offset_2": -203 * ureg.kHz,
         "frequency_1_span": 0 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
-        "pulse_1_time": 0.2 * ureg.ms,
+        "pulse_1_time": 0.1 * ureg.ms,
         "pulse_2_time": 0.45 * ureg.ms,
         "delay_time": 1 * ureg.ms,
         # "simultaneous_driving": True,
@@ -188,22 +188,24 @@ dg.write_configs_to_device()
 
 
 ## scan
-# rf_offset_2s = np.arange(-211, -207, 0.2)
-# rf_offset_2s *= ureg.kHz
-# params = default_params.copy()
-# for kk in range(len(rf_offset_2s)):
-#     params["rf"]["offset_2"] = rf_offset_2s[kk]
-#     run_experiment(params)
+params["rf"]["pulse_2_time"] = 0.4 * ureg.ms
+rf_offset_2s = np.arange(-208.5 - 15, -208.5 + 15, 1)
+rf_offset_2s *= ureg.kHz
+params = default_params.copy()
+for kk in range(len(rf_offset_2s)):
+    params["rf"]["offset_2"] = rf_offset_2s[kk]
+    run_experiment(params)
 
-# rf_offset_2s = np.arange(90.5, 99.5, 0.6)
-# rf_offset_2s *= ureg.kHz
-# params = default_params.copy()
-# for kk in range(len(rf_offset_2s)):
-#     params["rf"]["offset_2"] = rf_offset_2s[kk]
-#     run_experiment(params)
+params["rf"]["pulse_2_time"] = 0.1 * ureg.ms
+rf_offset_2s = np.arange(95 - 15, 95 + 15, 1)
+rf_offset_2s *= ureg.kHz
+params = default_params.copy()
+for kk in range(len(rf_offset_2s)):
+    params["rf"]["offset_2"] = rf_offset_2s[kk]
+    run_experiment(params)
 
-params["rf"]["amplitude_2"] = 4200
-rf_offset_2s = np.arange(261, 265, 0.5)
+params["rf"]["pulse_2_time"] = 0.45 * ureg.ms
+rf_offset_2s = np.arange(263 - 15, 263 + 15, 1)
 rf_offset_2s *= ureg.kHz
 params = default_params.copy()
 for kk in range(len(rf_offset_2s)):

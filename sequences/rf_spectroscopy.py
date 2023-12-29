@@ -60,6 +60,10 @@ class RFSpectroscopy(Sequence):
             "rf_assist",
             self._antihole_parameters["rf_assist"]
         )
+        if self._field_plate_parameters["use"]:
+            field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
+            field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            segment.add_awg_function(field_plate_channel, field_plate)
         self.add_segment(segment)
 
         segment, self.analysis_parameters = detect_segment(
