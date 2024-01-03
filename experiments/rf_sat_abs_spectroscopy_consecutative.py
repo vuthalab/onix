@@ -4,7 +4,7 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.sequences.rf_sat_abs_spectroscopy import RFSatAbsSpectroscopy
+from onix.sequences.rf_sat_abs_spectroscopy_consecutative import RFSatAbsSpectroscopyConsecutative
 from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
@@ -23,7 +23,7 @@ except Exception:
 
 ## function to run the experiment
 def run_experiment(params):
-    sequence = RFSatAbsSpectroscopy(  # Only change the part that changed
+    sequence = RFSatAbsSpectroscopyConsecutative(  # Only change the part that changed
         ao_parameters=params["ao"],
         eos_parameters=params["eos"],
         field_plate_parameters=params["field_plate"],
@@ -68,7 +68,7 @@ def run_experiment(params):
         "params": params,
         "detunings": sequence.analysis_parameters["detect_detunings"]
     }
-    name = "RF Saturation Absorption Spectroscopy"
+    name = "RF Saturation Absorption Spectroscopy Consecutative"
     data_id = save_experiment_data(name, data, headers)
     print(data_id)
     print()
@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 10,
+    "repeats": 1,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -138,12 +138,12 @@ default_params = {
         "transition": "bb",
         "trigger_channel": 2,
         "detunings": np.linspace(-1.9, 1.9, 20) * ureg.MHz,
-        "randomize": True,
+        "randomize": False,
         "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
         "chasm_repeats": 100,  # change the names of detection repeats
         "antihole_repeats": 100,
-        "rf_repeats": 100,
+        "rf_repeats": 50,
     },
     "rf": {
         "name": "rf_coil",
@@ -151,7 +151,7 @@ default_params = {
         "amplitude_1": 4200,  # 4200
         "amplitude_2": 4200,  # 1100
         "offset_1": -41 * ureg.kHz,
-        "offset_2": -41 * ureg.kHz,
+        "offsets_2": np.arange(-208.5 - 15, -208.5 + 15, 3) * ureg.kHz,
         "frequency_1_span": 0 * ureg.kHz,
         "frequency_2_span": 0 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
@@ -162,7 +162,7 @@ default_params = {
         "phase_noise": 0.,
     },
 }
-default_sequence = RFSatAbsSpectroscopy(
+default_sequence = RFSatAbsSpectroscopyConsecutative(
     ao_parameters=default_params["ao"],
     eos_parameters=default_params["eos"],
     field_plate_parameters=default_params["field_plate"],
@@ -174,10 +174,10 @@ default_sequence = RFSatAbsSpectroscopy(
 default_sequence.setup_sequence()
 
 digitizer_time_s = default_sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
-sample_rate = 1e8
+sample_rate = 25000000
 dg.set_acquisition_config(
     num_channels=2,
-    sample_rate=1e8,
+    sample_rate=sample_rate,
     segment_size=int(digitizer_time_s * sample_rate),
     segment_count=default_sequence.num_of_records() * default_params["repeats"]
 )
@@ -189,33 +189,32 @@ dg.write_configs_to_device()
 
 ## scan
 scan_range = 15
-scan_step = 2
+scan_step = 3
 rf_offset_2s = np.arange(-208.5 - scan_range, -208.5 + scan_range, scan_step)
 rf_offset_2s *= ureg.kHz
 params = default_params.copy()
 params["rf"]["amplitude_2"] = 4200
-params["rf"]["pulse_2_time"] = 10 * ureg.ms
-params["rf"]["phase_noise"] = 0.005
-for kk in range(len(rf_offset_2s)):
-    params["rf"]["offset_2"] = rf_offset_2s[kk]
+params["rf"]["pulse_2_time"] = 0.4 * ureg.ms
+params["rf"]["offsets_2"] = rf_offset_2s
+for kk in range(20):
     run_experiment(params)
+
 
 # rf_offset_2s = np.arange(-41 - scan_range, -41 + scan_range, scan_step)
 # rf_offset_2s *= ureg.kHz
 # params = default_params.copy()
 # params["rf"]["amplitude_2"] = 700
 # params["rf"]["pulse_2_time"] = 0.4 * ureg.ms
-# for kk in range(len(rf_offset_2s)):
-#     params["rf"]["offset_2"] = rf_offset_2s[kk]
-#     run_experiment(params)
+# params["rf"]["offsets_2"] = rf_offset_2s
+# run_experiment(params)
+#
 #
 # rf_offset_2s = np.arange(263 - scan_range, 263 + scan_range, scan_step)
 # rf_offset_2s *= ureg.kHz
 # params = default_params.copy()
 # params["rf"]["amplitude_2"] = 4200
 # params["rf"]["pulse_2_time"] = 0.45 * ureg.ms
-# for kk in range(len(rf_offset_2s)):
-#     params["rf"]["offset_2"] = rf_offset_2s[kk]
-#     run_experiment(params)
+# params["rf"]["offsets_2"] = rf_offset_2s
+# run_experiment(params)
 
 ## empty

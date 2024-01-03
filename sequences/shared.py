@@ -159,8 +159,6 @@ def detect_segment(
             - energies["7F0"][F_state]
             + eo_parameters["offset"]
         )
-    print(name, transition, round(frequency, 2))
-
     detect_detunings = detect_parameters["detunings"]
     if field_plate_parameters["use"]:
         all_detunings = np.empty(
@@ -243,16 +241,13 @@ def _scan_segment(
     frequency = (
         energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
     )
-    print(name, transition, round(frequency, 2))
     segment = Segment(name, duration)
     start = ao_parameters["frequency"] + (detuning - scan) / ao_parameters["order"]
     end = ao_parameters["frequency"] + (detuning + scan) / ao_parameters["order"]
     ao_pulse = AWGSineSweep(start, end, ao_parameters["amplitude"], 0, duration)
-    #print("ao", start, end, ao_parameters["amplitude"], 0, duration)
     ao_channel = get_channel_from_name(ao_parameters["name"])
     segment.add_awg_function(ao_channel, ao_pulse)
     eo_pulse = AWGSinePulse(frequency, eo_parameters["amplitude"])
-    #print("eo", frequency, eo_parameters["amplitude"])
     eo_channel = get_channel_from_name(eo_parameters["name"])
     segment.add_awg_function(eo_channel, eo_pulse)
     return (segment, repeats)
