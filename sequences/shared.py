@@ -15,7 +15,7 @@ from onix.sequences.sequence import (
 from onix.units import Q_, ureg
 from onix.awg_maps import get_channel_from_name
 
-PIECEWISE_TIME = 5 * ureg.ms
+PIECEWISE_TIME = 3 * ureg.ms
 
 
 def chasm_segment(
@@ -241,12 +241,12 @@ def _scan_segment(
     F_state = transition[0]
     D_state = transition[1]
     frequency = (
-        energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"] + detuning
+        energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
     )
     print(name, transition, round(frequency, 2))
     segment = Segment(name, duration)
-    start = ao_parameters["frequency"] - scan / ao_parameters["order"]
-    end = ao_parameters["frequency"] + scan / ao_parameters["order"]
+    start = ao_parameters["frequency"] + (detuning - scan) / ao_parameters["order"]
+    end = ao_parameters["frequency"] + (detuning + scan) / ao_parameters["order"]
     ao_pulse = AWGSineSweep(start, end, ao_parameters["amplitude"], 0, duration)
     #print("ao", start, end, ao_parameters["amplitude"], 0, duration)
     ao_channel = get_channel_from_name(ao_parameters["name"])

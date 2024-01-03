@@ -159,7 +159,7 @@ class AWGFunction:
     @property
     def min_duration(self) -> Q_:
         return 0 * ureg.s
-    
+
     @property
     def max_amplitude(self):
         raise NotImplementedError("Maximum amplitude must be defined.")
@@ -424,7 +424,7 @@ class AWGMultiFunctions(AWGFunction):
     @property
     def max_amplitude(self):
         return np.max([function.max_amplitude for function in self._functions])
-    
+
 class TTLFunction:
     def output(self, times):
         raise NotImplementedError()

@@ -4,7 +4,7 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.sequences.rf_sat_abs_spectroscopy import RFSatAbsSpectroscopy
+from onix.sequences.rf_sat_abs_spin_echo import RFSatAbsSpinEcho
 from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
@@ -23,7 +23,7 @@ except Exception:
 
 ## function to run the experiment
 def run_experiment(params):
-    sequence = RFSatAbsSpectroscopy(  # Only change the part that changed
+    sequence = RFSatAbsSpinEcho(  # Only change the part that changed
         ao_parameters=params["ao"],
         eos_parameters=params["eos"],
         field_plate_parameters=params["field_plate"],
@@ -68,7 +68,7 @@ def run_experiment(params):
         "params": params,
         "detunings": sequence.analysis_parameters["detect_detunings"]
     }
-    name = "RF Saturation Absorption Spectroscopy"
+    name = "RF Saturation Absorption Spin Echo"
     data_id = save_experiment_data(name, data, headers)
     print(data_id)
     print()
@@ -114,7 +114,7 @@ default_params = {
     "chasm": {
         "transition": "bb",
         "scan": 3 * ureg.MHz,
-        "scan_rate": 5 * ureg.MHz / ureg.s,
+        "scan_rate": 3 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -151,18 +151,15 @@ default_params = {
         "amplitude_1": 4200,  # 4200
         "amplitude_2": 4200,  # 1100
         "offset_1": -41 * ureg.kHz,
-        "offset_2": -41 * ureg.kHz,
-        "frequency_1_span": 0 * ureg.kHz,
-        "frequency_2_span": 0 * ureg.kHz,
+        "offset_2": -209 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
         "pulse_1_time": 0.09 * ureg.ms,
-        "pulse_2_time": 0.4 * ureg.ms,
+        "pulse_2_pi_time": 0.4 * ureg.ms,
         "delay_time": 1 * ureg.ms,
-        "phase_noise": 0.,
     },
 }
-default_sequence = RFSatAbsSpectroscopy(
+default_sequence = RFSatAbsSpinEcho(
     ao_parameters=default_params["ao"],
     eos_parameters=default_params["eos"],
     field_plate_parameters=default_params["field_plate"],
@@ -194,28 +191,27 @@ rf_offset_2s = np.arange(-208.5 - scan_range, -208.5 + scan_range, scan_step)
 rf_offset_2s *= ureg.kHz
 params = default_params.copy()
 params["rf"]["amplitude_2"] = 4200
-params["rf"]["pulse_2_time"] = 10 * ureg.ms
-params["rf"]["phase_noise"] = 0.01
+params["rf"]["pulse_2_pi_time"] = 0.4 * ureg.ms
 for kk in range(len(rf_offset_2s)):
     params["rf"]["offset_2"] = rf_offset_2s[kk]
     run_experiment(params)
 
-# rf_offset_2s = np.arange(-41 - scan_range, -41 + scan_range, scan_step)
-# rf_offset_2s *= ureg.kHz
-# params = default_params.copy()
-# params["rf"]["amplitude_2"] = 700
-# params["rf"]["pulse_2_time"] = 0.4 * ureg.ms
-# for kk in range(len(rf_offset_2s)):
-#     params["rf"]["offset_2"] = rf_offset_2s[kk]
-#     run_experiment(params)
-#
-# rf_offset_2s = np.arange(263 - scan_range, 263 + scan_range, scan_step)
-# rf_offset_2s *= ureg.kHz
-# params = default_params.copy()
-# params["rf"]["amplitude_2"] = 4200
-# params["rf"]["pulse_2_time"] = 0.45 * ureg.ms
-# for kk in range(len(rf_offset_2s)):
-#     params["rf"]["offset_2"] = rf_offset_2s[kk]
-#     run_experiment(params)
+rf_offset_2s = np.arange(-41 - scan_range, -41 + scan_range, scan_step)
+rf_offset_2s *= ureg.kHz
+params = default_params.copy()
+params["rf"]["amplitude_2"] = 4200
+params["rf"]["pulse_2_pi_time"] = 0.09 * ureg.ms
+for kk in range(len(rf_offset_2s)):
+    params["rf"]["offset_2"] = rf_offset_2s[kk]
+    run_experiment(params)
+
+rf_offset_2s = np.arange(263 - scan_range, 263 + scan_range, scan_step)
+rf_offset_2s *= ureg.kHz
+params = default_params.copy()
+params["rf"]["amplitude_2"] = 4200
+params["rf"]["pulse_2_pi_time"] = 0.45 * ureg.ms
+for kk in range(len(rf_offset_2s)):
+    params["rf"]["offset_2"] = rf_offset_2s[kk]
+    run_experiment(params)
 
 ## empty

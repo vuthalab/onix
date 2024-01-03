@@ -1,5 +1,4 @@
-import numbers
-from typing import Any, Union, Optional
+from typing import Any, Union
 
 import numpy as np
 
@@ -7,9 +6,7 @@ from onix.models.hyperfine import energies
 from onix.sequences.sequence import (
     AWGConstant,
     AWGFunction,
-    AWGSineTrain,
     AWGSinePulse,
-    AWGSineSweep,
     Segment,
     SegmentEmpty,
     Sequence,
@@ -19,48 +16,58 @@ from onix.units import ureg, Q_
 from onix.awg_maps import get_channel_from_name
 
 
-class AWGSineSweepNoise(AWGSineSweep):
+class AWGSpinEcho(AWGFunction):
     def __init__(
         self,
-        start_frequency: Union[float, Q_],
-        stop_frequency: Union[float, Q_],
+        pi_time: Union[float, Q_],
         amplitude: float,
-        start_time: Optional[Union[float, Q_]],
-        end_time: Optional[Union[float, Q_]],
-        phase: float = 0,
-        phase_noise: float = 0,
+        frequency: Union[float, Q_],
+        delay_time: Union[float, Q_],
+        piov2_phase_shift: float = 0,
     ):
-        super().__init__(start_frequency, stop_frequency, amplitude, start_time, end_time, phase)
-        self._phase_noise = phase_noise
+        super().__init__()
+        self._pi_time = pi_time
+        self._piov2_time = pi_time / 2
+        self._frequency = frequency
+        self._amplitude = amplitude
+        self._delay_time = delay_time
+        self._piov2_phase_shift = piov2_phase_shift
 
     def output(self, times):
-        phases = np.cumsum(np.random.normal(0, self._phase_noise, size=len(times))) + phase
-        start_frequency = self._start_frequency.to("Hz").magnitude
-        stop_frequency = self._stop_frequency.to("Hz").magnitude
-        start_time = self._start_time.to("s").magnitude
-        end_time = self._end_time.to("s").magnitude
-        duration = end_time - start_time
-        frequency_scan = stop_frequency - start_frequency
-        instant_frequencies = (
-            times - start_time
-        ) / duration * frequency_scan / 2 + start_frequency
-        sine_sweep = self._amplitude * np.sin(
-            2 * np.pi * instant_frequencies * times + phases
+        def sine_rect(times, t0, T, freq, phase):
+            return (np.heaviside(times - t0, 1) - np.heaviside(times - (t0 + T), 1)) * np.exp(1j * (2 * np.pi * freq * times + phase))
+
+        frequency = self._frequency.to("Hz").magnitude
+
+        piov2_time = self._piov2_time.to("s").magnitude
+        pi_time = self._pi_time.to("s").magnitude
+        delay_time = self._delay_time.to("s").magnitude
+
+        t0 = 0
+        t1 = t0 + piov2_time + delay_time
+        t2 = t1 + pi_time + delay_time
+
+        pulses = self._amplitude * (
+            sine_rect(times, t0, piov2_time, frequency, 0)
+            + sine_rect(times, t1, pi_time, frequency, np.pi)
+            + sine_rect(times, t2, piov2_time, frequency, self._piov2_phase_shift)
         )
-        mask_start = np.heaviside(times - start_time, 0)
-        mask_end = np.heaviside(end_time - times, 1)
-        return sine_sweep * mask_start * mask_end
+        return np.real(pulses)
 
     @property
     def min_duration(self) -> Q_:
-        return self._end_time
+        return (
+            self._piov2_time * 2
+            + self._delay_time * 2
+            + self._pi_time
+         )
 
     @property
     def max_amplitude(self):
         return self._amplitude
 
 
-class RFSatAbsSpectroscopy(Sequence):
+class RFSatAbsSpinEcho(Sequence):
     def __init__(
         self,
         ao_parameters: dict[str, Any],
@@ -136,42 +143,21 @@ class RFSatAbsSpectroscopy(Sequence):
         pulse_1_time = self._rf_parameters["pulse_1_time"]
         delay_time = self._rf_parameters["delay_time"]
         segment = Segment("rf_1", pulse_1_time + delay_time)
-        # if self._rf_parameters["simultaneous_driving"]:
-        #     rf_pulse = AWGSimultaneousTwoFrequencies(
-        #         pulse_time,
-        #         frequency_1,
-        #         frequency_2,
-        #         self._rf_parameters["amplitude_1"],
-        #         self._rf_parameters["amplitude_2"],
-        #     )
-        # else:
-        #     rf_pulse = AWGSineSweep(
-        #         frequency_1.to("Hz").magnitude,
-        #         frequency_2.to("Hz").magnitude,
-        #         self._rf_parameters["amplitude"],
-        #         0,
-        #         self._rf_parameters["pulse_time"],
-        #     )
-        rf_pulse = AWGSineSweep(
-                frequency_1 - self._rf_parameters["frequency_1_span"],
-                frequency_1 + self._rf_parameters["frequency_1_span"],
-                self._rf_parameters["amplitude_1"],
-                0,
-                self._rf_parameters["pulse_1_time"],
-            )
+        rf_pulse = AWGSinePulse(
+            frequency_1,
+            self._rf_parameters["amplitude_1"],
+            end_time=pulse_1_time,
+        )
         rf_channel = get_channel_from_name(self._rf_parameters["name"])
         segment.add_awg_function(rf_channel, rf_pulse)
         self.add_segment(segment)
 
         segment = Segment("rf_2")
-        rf_pulse = AWGSineSweepNoise(
-            frequency_2 - self._rf_parameters["frequency_2_span"],
-            frequency_2 + self._rf_parameters["frequency_2_span"],
+        rf_pulse = AWGSpinEcho(
+            self._rf_parameters["pulse_2_pi_time"],
             self._rf_parameters["amplitude_2"],
-            0,
-            self._rf_parameters["pulse_2_time"],
-            0,
-            self._rf_parameters["phase_noise"],
+            frequency_2,
+            self._rf_parameters["delay_time"],
         )
         rf_channel = get_channel_from_name(self._rf_parameters["name"])
         segment.add_awg_function(rf_channel, rf_pulse)

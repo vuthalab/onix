@@ -83,7 +83,7 @@ default_params = {
         "order": 2,
         "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 650,  # 650
+        "detect_amplitude": 550,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -107,14 +107,14 @@ default_params = {
     "field_plate": {
         "name": "field_plate",
         "use": False,
-        "amplitude": 0,
-        "stark_shift": 1 * ureg.MHz,
-        "padding_time": 1 * ureg.ms,
+        "amplitude": 4500,
+        "stark_shift": 2 * ureg.MHz,
+        "padding_time": 5 * ureg.ms,
     },
     "chasm": {
         "transition": "bb",
-        "scan": 2.8 * ureg.MHz,
-        "scan_rate": 3 * ureg.MHz / ureg.s,
+        "scan": 3 * ureg.MHz,
+        "scan_rate": 5 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -122,14 +122,14 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.5 * ureg.s,
+        "duration_no_scan": 0.2 * ureg.s,
         "rf_assist": {
             "use": False,
             "use_sequential": True,
             "name": "rf_coil",
             "transition": "ab",
-            "offset_start": -110 * ureg.kHz, # 30 * ureg.kHz
-            "offset_end": 20 * ureg.kHz, # 170 * ureg.kHz
+            "offset_start": -110 * ureg.kHz, #30 * ureg.kHz
+            "offset_end": 20 * ureg.kHz, #170 * ureg.kHz
             "amplitude": 4200,
             "duration": 5 * ureg.ms,
         }
@@ -186,12 +186,14 @@ dg.write_configs_to_device()
 
 
 ## scan
-rf_offsets = np.arange(-210, -208, 0.05)
+rf_offsets = np.arange(-209.5, -208.5, 0.05)
 rf_delay_times = np.arange(0.5, 15, 0.5)
 params = default_params.copy()
-for kk in range(len(rf_delay_times)):
-    params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
-    run_experiment(params)
+for ll in range(len(rf_offsets)):
+    params["rf"]["offset_1"] = rf_offsets[ll] * ureg.kHz
+    for kk in range(len(rf_delay_times)):
+        params["rf"]["delay_time"] = rf_delay_times[kk] * ureg.ms
+        run_experiment(params)
 
 
 ## empty
