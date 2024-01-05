@@ -40,12 +40,13 @@ def run_experiment(params):
     time.sleep(0.1)
 
     for kk in range(params["repeats"]):
-        print(f"{kk / params['repeats'] * 100:.0f}%")
+        #print(f"{kk / params['repeats'] * 100:.0f}%")
         m4i.start_sequence()
         m4i.wait_for_sequence_complete()
     m4i.stop_sequence()
 
-    dg.wait_for_data_ready()
+    timeout = 1
+    dg.wait_for_data_ready(timeout)
     digitizer_sample_rate, digitizer_data = dg.get_data()
     transmissions = np.array(digitizer_data[0])
     monitors = np.array(digitizer_data[1])
@@ -71,13 +72,14 @@ def run_experiment(params):
     name = "RF Saturation Absorption Spectroscopy Consecutative"
     data_id = save_experiment_data(name, data, headers)
     print(data_id)
-    print()
 
 
 ## parameters
+scan_range = 10
+scan_step = 2
 default_params = {
     "wm_channel": 5,
-    "repeats": 1,
+    "repeats": 10,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -122,7 +124,7 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.2 * ureg.s,
+        "duration_no_scan": 1 * ureg.s,
         "rf_assist": {
             "use": False,
             "use_sequential": True,
@@ -148,15 +150,15 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 4200,  # 4200
+        "amplitude_1": 1500,  # 4200
         "amplitude_2": 4200,  # 1100
         "offset_1": -41 * ureg.kHz,
-        "offsets_2": np.arange(-208.5 - 15, -208.5 + 15, 3) * ureg.kHz,
+        "offsets_2": np.arange(-208.5 - scan_range, -208.5 + scan_range, scan_step) * ureg.kHz,
         "frequency_1_span": 0 * ureg.kHz,
         "frequency_2_span": 0 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
-        "pulse_1_time": 0.09 * ureg.ms,
+        "pulse_1_time": 0.25 * ureg.ms,
         "pulse_2_time": 0.4 * ureg.ms,
         "delay_time": 1 * ureg.ms,
         "phase_noise": 0.,
@@ -188,33 +190,27 @@ dg.write_configs_to_device()
 
 
 ## scan
-scan_range = 15
-scan_step = 3
-rf_offset_2s = np.arange(-208.5 - scan_range, -208.5 + scan_range, scan_step)
-rf_offset_2s *= ureg.kHz
-params = default_params.copy()
-params["rf"]["amplitude_2"] = 4200
-params["rf"]["pulse_2_time"] = 0.4 * ureg.ms
-params["rf"]["offsets_2"] = rf_offset_2s
-for kk in range(20):
-    run_experiment(params)
+center_freqs = [-208, -41, 263]  # -208, -41, 263
+amplitudes = [1600, 400, 1800]
+for kk in range(len(center_freqs)):
+    print(kk)
+    params = default_params.copy()
+    center_freq = center_freqs[kk]
+    amplitude = amplitudes[kk]
+    rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
+    rf_offset_2s *= ureg.kHz
+    params["rf"]["amplitude_2"] = amplitude
+    params["rf"]["offsets_2"] = rf_offset_2s
+    params["field_plate"]["amplitude"] = 4500
+    print("positive start")
+    for kk in range(50):
+        run_experiment(params)
+    print("positive end")
 
-
-# rf_offset_2s = np.arange(-41 - scan_range, -41 + scan_range, scan_step)
-# rf_offset_2s *= ureg.kHz
-# params = default_params.copy()
-# params["rf"]["amplitude_2"] = 700
-# params["rf"]["pulse_2_time"] = 0.4 * ureg.ms
-# params["rf"]["offsets_2"] = rf_offset_2s
-# run_experiment(params)
-#
-#
-# rf_offset_2s = np.arange(263 - scan_range, 263 + scan_range, scan_step)
-# rf_offset_2s *= ureg.kHz
-# params = default_params.copy()
-# params["rf"]["amplitude_2"] = 4200
-# params["rf"]["pulse_2_time"] = 0.45 * ureg.ms
-# params["rf"]["offsets_2"] = rf_offset_2s
-# run_experiment(params)
+    print("negative start")
+    params["field_plate"]["amplitude"] = -4500
+    for kk in range(50):
+        run_experiment(params)
+    print("negative end")
 
 ## empty

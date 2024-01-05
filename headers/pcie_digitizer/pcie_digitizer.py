@@ -8,6 +8,7 @@ import sys
 from builtins import int
 import platform
 import sys
+import time
 from typing import Literal, Optional
 import numpy as np
 
@@ -237,10 +238,16 @@ class Digitizer:
         if status < 0:
             self._raise_error("StartCapture", status)
 
-    def wait_for_data_ready(self):
+    def wait_for_data_ready(self, timeout=None):
+        t_start = time.time()
+        t_end = time.time()
         status = PyGage.GetStatus(self._handle)
-        while status != gc.ACQ_STATUS_READY:
+        while status != gc.ACQ_STATUS_READY and (timeout is None or timeout > t_end - t_start):
+            time.sleep(0.001)
             status = PyGage.GetStatus(self._handle)
+            t_end = time.time()
+        if status != gc.ACQ_STATUS_READY:
+            raise RuntimeError(f"Digitizer timeout with error {status}.")
 
     def get_data(self):
         acq_config = self.get_acquisition_config()
