@@ -79,7 +79,7 @@ scan_range = 10
 scan_step = 2
 default_params = {
     "wm_channel": 5,
-    "repeats": 10,
+    "repeats": 5,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -124,16 +124,16 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 1 * ureg.s,
+        "duration_no_scan": 0.4 * ureg.s,
         "rf_assist": {
             "use": False,
-            "use_sequential": True,
+            "use_sequential": False,
             "name": "rf_coil",
             "transition": "ab",
             "offset_start": 30 * ureg.kHz, #-110 * ureg.kHz
             "offset_end": 170 * ureg.kHz, #20 * ureg.kHz
             "amplitude": 4200,
-            "duration": 5 * ureg.ms,
+            "duration": 20 * ureg.ms,
         }
     },
     "detect": {
@@ -150,7 +150,7 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 1500,  # 4200
+        "amplitude_1": 4200,  # 4200
         "amplitude_2": 4200,  # 1100
         "offset_1": -41 * ureg.kHz,
         "offsets_2": np.arange(-208.5 - scan_range, -208.5 + scan_range, scan_step) * ureg.kHz,
@@ -158,7 +158,7 @@ default_params = {
         "frequency_2_span": 0 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
-        "pulse_1_time": 0.25 * ureg.ms,
+        "pulse_1_time": 0.13 * ureg.ms,
         "pulse_2_time": 0.4 * ureg.ms,
         "delay_time": 1 * ureg.ms,
         "phase_noise": 0.,
@@ -191,7 +191,7 @@ dg.write_configs_to_device()
 
 ## scan
 center_freqs = [-208, -41, 263]  # -208, -41, 263
-amplitudes = [1600, 400, 1800]
+amplitudes = [4200, 800, 4200]
 for kk in range(len(center_freqs)):
     print(kk)
     params = default_params.copy()

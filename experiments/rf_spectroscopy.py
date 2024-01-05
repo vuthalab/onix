@@ -77,7 +77,7 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 5,
+    "repeats": 10,
     "ao": {
         "name": "ao_dp",
         "order": 2,
@@ -128,8 +128,8 @@ default_params = {
             "use_sequential": True,
             "name": "rf_coil",
             "transition": "ab",
-            "offset_start": -110 * ureg.kHz, #30 * ureg.kHz
-            "offset_end": 20 * ureg.kHz, #170 * ureg.kHz
+            "offset_start": -110 * ureg.kHz, #-110, 30
+            "offset_end": 20 * ureg.kHz, #20, 170
             "amplitude": 4200,
             "duration": 5 * ureg.ms,
         }
@@ -148,8 +148,8 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 600,  # 4200
-        "offset": 95 * ureg.kHz,
+        "amplitude": 2000,  # 4200
+        "offset": -208 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 0.5 * ureg.ms,
     },
@@ -166,10 +166,10 @@ default_sequence = RFSpectroscopy(
 default_sequence.setup_sequence()
 
 digitizer_time_s = default_sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
-sample_rate = 1e8
+sample_rate = 25e6
 dg.set_acquisition_config(
     num_channels=2,
-    sample_rate=1e8,
+    sample_rate=sample_rate,
     segment_size=int(digitizer_time_s * sample_rate),
     segment_count=default_sequence.num_of_records() * default_params["repeats"]
 )
@@ -189,7 +189,7 @@ dg.write_configs_to_device()
 
 
 ## scan time
-rf_times = np.linspace(0.01, 2, 20)
+rf_times = np.linspace(0.01, 1, 10)
 rf_times *= ureg.ms
 params = default_params.copy()
 for kk in range(len(rf_times)):
