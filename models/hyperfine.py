@@ -331,17 +331,29 @@ states = {
     ),
 }
 
+def get_optical_hyperfine_probabilities(B_field):
+    states_7F0 = HyperfineStates(
+        state_labels["7F0"],
+        quadrupole_tensor_D["7F0"],
+        Zeeman_tensor_D["7F0"],
+        B_field,
+    )
 
-# hyperfine transition dipole matrix elements
-# make magnetic field an input parameter.
-optical_hyperfine_probabilities = {}
-g_energies, g_states = states["7F0"].energies_and_eigenstates()
-e_energies, e_states = states["5D0"].energies_and_eigenstates()
-for kk, g_label in enumerate(state_labels["7F0"]):
-    optical_hyperfine_probabilities[g_label] = {}
-    for ll, e_label in enumerate(state_labels["5D0"]):
-        optical_hyperfine_probabilities[g_label][e_label] = np.abs(
-            g_states[kk].overlap(e_states[ll]) * e_states[ll].overlap(g_states[kk])
-        )
+    states_5D0 = HyperfineStates(
+        state_labels["5D0"],
+        quadrupole_tensor_D["5D0"],
+        Zeeman_tensor_D["5D0"],
+        B_field,
+    )
 
-del g_energies, g_states, e_energies, e_states, kk, g_label, ll, e_label
+    optical_hyperfine_probabilities = {}
+    g_energies, g_states = states_7F0.energies_and_eigenstates()
+    e_energies, e_states = states_5D0.energies_and_eigenstates()
+    for kk, g_label in enumerate(state_labels["7F0"]):
+        optical_hyperfine_probabilities[g_label] = {}
+        for ll, e_label in enumerate(state_labels["5D0"]):
+            optical_hyperfine_probabilities[g_label][e_label] = np.abs(
+                g_states[kk].overlap(e_states[ll]) * e_states[ll].overlap(g_states[kk])
+            )
+    
+    return optical_hyperfine_probabilities
