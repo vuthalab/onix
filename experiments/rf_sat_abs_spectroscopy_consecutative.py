@@ -75,7 +75,7 @@ def run_experiment(params):
 
 
 ## parameters
-scan_range = 10
+scan_range = 18
 scan_step = 2
 default_params = {
     "wm_channel": 5,
@@ -152,7 +152,7 @@ default_params = {
         "transition": "ab",
         "amplitude_1": 4200,  # 4200
         "amplitude_2": 4200,  # 1100
-        "offset_1": -41 * ureg.kHz,
+        "offset_1": -46 * ureg.kHz,
         "offsets_2": np.arange(-208.5 - scan_range, -208.5 + scan_range, scan_step) * ureg.kHz,
         "frequency_1_span": 0 * ureg.kHz,
         "frequency_2_span": 0 * ureg.kHz,
@@ -190,27 +190,24 @@ dg.write_configs_to_device()
 
 
 ## scan
-center_freqs = [-208, -41, 263]  # -208, -41, 263
-amplitudes = [4200, 800, 4200]
-for kk in range(len(center_freqs)):
-    print(kk)
-    params = default_params.copy()
-    center_freq = center_freqs[kk]
-    amplitude = amplitudes[kk]
-    rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
-    rf_offset_2s *= ureg.kHz
-    params["rf"]["amplitude_2"] = amplitude
-    params["rf"]["offsets_2"] = rf_offset_2s
-    params["field_plate"]["amplitude"] = 4500
-    print("positive start")
-    for kk in range(50):
+center_freqs = [258, -213, -46]  # -208, -41, 263
+amplitudes = [4200, 4200, 800] #[4200, 800, 4200]
+for kk in range(500):
+    for ll in range(len(center_freqs)):
+        print(ll)
+        params = default_params.copy()
+        center_freq = center_freqs[ll]
+        amplitude = amplitudes[ll]
+        rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
+        rf_offset_2s *= ureg.kHz
+        params["rf"]["amplitude_2"] = amplitude
+        params["rf"]["offsets_2"] = rf_offset_2s
+        params["field_plate"]["amplitude"] = 4500
+        print("positive")
         run_experiment(params)
-    print("positive end")
 
-    print("negative start")
-    params["field_plate"]["amplitude"] = -4500
-    for kk in range(50):
+        print("negative")
+        params["field_plate"]["amplitude"] = -4500
         run_experiment(params)
-    print("negative end")
 
 ## empty
