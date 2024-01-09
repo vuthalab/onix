@@ -150,7 +150,7 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 4200,  # 4200
+        "amplitude_1": 1500,  # 4200
         "amplitude_2": 4200,  # 1100
         "offset_1": -46 * ureg.kHz,
         "offsets_2": np.arange(-208.5 - scan_range, -208.5 + scan_range, scan_step) * ureg.kHz,
@@ -158,7 +158,7 @@ default_params = {
         "frequency_2_span": 0 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
-        "pulse_1_time": 0.13 * ureg.ms,
+        "pulse_1_time": 0.1 * ureg.ms,
         "pulse_2_time": 0.4 * ureg.ms,
         "delay_time": 1 * ureg.ms,
         "phase_noise": 0.,
@@ -190,9 +190,22 @@ dg.write_configs_to_device()
 
 
 ## scan
+
+# for kk in range(20):
+#     params = default_params.copy()
+#     center_freq = -46
+#     amplitude = 800
+#     rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
+#     rf_offset_2s *= ureg.kHz
+#     params["rf"]["amplitude_2"] = amplitude
+#     params["rf"]["offsets_2"] = rf_offset_2s
+#     params["field_plate"]["amplitude"] = 4500
+#     run_experiment(params)
+
+
 center_freqs = [258, -213, -46]  # -208, -41, 263
-amplitudes = [4200, 4200, 800] #[4200, 800, 4200]
-for kk in range(500):
+amplitudes = [1500, 1500, 500] #[4200, 800, 4200]
+for kk in range(250):
     for ll in range(len(center_freqs)):
         print(ll)
         params = default_params.copy()

@@ -4,7 +4,8 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.sequences.rf_spectroscopy import RFSpectroscopy
+from onix.sequences.rf_no_chasm import RFNoChasm
+from onix.sequences.rf_chasm import RFChasm
 from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
@@ -21,9 +22,24 @@ except Exception:
     dg = Digitizer()
 
 
+def burn_chasm(params):
+    sequence = RFChasm(
+        ao_parameters=params["ao"],
+        eos_parameters=params["eos"],
+        field_plate_parameters=params["field_plate"],
+        chasm_parameters=params["chasm"],
+    )
+    sequence.setup_sequence()
+    m4i.setup_sequence(sequence)
+    m4i.start_sequence()
+    m4i.wait_for_sequence_complete()
+    m4i.stop_sequence()
+    print("burned chasm")
+
 ## function to run the experiment
 def run_experiment(params):
-    sequence = RFSpectroscopy(  # Only change the part that changed
+    t0 = time.time()
+    sequence = RFNoChasm(  # Only change the part that changed
         ao_parameters=params["ao"],
         eos_parameters=params["eos"],
         field_plate_parameters=params["field_plate"],
@@ -34,6 +50,8 @@ def run_experiment(params):
     )
     sequence.setup_sequence()
     m4i.setup_sequence(sequence)
+    t1 = time.time()
+    print("setup sequence")
 
     transmissions = None
     dg.start_capture()
@@ -44,8 +62,10 @@ def run_experiment(params):
         m4i.start_sequence()
         m4i.wait_for_sequence_complete()
     m4i.stop_sequence()
+    print("stop sequence")
 
-    dg.wait_for_data_ready()
+    dg.wait_for_data_ready(1)
+    t2 = time.time()
     digitizer_sample_rate, digitizer_data = dg.get_data()
     transmissions = np.array(digitizer_data[0])
     monitors = np.array(digitizer_data[1])
@@ -70,20 +90,26 @@ def run_experiment(params):
     }
     name = "RF Spectroscopy"
     data_id = save_experiment_data(name, data, headers)
+    t3 = time.time()
+
     print(data_id)
     print()
+
+    print(f"t1-t0 ={t1-t0}")
+    print(f"t2-t1 ={t2-t1}")
+    print(f"t3-t2 ={t3-t2}")
 
 
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 10,
+    "repeats": 1,
     "ao": {
         "name": "ao_dp",
         "order": 2,
         "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 550,
+        "detect_amplitude": 650,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -141,20 +167,20 @@ default_params = {
         "randomize": True,
         "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
-        "chasm_repeats": 100,  # change the names of detection repeats
+        "chasm_repeats": 0,  # change the names of detection repeats
         "antihole_repeats": 100,
         "rf_repeats": 100,
     },
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 1500,  # 4200
+        "amplitude": 4200,  # 4200
         "offset": -203 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 0.5 * ureg.ms,
     },
 }
-default_sequence = RFSpectroscopy(
+default_sequence = RFNoChasm(
     ao_parameters=default_params["ao"],
     eos_parameters=default_params["eos"],
     field_plate_parameters=default_params["field_plate"],
@@ -189,12 +215,22 @@ dg.write_configs_to_device()
 
 
 ## scan time
-# rf_times = np.linspace(0.01, 1, 10)
-rf_times = np.array([0.005, 1.1, 1.2, 1.3, 1.4, 1.5])
+start_time = time.time()
+# rf_times = np.array([0.005, 0.01, 0.015, 0.02, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15])
+rf_times = np.linspace(0.01, 1, 30)
+# rf_times = np.flip(rf_times)
+# rf_times = np.array([0.005, 0.01, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 0.225, 0.25, 0.3])
 rf_times *= ureg.ms
 params = default_params.copy()
+
 for kk in range(len(rf_times)):
+    if True: #kk % 2 == 0:
+        print(kk)
+        burn_chasm(params)
     params["rf"]["duration"] = rf_times[kk]
     run_experiment(params)
 
+end_time = time.time()
+
+print(end_time-start_time)
 ## empty
