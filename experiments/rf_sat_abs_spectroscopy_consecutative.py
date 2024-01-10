@@ -75,8 +75,8 @@ def run_experiment(params):
 
 
 ## parameters
-scan_range = 18
-scan_step = 2
+scan_range = 5
+scan_step = 0.5
 default_params = {
     "wm_channel": 5,
     "repeats": 5,
@@ -85,7 +85,7 @@ default_params = {
         "order": 2,
         "frequency": 75 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 550,
+        "detect_amplitude": 450,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -116,7 +116,7 @@ default_params = {
     "chasm": {
         "transition": "bb",
         "scan": 3 * ureg.MHz,
-        "scan_rate": 5 * ureg.MHz / ureg.s,
+        "scan_rate": 15 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -124,7 +124,7 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.4 * ureg.s,
+        "duration_no_scan": 0.1 * ureg.s,
         "rf_assist": {
             "use": False,
             "use_sequential": False,
@@ -150,7 +150,7 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 1500,  # 4200
+        "amplitude_1": 500,  # 4200
         "amplitude_2": 4200,  # 1100
         "offset_1": -46 * ureg.kHz,
         "offsets_2": np.arange(-208.5 - scan_range, -208.5 + scan_range, scan_step) * ureg.kHz,
@@ -158,8 +158,8 @@ default_params = {
         "frequency_2_span": 0 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
-        "pulse_1_time": 0.1 * ureg.ms,
-        "pulse_2_time": 0.4 * ureg.ms,
+        "pulse_1_time": 0.4 * ureg.ms,
+        "pulse_2_time": 1 * ureg.ms,
         "delay_time": 1 * ureg.ms,
         "phase_noise": 0.,
     },
@@ -204,7 +204,7 @@ dg.write_configs_to_device()
 
 
 center_freqs = [258, -213, -46]  # -208, -41, 263
-amplitudes = [1500, 1500, 500] #[4200, 800, 4200]
+amplitudes = [700, 700, 200] #[4200, 800, 4200]
 for kk in range(250):
     for ll in range(len(center_freqs)):
         print(ll)

@@ -95,9 +95,9 @@ def run_experiment(params):
     print(data_id)
     print()
 
-    print(f"t1-t0 ={t1-t0}")
-    print(f"t2-t1 ={t2-t1}")
-    print(f"t3-t2 ={t3-t2}")
+    # print(f"t1-t0 = {t1-t0}")
+    # print(f"t2-t1 = {t2-t1}")
+    # print(f"t3-t2 = {t3-t2}")
 
 
 ## parameters
@@ -175,7 +175,7 @@ default_params = {
         "name": "rf_coil",
         "transition": "ab",
         "amplitude": 4200,  # 4200
-        "offset": -203 * ureg.kHz,
+        "offset": -45 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 0.5 * ureg.ms,
     },
@@ -216,17 +216,16 @@ dg.write_configs_to_device()
 
 ## scan time
 start_time = time.time()
-# rf_times = np.array([0.005, 0.01, 0.015, 0.02, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15])
-rf_times = np.linspace(0.01, 1, 30)
-# rf_times = np.flip(rf_times)
-# rf_times = np.array([0.005, 0.01, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 0.225, 0.25, 0.3])
+# rf_times = np.linspace(0.01, 0.2, 10)
+# rf_times = np.array([0.015, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08])
+rf_times = np.array([0.02, 0.04, 0.06, 0.08])
+# rf_times = np.linspace(0.001, 0.03, 20)
+
 rf_times *= ureg.ms
 params = default_params.copy()
 
 for kk in range(len(rf_times)):
-    if True: #kk % 2 == 0:
-        print(kk)
-        burn_chasm(params)
+    burn_chasm(params)
     params["rf"]["duration"] = rf_times[kk]
     run_experiment(params)
 

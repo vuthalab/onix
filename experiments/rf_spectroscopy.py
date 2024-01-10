@@ -77,13 +77,13 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 10,
+    "repeats": 50,
     "ao": {
         "name": "ao_dp",
         "order": 2,
         "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 550,
+        "detect_amplitude": 450, #550
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -114,7 +114,7 @@ default_params = {
     "chasm": {
         "transition": "bb",
         "scan": 3 * ureg.MHz,
-        "scan_rate": 5 * ureg.MHz / ureg.s,
+        "scan_rate": 15 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -122,7 +122,7 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.2 * ureg.s,
+        "duration_no_scan": 0.1 * ureg.s,
         "rf_assist": {
             "use": False,
             "use_sequential": False,
@@ -148,8 +148,8 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 1500,  # 4200
-        "offset": -203 * ureg.kHz,
+        "amplitude": 800,  # 4200
+        "offset": -213 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 0.5 * ureg.ms,
     },
@@ -190,7 +190,10 @@ dg.write_configs_to_device()
 
 ## scan time
 # rf_times = np.linspace(0.01, 1, 10)
-rf_times = np.array([0.005, 1.1, 1.2, 1.3, 1.4, 1.5])
+# rf_times = np.array([0.005, 1.1, 1.2, 1.3, 1.4, 1.5])
+rf_times = np.linspace(0.01, 2, 10)
+# rf_times = np.array([0.4, 0.6])
+# rf_times = [0.05 * ureg.ms]
 rf_times *= ureg.ms
 params = default_params.copy()
 for kk in range(len(rf_times)):
