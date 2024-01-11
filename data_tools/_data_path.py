@@ -57,10 +57,16 @@ def _increment_last_data_number(folder: str) -> int:
 def _locate_expt_data_number(data_number: int) -> Tuple[str, str]:
     """Walks through all subfolders to find an experiment file path."""
     start_str = str(data_number).rjust(expt_rjust, "0") + " - "
-    for path, dirs, files in os.walk(expt_folder):
-        for file in files:
-            if file.startswith(start_str) and file.endswith(".npz"):
-                return (path, file)
+    with os.scandir(expt_folder) as it:
+        for year_month in it:
+            if year_month.is_dir():
+                with os.scandir(year_month.path) as it1:
+                    for day in it1:
+                        if day.is_dir():
+                            with os.scandir(day.path) as it2:
+                                for file in it2:
+                                    if file.name.startswith(start_str) and file.name.endswith(".npz"):
+                                        return (os.path.join(expt_folder, year_month.name, day.name), file.name)
     raise ValueError(f"Experiment data number {data_number} is not found.")
 
 
