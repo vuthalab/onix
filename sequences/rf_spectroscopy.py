@@ -95,6 +95,10 @@ class RFSpectroscopy(Sequence):
         break_time = 10 * ureg.us
         segment = SegmentEmpty("break", break_time)
         self.add_segment(segment)
+        break_time = 10 * ureg.ms
+        segment = SegmentEmpty("long_break", break_time)
+        self.add_segment(segment)
+
 
         segment = Segment("field_plate_break", break_time)
         if self._field_plate_parameters["use"]:
@@ -116,6 +120,7 @@ class RFSpectroscopy(Sequence):
 
         segment_repeats.append(("chasm", self._chasm_repeats))
         segment_repeats.append(("break", 1))
+        segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_chasm_repeats))
 
         segment_repeats.append(
@@ -129,6 +134,7 @@ class RFSpectroscopy(Sequence):
         segment_repeats.append(
             ("break", self._field_plate_repeats)
         )  # waiting for the field plate to go low
+        segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_antihole_repeats))
 
         segment_repeats.append(("rf", 1))

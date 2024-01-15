@@ -109,7 +109,7 @@ default_params = {
         "order": 2,
         "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 650,
+        "detect_amplitude": 450,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -140,7 +140,7 @@ default_params = {
     "chasm": {
         "transition": "bb",
         "scan": 3 * ureg.MHz,
-        "scan_rate": 5 * ureg.MHz / ureg.s,
+        "scan_rate": 3000 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -174,7 +174,7 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 4200,  # 4200
+        "amplitude": 1500,  # 4200
         "offset": -45 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 0.5 * ureg.ms,
@@ -218,9 +218,10 @@ dg.write_configs_to_device()
 start_time = time.time()
 # rf_times = np.linspace(0.01, 0.2, 10)
 # rf_times = np.array([0.015, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08])
-rf_times = np.array([0.02, 0.04, 0.06, 0.08])
+# rf_times = np.array([0.02, 0.04, 0.06, 0.08])
 # rf_times = np.linspace(0.001, 0.03, 20)
 
+rf_times = np.array([0.1] * 10000)
 rf_times *= ureg.ms
 params = default_params.copy()
 

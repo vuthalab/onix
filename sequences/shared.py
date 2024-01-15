@@ -7,6 +7,7 @@ from onix.sequences.sequence import (
     AWGSinePulse,
     AWGConstant,
     AWGSineSweep,
+    AWGSineSweepEnveloped,
     AWGSineTrain,
     MultiSegments,
     Segment,
@@ -99,6 +100,7 @@ def antihole_segment(
     else:
         duration = scan / scan_rate
     segment_repeats = [
+        # _scan_segment_temp(
         _scan_segment(
             name + "_" + transition,
             ao_parameters,
@@ -245,6 +247,38 @@ def _scan_segment(
     start = ao_parameters["frequency"] + (detuning - scan) / ao_parameters["order"]
     end = ao_parameters["frequency"] + (detuning + scan) / ao_parameters["order"]
     ao_pulse = AWGSineSweep(start, end, ao_parameters["amplitude"], 0, duration)
+    ao_channel = get_channel_from_name(ao_parameters["name"])
+    segment.add_awg_function(ao_channel, ao_pulse)
+    eo_pulse = AWGSinePulse(frequency, eo_parameters["amplitude"])
+    eo_channel = get_channel_from_name(eo_parameters["name"])
+    segment.add_awg_function(eo_channel, eo_pulse)
+    return (segment, repeats)
+
+
+# temp for sech / Gaussian tests.
+def _scan_segment_temp(
+    name: str,
+    ao_parameters: dict[str, Any],
+    eos_parameters: dict[str, Any],
+    transition: str,
+    duration: Q_,
+    scan: Q_,
+    detuning: Q_ = 0 * ureg.Hz,
+):
+    eo_parameters = eos_parameters[transition]
+    repeats = 1
+    if duration > PIECEWISE_TIME:
+        repeats = int(duration / PIECEWISE_TIME) + 1
+        duration = duration / repeats
+    F_state = transition[0]
+    D_state = transition[1]
+    frequency = (
+        energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+    )
+    segment = Segment(name, duration)
+    start = ao_parameters["frequency"] + (detuning - scan) / ao_parameters["order"]
+    end = ao_parameters["frequency"] + (detuning + scan) / ao_parameters["order"]
+    ao_pulse = AWGSineSweepEnveloped(start, end, ao_parameters["amplitude"], 0, duration)
     ao_channel = get_channel_from_name(ao_parameters["name"])
     segment.add_awg_function(ao_channel, ao_pulse)
     eo_pulse = AWGSinePulse(frequency, eo_parameters["amplitude"])

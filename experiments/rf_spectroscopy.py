@@ -77,11 +77,11 @@ def run_experiment(params):
 ## parameters
 default_params = {
     "wm_channel": 5,
-    "repeats": 50,
+    "repeats": 5,
     "ao": {
         "name": "ao_dp",
         "order": 2,
-        "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
+        "frequency": 75 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
         "detect_amplitude": 450, #550
         "rise_delay": 1.1 * ureg.us,
@@ -108,7 +108,7 @@ default_params = {
         "name": "field_plate",
         "use": False,
         "amplitude": 4500,
-        "stark_shift": 2 * ureg.MHz,
+        "stark_shift": -2 * ureg.MHz,
         "padding_time": 5 * ureg.ms,
     },
     "chasm": {
@@ -131,7 +131,7 @@ default_params = {
             "offset_start": -110 * ureg.kHz, #-110, 30
             "offset_end": 20 * ureg.kHz, #20, 170
             "amplitude": 4200,
-            "duration": 5 * ureg.ms,
+            "duration": 3 * ureg.ms,
         }
     },
     "detect": {
@@ -148,10 +148,10 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 800,  # 4200
-        "offset": -213 * ureg.kHz,
+        "amplitude": 4200,  # 4200
+        "offset": -45 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "duration": 0.5 * ureg.ms,
+        "duration": 0.1 * ureg.ms,
     },
 }
 default_sequence = RFSpectroscopy(
@@ -191,7 +191,8 @@ dg.write_configs_to_device()
 ## scan time
 # rf_times = np.linspace(0.01, 1, 10)
 # rf_times = np.array([0.005, 1.1, 1.2, 1.3, 1.4, 1.5])
-rf_times = np.linspace(0.01, 2, 10)
+# rf_times = np.linspace(0.01, 0.3, 30)
+rf_times = np.array([0.1] * 100)
 # rf_times = np.array([0.4, 0.6])
 # rf_times = [0.05 * ureg.ms]
 rf_times *= ureg.ms

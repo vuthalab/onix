@@ -75,8 +75,8 @@ def run_experiment(params):
 
 
 ## parameters
-scan_range = 5
-scan_step = 0.5
+scan_range = 10
+scan_step = 1
 default_params = {
     "wm_channel": 5,
     "repeats": 5,
@@ -127,13 +127,13 @@ default_params = {
         "duration_no_scan": 0.1 * ureg.s,
         "rf_assist": {
             "use": False,
-            "use_sequential": False,
+            "use_sequential": True,
             "name": "rf_coil",
             "transition": "ab",
             "offset_start": 30 * ureg.kHz, #-110 * ureg.kHz
             "offset_end": 170 * ureg.kHz, #20 * ureg.kHz
             "amplitude": 4200,
-            "duration": 20 * ureg.ms,
+            "duration": 0.001 * ureg.ms,
         }
     },
     "detect": {
@@ -150,7 +150,7 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 500,  # 4200
+        "amplitude_1": 1000,  # 4200
         "amplitude_2": 4200,  # 1100
         "offset_1": -46 * ureg.kHz,
         "offsets_2": np.arange(-208.5 - scan_range, -208.5 + scan_range, scan_step) * ureg.kHz,
@@ -158,8 +158,8 @@ default_params = {
         "frequency_2_span": 0 * ureg.kHz,
         "detuning_1": 0 * ureg.kHz,
         "detuning_2": 0 * ureg.kHz,
-        "pulse_1_time": 0.4 * ureg.ms,
-        "pulse_2_time": 1 * ureg.ms,
+        "pulse_1_time": 0.2 * ureg.ms,
+        "pulse_2_time": 0.5 * ureg.ms,
         "delay_time": 1 * ureg.ms,
         "phase_noise": 0.,
     },
@@ -191,36 +191,35 @@ dg.write_configs_to_device()
 
 ## scan
 
-# for kk in range(20):
-#     params = default_params.copy()
-#     center_freq = -46
-#     amplitude = 800
-#     rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
-#     rf_offset_2s *= ureg.kHz
-#     params["rf"]["amplitude_2"] = amplitude
-#     params["rf"]["offsets_2"] = rf_offset_2s
-#     params["field_plate"]["amplitude"] = 4500
-#     run_experiment(params)
+params = default_params.copy()
+rf_offset_2s = np.arange(-46 - scan_range, -46 + scan_range, scan_step)
+rf_offset_2s *= ureg.kHz
+params["rf"]["amplitude_2"] = 400
+params["rf"]["offsets_2"] = rf_offset_2s
+params["field_plate"]["amplitude"] = 4500
+print("positive")
+run_experiment(params)
 
-
-center_freqs = [258, -213, -46]  # -208, -41, 263
-amplitudes = [700, 700, 200] #[4200, 800, 4200]
-for kk in range(250):
-    for ll in range(len(center_freqs)):
-        print(ll)
-        params = default_params.copy()
-        center_freq = center_freqs[ll]
-        amplitude = amplitudes[ll]
-        rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
-        rf_offset_2s *= ureg.kHz
-        params["rf"]["amplitude_2"] = amplitude
-        params["rf"]["offsets_2"] = rf_offset_2s
-        params["field_plate"]["amplitude"] = 4500
-        print("positive")
-        run_experiment(params)
-
-        print("negative")
-        params["field_plate"]["amplitude"] = -4500
-        run_experiment(params)
-
+# center_freqs = [258, -213, -46]  # -208, -41, 263
+# amplitudes = [1400, 1400, 400] #[4200, 800, 4200]
+# for kk in range(300):
+#     for ll in range(len(center_freqs)):
+#         print(ll)
+#         params = default_params.copy()
+#         center_freq = center_freqs[ll]
+#         amplitude = amplitudes[ll]
+#         rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
+#         rf_offset_2s *= ureg.kHz
+#         params["rf"]["amplitude_2"] = amplitude
+#         params["rf"]["offsets_2"] = rf_offset_2s
+#         params["field_plate"]["amplitude"] = 4500
+#         print("positive")
+#         run_experiment(params)
+#
+#         print("negative")
+#         params["field_plate"]["amplitude"] = -4500
+#         run_experiment(params)
+#
+#
+# print("start")
 ## empty

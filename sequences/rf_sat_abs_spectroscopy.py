@@ -34,7 +34,7 @@ class AWGSineSweepNoise(AWGSineSweep):
         self._phase_noise = phase_noise
 
     def output(self, times):
-        phases = np.cumsum(np.random.normal(0, self._phase_noise, size=len(times))) + phase
+        phases = np.cumsum(np.random.normal(0, self._phase_noise, size=len(times))) + self._phase
         start_frequency = self._start_frequency.to("Hz").magnitude
         stop_frequency = self._stop_frequency.to("Hz").magnitude
         start_time = self._start_time.to("s").magnitude
@@ -182,6 +182,9 @@ class RFSatAbsSpectroscopy(Sequence):
         break_time = 10 * ureg.us
         segment = SegmentEmpty("break", break_time)
         self.add_segment(segment)
+        break_time = 10 * ureg.ms
+        segment = SegmentEmpty("long_break", break_time)
+        self.add_segment(segment)
 
         segment = Segment("field_plate_break", break_time)
         if self._field_plate_parameters["use"]:
@@ -202,6 +205,7 @@ class RFSatAbsSpectroscopy(Sequence):
 
         segment_repeats.append(("chasm", self._chasm_repeats))
         segment_repeats.append(("break", 1))
+        segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_chasm_repeats))
 
         segment_repeats.append(
@@ -215,6 +219,7 @@ class RFSatAbsSpectroscopy(Sequence):
         segment_repeats.append(
             ("break", self._field_plate_repeats)
         )  # waiting for the field plate to go low
+        segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_antihole_repeats))
 
         segment_repeats.append(("rf_1", 1))

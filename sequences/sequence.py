@@ -285,6 +285,78 @@ class AWGSineSweep(AWGFunction):
     def max_amplitude(self):
         return self._amplitude
 
+# class AWGSineSweepEnveloped(AWGFunction):
+#     def __init__(
+#         self,
+#         start_frequency: Union[float, Q_],
+#         stop_frequency: Union[float, Q_],
+#         amplitude: float,
+#         start_time: Union[float, Q_],
+#         end_time: Union[float, Q_],
+#         phase: float = 0,
+#     ):
+#         super().__init__()
+#         if isinstance(start_frequency, numbers.Number):
+#             start_frequency = start_frequency * ureg.Hz
+#         self._start_frequency: Q_ = start_frequency
+#         if isinstance(stop_frequency, numbers.Number):
+#             stop_frequency = stop_frequency * ureg.Hz
+#         self._stop_frequency: Q_ = stop_frequency
+#         self._amplitude = amplitude
+#         if isinstance(start_time, numbers.Number):
+#             start_time = start_time * ureg.s
+#         self._start_time: Q_ = start_time
+#         if isinstance(end_time, numbers.Number):
+#             end_time = end_time * ureg.s
+#         self._end_time: Q_ = end_time
+#         self._phase = phase
+
+#     def sechEnvelope(self, times):
+#         start_time = self._start_time.to("s").magnitude
+#         end_time = self._end_time.to("s").magnitude
+#         # A0 = 0.9*np.pi
+#         # x0 = np.log(1 + np.tan(A0/2)) - np.log(1 - np.tan(A0/2))
+#         return 1/np.cosh((times - (start_time + end_time)/2)/(end_time-start_time)*8)
+    
+#     def output(self, times):
+#         """Scanning half of the frequency is actually scanning the full range."""
+#         start_frequency = self._start_frequency.to("Hz").magnitude
+#         stop_frequency = self._stop_frequency.to("Hz").magnitude
+#         start_time = self._start_time.to("s").magnitude
+#         end_time = self._end_time.to("s").magnitude
+#         duration = end_time - start_time
+#         frequency_scan = stop_frequency - start_frequency
+#         instant_frequencies = (
+#             times - start_time
+#         ) / duration * frequency_scan / 2 + start_frequency
+#         sine_sweep = self._amplitude * np.sin(
+#             2 * np.pi * instant_frequencies * times + self._phase
+#         )
+#         mask_start = np.heaviside(times - start_time, 0)
+#         mask_end = np.heaviside(end_time - times, 1)
+#         return self.sechEnvelope(times) * sine_sweep * mask_start * mask_end
+
+#     @property
+#     def min_duration(self) -> Q_:
+#         return self._end_time
+
+#     @property
+#     def max_amplitude(self):
+#         return self._amplitude
+
+class AWGSineSweepEnveloped(AWGSineSweep):
+
+    def sechEnvelope(self, times):
+        start_time = self._start_time.to("s").magnitude
+        end_time = self._end_time.to("s").magnitude
+        # A0 = 0.9*np.pi
+        # x0 = np.log(1 + np.tan(A0/2)) - np.log(1 - np.tan(A0/2))
+        return 1/np.cosh((times - (start_time + end_time)/2)/(end_time-start_time)*8)
+    
+    def output(self, times):
+        """Scanning half of the frequency is actually scanning the full range."""
+        return self.sechEnvelope(times) * super().output(times)
+
 class AWGSineTrain(AWGFunction):
     def __init__(
         self,
