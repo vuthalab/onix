@@ -97,7 +97,7 @@ def update_dict_recursive(d1, d2):
         else:
             d1[kk] = d2[kk]
 
-def acquire_data(dg, default_params, default_sequence):
+def setup_digitizer(dg, default_params, default_sequence):
     digitizer_time_s = default_sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
     sample_rate = 25e6
     dg.set_acquisition_config(
