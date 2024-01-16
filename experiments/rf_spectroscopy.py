@@ -1,12 +1,11 @@
 import time
 
 import numpy as np
-from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.sequences.rf_spectroscopy import RFSpectroscopy
-from onix.experiments.helpers import data_averaging
 from onix.units import ureg
+from onix.experiments.shared import shared_params, run_save_sequences, setup_digitizer
 
 try:
     m4i
@@ -20,7 +19,6 @@ try:
 except Exception:
     dg = Digitizer()
 
-
 ## function to run the experiment
 def run_experiment(params):
     sequence = RFSpectroscopy(  # Only change the part that changed
@@ -32,91 +30,12 @@ def run_experiment(params):
         rf_parameters=params["rf"],
         detect_parameters=params["detect"],
     )
-    sequence.setup_sequence()
-    m4i.setup_sequence(sequence)
 
-    transmissions = None
-    dg.start_capture()
-    time.sleep(0.1)
-
-    for kk in range(params["repeats"]):
-        print(f"{kk / params['repeats'] * 100:.0f}%")
-        m4i.start_sequence()
-        m4i.wait_for_sequence_complete()
-    m4i.stop_sequence()
-
-    dg.wait_for_data_ready()
-    digitizer_sample_rate, digitizer_data = dg.get_data()
-    transmissions = np.array(digitizer_data[0])
-    monitors = np.array(digitizer_data[1])
-
-    photodiode_times = [kk / digitizer_sample_rate for kk in range(len(transmissions[0]))]
-    transmissions_avg, transmissions_err = data_averaging(transmissions, digitizer_sample_rate, sequence.analysis_parameters["detect_pulse_times"])
-    monitors_avg, monitors_err = data_averaging(monitors, digitizer_sample_rate, sequence.analysis_parameters["detect_pulse_times"])
-
-    #import matplotlib.pyplot as plt
-    #plt.plot(photodiode_times, transmissions[0])
-    #plt.show()
-
-    data = {
-        "transmissions_avg": transmissions_avg,
-        "transmissions_err": transmissions_err,
-        "monitors_avg": monitors_avg,
-        "monitors_err": monitors_err,
-    }
-    headers = {
-        "params": params,
-        "detunings": sequence.analysis_parameters["detect_detunings"]
-    }
-    name = "RF Spectroscopy"
-    data_id = save_experiment_data(name, data, headers)
-    print(data_id)
-    print()
-
+    run_save_sequences(sequence, m4i, dg, params)
 
 ## parameters
 default_params = {
-    "wm_channel": 5,
-    "repeats": 5,
-    "ao": {
-        "name": "ao_dp",
-        "order": 2,
-        "frequency": 75 * ureg.MHz,  # TODO: rename it to "center_frequency"
-        "amplitude": 2000,
-        "detect_amplitude": 450, #550
-        "rise_delay": 1.1 * ureg.us,
-        "fall_delay": 0.6 * ureg.us,
-    },
-    "eos": {
-        "ac": {
-            "name": "eo_ac",
-            "amplitude": 4500,  #4500
-            "offset": -300 * ureg.MHz,
-        },
-        "bb": {
-            "name": "eo_bb",
-            "amplitude": 1900,  #1900
-            "offset": -300 * ureg.MHz,
-        },
-        "ca": {
-            "name": "eo_ca",
-            "amplitude": 1400,  #1400
-            "offset": -300 * ureg.MHz,
-        },
-    },
-    "field_plate": {
-        "name": "field_plate",
-        "use": False,
-        "amplitude": 4500,
-        "stark_shift": 2 * ureg.MHz,
-        "padding_time": 5 * ureg.ms,
-    },
-    "chasm": {
-        "transition": "bb",
-        "scan": 3 * ureg.MHz,
-        "scan_rate": 5 * ureg.MHz / ureg.s,
-        "detuning": 0 * ureg.MHz,
-    },
+    "name" : "RF Spectroscopy",
     "antihole": {
         "transitions": ["ac", "ca"],
         "scan": 0 * ureg.MHz,
@@ -154,6 +73,9 @@ default_params = {
         "duration": 0.03 * ureg.ms,
     },
 }
+
+default_params.update(shared_params)
+
 default_sequence = RFSpectroscopy(
     ao_parameters=default_params["ao"],
     eos_parameters=default_params["eos"],
@@ -165,19 +87,7 @@ default_sequence = RFSpectroscopy(
 )
 default_sequence.setup_sequence()
 
-digitizer_time_s = default_sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
-sample_rate = 25e6
-dg.set_acquisition_config(
-    num_channels=2,
-    sample_rate=sample_rate,
-    segment_size=int(digitizer_time_s * sample_rate),
-    segment_count=default_sequence.num_of_records() * default_params["repeats"]
-)
-dg.set_channel_config(channel=1, range=2)
-dg.set_channel_config(channel=2, range=0.5)
-dg.set_trigger_source_edge()
-dg.write_configs_to_device()
-
+setup_digitizer(dg, default_params, default_sequence)
 
 ## scan freq
 # rf_frequencies = np.arange(-250, 300, 10)
@@ -190,15 +100,18 @@ dg.write_configs_to_device()
 
 ## scan time
 rf_times = np.linspace(0.01, 0.3, 10)
-# rf_times = np.array([0.005, 1.1, 1.2, 1.3, 1.4, 1.5])
-# rf_times = np.linspace(0.01, 0.3, 30)
-# rf_times = np.array([0.1] * 100)
-# rf_times = np.array([0.4, 0.6])
-# rf_times = [0.05 * ureg.ms]
 rf_times *= ureg.ms
 params = default_params.copy()
+
+first_data_id = None
+
 for kk in range(len(rf_times)):
     params["rf"]["duration"] = rf_times[kk]
-    run_experiment(params)
+    data_id = run_experiment(params)
+    print(f"data number: {data_id}")
+    if first_data_id == None:
+        first_data_id = data_id
+
+print(f"first data id = {first_data_id}\nlast data id = {data_id}")
 
 ## empty
