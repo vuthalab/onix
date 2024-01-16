@@ -58,12 +58,25 @@ class RFSpectroscopy(Sequence):
             self.add_segment(segment)
         segment = rf_assist_segment(
             "rf_assist",
-            self._antihole_parameters["rf_assist"]
+            self._antihole_parameters["rf_assist"],
+            self._field_plate_parameters,
         )
         if self._field_plate_parameters["use"]:
             field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
             field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
             segment.add_awg_function(field_plate_channel, field_plate)
+        self.add_segment(segment)
+        params = self._antihole_parameters["rf_assist"].copy()
+        params["offset_start"] = -110 * ureg.kHz
+        params["offset_end"] = 170 * ureg.kHz
+        # params["amplitude"] = 0
+        params1 = self._field_plate_parameters.copy()
+        params1["use"] = False
+        segment = rf_assist_segment(
+            "rf_assist1",
+            params,
+            params1,
+        )
         self.add_segment(segment)
 
         segment, self.analysis_parameters = detect_segment(
@@ -118,7 +131,9 @@ class RFSpectroscopy(Sequence):
 
         segment_repeats = []
 
-        segment_repeats.append(("chasm", self._chasm_repeats))
+        for kk in range(self._chasm_repeats):
+            segment_repeats.append(("chasm", 1))
+            # segment_repeats.append(("rf_assist1", 1))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_chasm_repeats))

@@ -16,7 +16,7 @@ from onix.sequences.sequence import (
 from onix.units import Q_, ureg
 from onix.awg_maps import get_channel_from_name
 
-PIECEWISE_TIME = 3 * ureg.ms
+PIECEWISE_TIME = 10 * ureg.ms
 
 
 def chasm_segment(
@@ -68,6 +68,7 @@ def chasm_segment(
 def rf_assist_segment(
     name: str,
     rf_assist_parameters: dict[str, Any],
+    field_plate_parameters: dict[str, Any],
 ):
     segment = Segment(name)
     rf_channel = get_channel_from_name(rf_assist_parameters["name"])
@@ -76,6 +77,10 @@ def rf_assist_segment(
     frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state]
     rf_assist_pulse = AWGSineSweep(rf_assist_parameters["offset_start"] + frequency, rf_assist_parameters["offset_end"] + frequency, rf_assist_parameters["amplitude"], 0, rf_assist_parameters["duration"])
     segment.add_awg_function(rf_channel, rf_assist_pulse)
+    if field_plate_parameters["use"]:
+        field_plate = AWGConstant(field_plate_parameters["amplitude"])
+        field_plate_channel = get_channel_from_name(field_plate_parameters["name"])
+        segment.add_awg_function(field_plate_channel, field_plate)
     return segment
 
 

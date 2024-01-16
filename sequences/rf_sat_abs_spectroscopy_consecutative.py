@@ -64,7 +64,8 @@ class RFSatAbsSpectroscopyConsecutative(Sequence):
             self.add_segment(segment)
         segment = rf_assist_segment(
             "rf_assist",
-            self._antihole_parameters["rf_assist"]
+            self._antihole_parameters["rf_assist"],
+            self._field_plate_parameters,
         )
         self.add_segment(segment)
 
@@ -165,6 +166,7 @@ class RFSatAbsSpectroscopyConsecutative(Sequence):
 
         segment_repeats.append(("chasm", self._chasm_repeats))
         segment_repeats.append(("break", 1))
+        segment_repeats.append(("break", 10000))
         segment_repeats.append(("detect", detect_chasm_repeats))
         segment_repeats.append(
             ("field_plate_break", self._field_plate_repeats)
@@ -177,6 +179,7 @@ class RFSatAbsSpectroscopyConsecutative(Sequence):
         segment_repeats.append(
             ("break", self._field_plate_repeats)
         )  # waiting for the field plate to go low
+        segment_repeats.append(("break", 10000))
         segment_repeats.append(("detect", detect_antihole_repeats))
 
         segment_repeats.append(("break", 1))

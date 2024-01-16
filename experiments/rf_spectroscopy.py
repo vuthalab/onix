@@ -108,13 +108,13 @@ default_params = {
         "name": "field_plate",
         "use": False,
         "amplitude": 4500,
-        "stark_shift": -2 * ureg.MHz,
+        "stark_shift": 2 * ureg.MHz,
         "padding_time": 5 * ureg.ms,
     },
     "chasm": {
         "transition": "bb",
         "scan": 3 * ureg.MHz,
-        "scan_rate": 15 * ureg.MHz / ureg.s,
+        "scan_rate": 5 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
     "antihole": {
@@ -125,13 +125,13 @@ default_params = {
         "duration_no_scan": 0.1 * ureg.s,
         "rf_assist": {
             "use": False,
-            "use_sequential": False,
+            "use_sequential": True,
             "name": "rf_coil",
             "transition": "ab",
             "offset_start": -110 * ureg.kHz, #-110, 30
             "offset_end": 20 * ureg.kHz, #20, 170
-            "amplitude": 4200,
-            "duration": 3 * ureg.ms,
+            "amplitude": 1000,
+            "duration": 5 * ureg.ms,
         }
     },
     "detect": {
@@ -148,10 +148,10 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 4200,  # 4200
-        "offset": -45 * ureg.kHz,
+        "amplitude": 2000,  # 4200
+        "offset": 100 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "duration": 0.1 * ureg.ms,
+        "duration": 0.03 * ureg.ms,
     },
 }
 default_sequence = RFSpectroscopy(
@@ -180,7 +180,7 @@ dg.write_configs_to_device()
 
 
 ## scan freq
-# rf_frequencies = np.arange(-100, 150, 15)
+# rf_frequencies = np.arange(-250, 300, 10)
 # rf_frequencies *= ureg.kHz
 # params = default_params.copy()
 # for kk in range(len(rf_frequencies)):
@@ -189,10 +189,10 @@ dg.write_configs_to_device()
 
 
 ## scan time
-# rf_times = np.linspace(0.01, 1, 10)
+rf_times = np.linspace(0.01, 0.3, 10)
 # rf_times = np.array([0.005, 1.1, 1.2, 1.3, 1.4, 1.5])
 # rf_times = np.linspace(0.01, 0.3, 30)
-rf_times = np.array([0.1] * 100)
+# rf_times = np.array([0.1] * 100)
 # rf_times = np.array([0.4, 0.6])
 # rf_times = [0.05 * ureg.ms]
 rf_times *= ureg.ms
