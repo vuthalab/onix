@@ -31,7 +31,7 @@ def run_experiment(params):
         detect_parameters=params["detect"],
     )
 
-    run_save_sequences(sequence, m4i, dg, params)
+    return run_save_sequences(sequence, m4i, dg, params)
 
 ## parameters
 default_params = {
@@ -44,7 +44,7 @@ default_params = {
         "duration_no_scan": 0.1 * ureg.s,
         "rf_assist": {
             "use": False,
-            "use_sequential": True,
+            "use_sequential": False,
             "name": "rf_coil",
             "transition": "ab",
             "offset_start": -110 * ureg.kHz, #-110, 30
@@ -87,7 +87,7 @@ default_sequence = RFSpectroscopy(
 )
 default_sequence.setup_sequence()
 
-setup_digitizer(dg, default_params, default_sequence)
+setup_digitizer(dg, default_params["repeats"], default_sequence)
 
 ## scan freq
 # rf_frequencies = np.arange(-250, 300, 10)
@@ -99,19 +99,38 @@ setup_digitizer(dg, default_params, default_sequence)
 
 
 ## scan time
-rf_times = np.linspace(0.01, 0.3, 10)
-rf_times *= ureg.ms
+rf_amplitudes = [500, 1000, 2000, 4200]
+rf_max_times = np.array([4, 2, 1, 0.5])
+rf_offsets = np.array([-46, 100, -203, 250]) * ureg.kHz
+
 params = default_params.copy()
 
 first_data_id = None
-
-for kk in range(len(rf_times)):
-    params["rf"]["duration"] = rf_times[kk]
-    data_id = run_experiment(params)
-    print(f"data number: {data_id}")
-    if first_data_id == None:
-        first_data_id = data_id
+for jj in range(5):
+    for kk in range(len(rf_amplitudes)):
+        params["rf"]["amplitude"] = rf_amplitudes[kk]
+        for ll in range(len(rf_offsets)):
+            params["rf"]["offset"] = rf_offsets[ll]
+            rf_max_time = rf_max_times[kk]
+            if ll > 1:
+                rf_max_time *= 4
+            for rf_time in np.flip(np.linspace(0.01, rf_max_time, 25)):
+                params["rf"]["duration"] = rf_time * ureg.ms
+                data_id = run_experiment(params)
+                print(data_id)
+                if first_data_id == None:
+                    first_data_id = data_id
 
 print(f"first data id = {first_data_id}\nlast data id = {data_id}")
+
+
+# for kk in range(len(rf_times)):
+#     params["rf"]["duration"] = rf_times[kk]
+#     data_id = run_experiment(params)
+#     print(data_id)
+#     if first_data_id == None:
+#         first_data_id = data_id
+#
+# print(f"first data id = {first_data_id}\nlast data id = {data_id}")
 
 ## empty
