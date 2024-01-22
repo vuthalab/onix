@@ -2,8 +2,9 @@ import time
 import os
 import numpy as np
 
-os.chdir("/Users/angelax/ownCloud/Documents/University/atoms_and_water/onix")
-os.environ["DATAFOLDER"] = "/Users/angelax/ownCloud/Documents/University/atoms_and_water/data"
+os.chdir("/Users/angelax/Git/onix")
+os.environ["DATAFOLDER"] = "/Users/angelax/Documents/University/atoms_and_water/data"
+
 
 from data_tools import save_experiment_data
 
@@ -13,10 +14,6 @@ from headers.wavemeter.wavemeter import WM
 wavemeter = WM()
 dg = DigitizerVisa("192.168.0.125")
 dg_channels = [1, 2]
-
-import contextlib
-import io
-import sys
 
 ## set digitizer parameters
 duration = 0.5
@@ -79,7 +76,8 @@ V_transmission.append(V1)
 V_monitor.append(V2)
 frequency_after_GHz.append(wavemeter_frequency())
 contrast_after.append(get_contrast())
-print(frequency_before_GHz[-1],contrast_after[-1], np.average(V1), np.average(V2), np.average(V1 + V2), np.average(V1) / np.average(V2))
+print(frequency_before_GHz[-1], contrast_after[-1], np.average(V1), np.average(V2), np.average(V1 + V2),
+      np.average(V1) / np.average(V2))
 
 ## take data loop
 try:
@@ -96,7 +94,8 @@ try:
         V_monitor.append(V2)
         frequency_after_GHz.append(wavemeter_frequency())
         contrast_after.append(get_contrast())
-        print(f"{frequency_before_GHz[-1]:.3f}", f"{contrast_after[-1]:.1f}", f"{np.average(V1):.5f}", f"{np.average(V2):.5f}",
+        print(f"{frequency_before_GHz[-1]:.3f}", f"{contrast_after[-1]:.1f}", f"{np.average(V1):.5f}",
+              f"{np.average(V2):.5f}",
               f"{np.average(V1 + V2):.3f}", f"{np.average(V1) / np.average(V2):.4f}")
 except KeyboardInterrupt:
     pass
