@@ -111,6 +111,8 @@ def get_new_analysis_folder(data_name: str) -> Tuple[int, str]:
 def get_exist_experiment_path(data_number: int) -> str:
     """Gets the file path for existing experiment data."""
     parent, file_name = _locate_expt_data_number(data_number)
+    #link = os.join(expt_folder, 'links', str(data_number))
+    #return os.readlink(link)
     return op.join(parent, file_name)
 
 

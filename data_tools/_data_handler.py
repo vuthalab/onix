@@ -3,6 +3,7 @@ import pickle
 import os.path as op
 from datetime import datetime
 from typing import Any, Dict, Tuple, Optional
+#import os
 
 import numpy as np
 
@@ -13,6 +14,7 @@ from ._data_path import (
     get_exist_analysis_folder,
     get_exist_experiment_path,
     get_exist_persistent_path,
+    expt_folder,
 )
 
 
@@ -70,6 +72,8 @@ def save_experiment_data(
     """Saves experiment data."""
     data_number, file_path = get_new_experiment_path(data_name)
     _save_data(file_path, data, data_name, data_number, headers)
+    #link = os.join(expt_folder, 'links', str(data_number))
+    #os.symlink(file_path, link)
     return data_number
 
 
