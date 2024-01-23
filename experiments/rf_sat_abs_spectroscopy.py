@@ -8,6 +8,8 @@ from onix.sequences.rf_sat_abs_spectroscopy import RFSatAbsSpectroscopy
 from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
+from onix.headers.wavemeter import wavemeter
+
 try:
     m4i
     print("m4i is already defined.")
@@ -20,6 +22,11 @@ try:
 except Exception:
     dg = Digitizer()
 
+try:
+    wm
+    print("wm is already defined.")
+except Exception:
+    wm = wavemeter.WM()
 
 ## function to run the experiment
 def run_experiment(params):
@@ -185,6 +192,17 @@ dg.set_channel_config(channel=1, range=2)
 dg.set_channel_config(channel=2, range=0.5)
 dg.set_trigger_source_edge()
 dg.write_configs_to_device()
+
+
+## wavemeter scan
+test1 = wm.read_frequencies(5)
+print(test1)
+
+# sweep this
+# wm.set_lock_setpoint(5, 516847.400) # lockpoint in GHz
+
+test2 = wm.read_frequencies(5)
+print(test2)
 
 
 ## scan
