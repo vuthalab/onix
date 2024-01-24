@@ -6,22 +6,22 @@ qCommand qC;
 const uint8_t ERROR_INPUT = 1;
 const uint8_t CONTROL_OUTPUT = 1;
 
-const uint16_t ADC_INTERVAL = 1;
+const uint16_t ADC_INTERVAL = 10;
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
 
-double p_gain = 0.02;
+double p_gain = 0.1;
 double i_time = 900.0;
-double d_time = 20.0;
+double d_time = 0.0;
 
 double integral = 0.0;
 double integral_limit = 5.0;
 double previous_error = 0.0;
 
-double error_offset = 1.6;
+double error_offset = 1.5;
 
 double output_offset = 0.0;
-double output_lower_limit = -10.0;
+double output_lower_limit = 0.0;
 double output_upper_limit = 10.0;
 
 bool pid_state = false;
@@ -142,7 +142,10 @@ void cmd_output_upper_limit(qCommand& qC, Stream& S){
 
 void cmd_pid_state(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
-    pid_state = atoi(qC.current()); // TODO: set integral to zero.
+    pid_state = atoi(qC.current());
+    if (pid_state) {
+      integral = 0.0;
+    }
   }
   S.printf("pid state is %i\n", pid_state);
 }
