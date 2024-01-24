@@ -31,11 +31,11 @@ dg.write_configs_to_device()
 
 ## take data
 params = {
-    "p": 0.10,
+    "p": 0.1,
     "i": 1000,
     "d": 0,
-    "error_offset":1.6,
-    "output_offset":0.0,
+    "error_offset": 1.35,
+    "output_offset": 0.0,
     "integral_limit": 5,
     "repeats": 10,
 }
