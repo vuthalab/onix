@@ -3,7 +3,7 @@ import time
 import numpy as np
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.sequences.rf_spectroscopy import RFSpectroscopy
+from onix.sequences.antihole_optimization import AntiholeOptimization
 from onix.units import ureg
 from onix.experiments.shared import shared_params, run_save_sequences, setup_digitizer
 
@@ -21,13 +21,11 @@ except Exception:
 
 ## function to run the experiment
 def run_experiment(params):
-    sequence = RFSpectroscopy(  # Only change the part that changed
+    sequence = AntiholeOptimization(  # Only change the part that changed
         ao_parameters=params["ao"],
         eos_parameters=params["eos"],
-        field_plate_parameters=params["field_plate"],
         chasm_parameters=params["chasm"],
         antihole_parameters=params["antihole"],
-        rf_parameters=params["rf"],
         detect_parameters=params["detect"],
     )
 
@@ -76,61 +74,26 @@ default_params = {
 
 default_params.update(shared_params)
 
-default_sequence = RFSpectroscopy(
+default_sequence = AntiholeOptimization(
     ao_parameters=default_params["ao"],
     eos_parameters=default_params["eos"],
-    field_plate_parameters=default_params["field_plate"],
     chasm_parameters=default_params["chasm"],
     antihole_parameters=default_params["antihole"],
-    rf_parameters=default_params["rf"],
     detect_parameters=default_params["detect"],
 )
 default_sequence.setup_sequence()
 
 setup_digitizer(dg, default_params["repeats"], default_sequence)
 
-## scan freq
-# rf_frequencies = np.arange(-250, 300, 10)
-# rf_frequencies *= ureg.kHz
-# params = default_params.copy()
-# for kk in range(len(rf_frequencies)):
-#     params["rf"]["offset"] = rf_frequencies[kk]
-#     run_experiment(params)
+## Optimization parameters and ranges
+eos_ac_offset_range_MHz = (-298, -302)
+eos_ca_offset_range_MHz = (-298, -302)
 
+eos_ac_amplitude_range = (500, 2000)
+eos_ca_amplitude_range = (500, 2000)
 
-## scan time
-rf_amplitudes = [500, 1000, 2000, 4200]
-rf_max_times = np.array([4, 2, 1, 0.5])
-rf_offsets = np.array([-46, 100, -203, 250]) * ureg.kHz
+antihole_ac_piecewise_time_range = (1e-3, 20e-3)
+antihole_ca_piecewise_time_range = (1e-3, 20e-3)
 
-params = default_params.copy()
+antihole_time_range = (50e-3, 400e-3)
 
-first_data_id = None
-for jj in range(5):
-    for kk in range(len(rf_amplitudes)):
-        params["rf"]["amplitude"] = rf_amplitudes[kk]
-        for ll in range(len(rf_offsets)):
-            params["rf"]["offset"] = rf_offsets[ll]
-            rf_max_time = rf_max_times[kk]
-            if ll > 1:
-                rf_max_time *= 4
-            for rf_time in np.flip(np.linspace(0.01, rf_max_time, 25)):
-                params["rf"]["duration"] = rf_time * ureg.ms
-                data_id = run_experiment(params)
-                print(data_id)
-                if first_data_id == None:
-                    first_data_id = data_id
-
-print(f"first data id = {first_data_id}\nlast data id = {data_id}")
-
-
-# for kk in range(len(rf_times)):
-#     params["rf"]["duration"] = rf_times[kk]
-#     data_id = run_experiment(params)
-#     print(data_id)
-#     if first_data_id == None:
-#         first_data_id = data_id
-#
-# print(f"first data id = {first_data_id}\nlast data id = {data_id}")
-
-## empty
