@@ -55,7 +55,13 @@ def _increment_last_data_number(folder: str) -> int:
 
 
 def _locate_expt_data_number(data_number: int) -> Tuple[str, str]:
-    """Walks through all subfolders to find an experiment file path."""
+    """Try to find the symlink, otherwise walks through all subfolders to find an experiment file path."""
+    link_folder_name = str(data_number // 100000).rjust(expt_rjust - 5, "0")
+    folder = op.join(expt_folder, "links", link_folder_name)
+    file = str(data_number)
+    if op.exists(op.join(folder, file)):
+        return (folder, file)
+    
     start_str = str(data_number).rjust(expt_rjust, "0") + " - "
     with os.scandir(expt_folder) as it:
         for year_month in it:
@@ -81,12 +87,20 @@ def _locate_anly_data_number(data_number: int) -> Tuple[str, str]:
 
 
 def get_new_experiment_path(data_name: str) -> Tuple[int, str]:
-    """Gets the data number and file path for new experiment data."""
+    """Gets the data number and file path for new experiment data.
+    
+    Also creates a symlink pointing to the file.
+    """
     year_month, day = _get_current_date_directory()
     data_number = _increment_last_data_number(expt_folder)
     folder = op.join(expt_folder, year_month, day)
     os.makedirs(folder, exist_ok=True)
     file_name = str(data_number).rjust(expt_rjust, "0") + " - " + data_name + ".npz"
+
+    link_folder_name = str(data_number // 100000).rjust(expt_rjust - 5, "0")
+    link_folder = op.join(expt_folder, "links", link_folder_name)
+    os.makedirs(link_folder, exist_ok=True)
+    os.symlink(file_name, op.join(link_folder, str(data_number)))
     return (data_number, op.join(folder, file_name))
 
 
@@ -111,8 +125,6 @@ def get_new_analysis_folder(data_name: str) -> Tuple[int, str]:
 def get_exist_experiment_path(data_number: int) -> str:
     """Gets the file path for existing experiment data."""
     parent, file_name = _locate_expt_data_number(data_number)
-    #link = os.join(expt_folder, 'links', str(data_number))
-    #return os.readlink(link)
     return op.join(parent, file_name)
 
 
