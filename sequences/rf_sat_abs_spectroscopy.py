@@ -92,6 +92,26 @@ class RFSatAbsSpectroscopy(Sequence):
             self._chasm_parameters,
         )
         self.add_segment(segment)
+        params = self._chasm_parameters.copy()
+        params["transition"] = "ac"
+        segment, self._chasm_repeats = chasm_segment(
+            "chasm_ac",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            params,
+        )
+        self.add_segment(segment)
+        params = self._chasm_parameters.copy()
+        params["transition"] = "ca"
+        segment, self._chasm_repeats = chasm_segment(
+            "chasm_ca",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            params,
+        )
+        self.add_segment(segment)
 
         self._antihole_segments_and_repeats = antihole_segment(
             "antihole",
@@ -105,7 +125,8 @@ class RFSatAbsSpectroscopy(Sequence):
             self.add_segment(segment)
         segment = rf_assist_segment(
             "rf_assist",
-            self._antihole_parameters["rf_assist"]
+            self._antihole_parameters["rf_assist"],
+            self._field_plate_parameters,
         )
         self.add_segment(segment)
 
@@ -203,7 +224,10 @@ class RFSatAbsSpectroscopy(Sequence):
 
         segment_repeats = []
 
-        segment_repeats.append(("chasm", self._chasm_repeats))
+
+        for kk in range(self._chasm_repeats):
+            segment_repeats.append(("chasm", 1))
+            segment_repeats.append(("chasm_ac", 1))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_chasm_repeats))

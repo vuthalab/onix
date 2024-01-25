@@ -28,6 +28,7 @@ try:
 except Exception:
     wm = wavemeter.WM()
 
+
 ## function to run the experiment
 def run_experiment(params):
     sequence = RFSatAbsSpectroscopy(  # Only change the part that changed
@@ -129,15 +130,15 @@ default_params = {
         "scan": 0 * ureg.MHz,
         "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
-        "duration_no_scan": 0.1 * ureg.s,
+        "duration_no_scan": 0.2 * ureg.s,
         "rf_assist": {
             "use": False,
-            "use_sequential": False,
+            "use_sequential": True,
             "name": "rf_coil",
             "transition": "ab",
             "offset_start": 30 * ureg.kHz, #-110 * ureg.kHz
             "offset_end": 170 * ureg.kHz, #20 * ureg.kHz
-            "amplitude": 4200,
+            "amplitude": 2000,
             "duration": 5 * ureg.ms,
         }
     },
@@ -195,45 +196,81 @@ dg.write_configs_to_device()
 
 
 ## wavemeter scan
-test1 = wm.read_frequencies(5)
-print(test1)
+def set_wavemeter_to_setpoint_and_wait(setpoint):
+    wm.set_lock_setpoint(5, setpoint)
+    freq = wm.read_frequency(5)
+    while not isinstance(freq, float) or abs(wm.read_frequency(5) - setpoint) > 0.001:
+        time.sleep(1)
+        freq = wm.read_frequency(5)
+    time.sleep(20)
+    print(wm.read_frequency(5))
 
-# sweep this
-# wm.set_lock_setpoint(5, 516847.400) # lockpoint in GHz
+## wavemeter scan and experiment scan
+wavemeter_setpoints = np.arange(516847.65, 516848.1, 0.2)
+scan_range = 20
+scan_step = 3
 
-test2 = wm.read_frequencies(5)
-print(test2)
+center_freqs = [258, -213, -46]  # -208, -41, 263
+amplitudes = [4200, 4200, 800] #[4200, 800, 4200]
 
+for setpoint in wavemeter_setpoints:
+    set_wavemeter_to_setpoint_and_wait(setpoint)
 
-## scan
-scan_range = 10
-scan_step = 1
-# rf_offset_2s = np.arange(-46 - scan_range, -46 + scan_range, scan_step)
+    for kk in range(4):
+        for ll in range(len(center_freqs)):
+            center_freq = center_freqs[ll]
+            rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
+            rf_offset_2s *= ureg.kHz
+            for mm in range(len(rf_offset_2s)):
+                params = default_params.copy()
+                params["rf"]["amplitude_1"] = 2000
+                params["rf"]["pulse_1_time"] = 0.09 * ureg.ms
+                params["rf"]["amplitude_2"] = amplitudes[ll]
+                params["rf"]["pulse_2_time"] = 0.25 * ureg.ms
+                params["rf"]["offset_2"] = rf_offset_2s[mm]
+
+                params["field_plate"]["amplitude"] = 4500
+                run_experiment(params)
+                params["field_plate"]["amplitude"] = -4500
+                run_experiment(params)
+set_wavemeter_to_setpoint_and_wait(516847.4)
+
+## temp
+# scan_range = 16
+# scan_step = 3
+#
+# rf_offset_2s = np.arange(-213 - scan_range, -213 + scan_range, scan_step)
 # rf_offset_2s *= ureg.kHz
 # params = default_params.copy()
-# params["rf"]["amplitude_2"] = 500
-# params["rf"]["pulse_2_time"] = 0.4 * ureg.ms
+# params["rf"]["amplitude_1"] = 2000
+# params["rf"]["pulse_1_time"] = 0.09 * ureg.ms
+# params["rf"]["amplitude_2"] = 4200
+# params["rf"]["pulse_2_time"] = 0.25 * ureg.ms
 # for kk in range(len(rf_offset_2s)):
 #     params["rf"]["offset_2"] = rf_offset_2s[kk]
 #     run_experiment(params)
 
-center_freqs = [258, -213, -46]  # -208, -41, 263
-amplitudes = [1400, 1400, 400] #[4200, 800, 4200]
-
-for kk in range(300):
-    for ll in range(len(center_freqs)):
-        center_freq = center_freqs[ll]
-        rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
-        rf_offset_2s *= ureg.kHz
-        for mm in range(len(rf_offset_2s)):
-            params = default_params.copy()
-            params["rf"]["amplitude_2"] = amplitudes[ll]
-            params["rf"]["offset_2"] = rf_offset_2s[mm]
-
-            params["field_plate"]["amplitude"] = 4500
-            run_experiment(params)
-            params["field_plate"]["amplitude"] = -4500
-            run_experiment(params)
+## scan
+# scan_range = 10
+# scan_step = 1
+#
+# center_freqs = [258, -213, -46]  # -208, -41, 263
+# amplitudes = [1400, 1400, 400] #[4200, 800, 4200]
+#
+# for kk in range(1500):
+#     for ll in range(len(center_freqs)):
+#         center_freq = center_freqs[ll]
+#         rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
+#         rf_offset_2s *= ureg.kHz
+#         for mm in range(len(rf_offset_2s)):
+#             params = default_params.copy()
+#             params["rf"]["amplitude_2"] = amplitudes[ll]
+#             params["rf"]["offset_2"] = rf_offset_2s[mm]
+#
+#             params["field_plate"]["amplitude"] = 4500
+#             run_experiment(params)
+#             params["field_plate"]["amplitude"] = -4500
+#             run_experiment(params)
 
 
 # rf_offset_2s = np.arange(-41 - scan_range, -41 + scan_range, scan_step)

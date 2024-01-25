@@ -6,7 +6,7 @@ from onix.units import ureg
 
 shared_params = {
     "wm_channel": 5,
-    "repeats": 20,
+    "repeats": 1,
     "ao": {
         "name": "ao_dp",
         "order": 2,
