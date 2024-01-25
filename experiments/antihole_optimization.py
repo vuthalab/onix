@@ -159,8 +159,8 @@ setup_digitizer(dg, default_params["repeats"], default_sequence)
 eos_ac_offset_range_MHz = (-302, -298)
 eos_ca_offset_range_MHz = (-302, -298)
 
-eos_ac_amplitude_range = (500, 2400)
-eos_ca_amplitude_range = (500, 2400)
+eos_ac_amplitude_range = (0.5, 2.4)
+eos_ca_amplitude_range = (0.5, 2.4)
 
 antihole_ac_piecewise_time_range = (1e-3, 20e-3)
 antihole_ca_piecewise_time_range = (1e-3, 20e-3)
@@ -191,7 +191,7 @@ def values_to_parameters(values):
     params = default_params.copy()
     params["eos"]["ac"]["offset"] = values[0] * ureg.MHz
     params["eos"]["ca"]["offset"] = values[1] * ureg.MHz
-    params["antihole"]["amplitudes"] = [values[2], values[3]]
+    params["antihole"]["amplitudes"] = [values[2] * 1000, values[3] * 1000]
     params["antihole"]["times"] = np.array([values[4], values[5]]) * ureg.s
     params["antihole"]["total_time"] = values[6] * ureg.s
     return params
@@ -208,7 +208,7 @@ def run_and_get_merit_output(values, *args):
         correct_data = is_correct_data(ah_fit)
         repeat_index += 1
     if not correct_data:
-        result = 100
+        result = 100000
     else:
         result = merit_function(ah_fit, values[-1])
     print(data_id, values, result)
