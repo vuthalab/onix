@@ -151,13 +151,13 @@ class Digitizer:
             raise ValueError(f"Channel {channel} range of {range} V is not valid.")
         chan_config["InputRange"] = full_range_mV
         if ac_coupled:
-            chan_config["Coupling"] == gc.CS_COUPLING_AC
+            chan_config["Coupling"] = gc.CS_COUPLING_AC
         else:
-            chan_config["Coupling"] == gc.CS_COUPLING_DC
+            chan_config["Coupling"] = gc.CS_COUPLING_DC
         if high_impedance:
-            chan_config["Impedance"] == 1000000
+            chan_config["Impedance"] = 1000000
         else:
-            chan_config["Impedance"] == 50
+            chan_config["Impedance"] = 50
 
         status = PyGage.SetChannelConfig(self._handle, channel, chan_config)
         if status < 0:
@@ -221,9 +221,9 @@ class Digitizer:
         else:
             trigger_config["ExtCoupling"] = gc.CS_COUPLING_DC
         if high_impedance:
-            trigger_config["ExtImpedance"] == 1000000
+            trigger_config["ExtImpedance"] = 1000000
         else:
-            trigger_config["ExtImpedance"] == 50
+            trigger_config["ExtImpedance"] = 50
         status = PyGage.SetTriggerConfig(self._handle, 1, trigger_config)
         if status < 0:
             self._raise_error("SetTriggerConfig", status)
