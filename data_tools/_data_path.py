@@ -100,7 +100,7 @@ def get_new_experiment_path(data_name: str) -> Tuple[int, str]:
     link_folder_name = str(data_number // 100000).rjust(expt_rjust - 5, "0")
     link_folder = op.join(expt_folder, "links", link_folder_name)
     os.makedirs(link_folder, exist_ok=True)
-    os.symlink(file_name, op.join(link_folder, str(data_number)))
+    os.symlink(op.join(folder, file_name), op.join(link_folder, str(data_number)))
     return (data_number, op.join(folder, file_name))
 
 
