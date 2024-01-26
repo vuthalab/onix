@@ -1,11 +1,17 @@
+// Quarto code for 1-channel PID feedback.
+
 #include "qCommand.h"
 #include <math.h>
 qCommand qC;
 
-
+// error signal input port
 const uint8_t ERROR_INPUT = 1;
+// control signal output port
 const uint8_t CONTROL_OUTPUT = 1;
 
+// interval in us for ADC data reading.
+// Shorter inverval will cause the program to freeze due to too many ADC reading requests.
+// Longer interval slow down the PID loop.
 const uint16_t ADC_INTERVAL = 10;
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
@@ -14,18 +20,26 @@ double p_gain = 0.1;
 double i_time = 900.0;
 double d_time = 0.0;
 
+// keeps track of the integral term
 double integral = 0.0;
-double integral_limit = 5.0;
+// limits the integral term magnitude so it does not blow up
+double integral_limit = 10.0;
+// last error signal for D gain.
 double previous_error = 0.0;
 
+// error signal offset before going into the PID loop
 double error_offset = 1.5;
 
+// output voltage offset
 double output_offset = 0.0;
+// output voltage limits
 double output_lower_limit = 0.0;
 double output_upper_limit = 10.0;
 
+// PID loop running or not
 bool pid_state = false;
 
+// Data saved in Quarto for computer readout
 const int DATA_LENGTH = 1000;
 double error_data[DATA_LENGTH];
 int error_index = 0;
@@ -41,9 +55,12 @@ void adc_loop(void) {
   else {
     error_index = 0;
   }
+  delayMicroseconds(1);
+  //update_pid();  // this function must be fast compared to the ADC sample interval.
 }
 
 double new_integral(double integral, double integral_change) {
+  // limit the integral term to be within the limit.
   double pending_integral = integral + integral_change;
   if (pending_integral > integral_limit) {
     return integral_limit;
@@ -57,6 +74,7 @@ double new_integral(double integral, double integral_change) {
 }
 
 void update_pid(void) {
+  // takes <1 us to finish. Safe to put it in the ADC loop with ~3 us interval.
   double output = output_offset;
   if (pid_state) {
     double error = error_data[error_index] - error_offset;
@@ -186,5 +204,5 @@ void setup(void) {
 void loop(){
   qC.readSerial(Serial);
   qC.readSerial(Serial2);
-  update_pid();
+  update_pid();  // this function must be fast compared to the ADC sample interval.
 }
