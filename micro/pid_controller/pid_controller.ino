@@ -12,7 +12,7 @@ const uint8_t CONTROL_OUTPUT = 1;
 // interval in us for ADC data reading.
 // Shorter inverval will cause the program to freeze due to too many ADC reading requests.
 // Longer interval slow down the PID loop.
-const uint16_t ADC_INTERVAL = 10;
+const uint16_t ADC_INTERVAL = 3;
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
 
@@ -49,14 +49,13 @@ int output_index = 0;
 
 void adc_loop(void) {
   error_data[error_index] = readADC1_from_ISR();
-  if (error_index < DATA_LENGTH) {
+  if (error_index < DATA_LENGTH - 1) {
     error_index++;
   }
   else {
     error_index = 0;
   }
-  delayMicroseconds(1);
-  //update_pid();  // this function must be fast compared to the ADC sample interval.
+  update_pid();  // this function must be fast compared to the ADC sample interval.
 }
 
 double new_integral(double integral, double integral_change) {
@@ -77,7 +76,13 @@ void update_pid(void) {
   // takes <1 us to finish. Safe to put it in the ADC loop with ~3 us interval.
   double output = output_offset;
   if (pid_state) {
-    double error = error_data[error_index] - error_offset;
+    double error = 0.0;
+    if (error_index > 0) {
+      error = error_data[error_index - 1] - error_offset;
+    }
+    else {
+      error = error_data[DATA_LENGTH - 1] - error_offset;
+    }
     double proportional = p_gain * error;
     integral = new_integral(integral, p_gain / i_time * error);
     double differential = p_gain * d_time * (error - previous_error);
@@ -94,7 +99,7 @@ void update_pid(void) {
   writeDAC(CONTROL_OUTPUT, output);
 
   output_data[output_index] = output;
-  if (output_index < DATA_LENGTH) {
+  if (output_index < DATA_LENGTH - 1) {
     output_index++;
   }
   else {
@@ -204,5 +209,4 @@ void setup(void) {
 void loop(){
   qC.readSerial(Serial);
   qC.readSerial(Serial2);
-  update_pid();  // this function must be fast compared to the ADC sample interval.
 }
