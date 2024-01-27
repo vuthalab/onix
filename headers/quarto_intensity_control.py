@@ -101,7 +101,7 @@ class Quarto:
     def set_output_lower_limit(self, val):
         self.output_lower_limit = self._set_param("output_lower_limit", val)
 
-    def set_output_uppper_limit(self, val):
+    def set_output_upper_limit(self, val):
         self.output_upper_limit =self._set_param("output_upper_limit", val)
 
     def set_pid_state(self, val):
@@ -215,7 +215,7 @@ class Quarto:
         self.axe.set_xscale("log")
         self.axe.set_yscale("log")
 
-        if self.i > self.repeats:
+        if self.i < self.repeats - 1:
             self.i += 1
         else:
             self.i = 0
@@ -253,7 +253,7 @@ class Quarto:
     def _animate_error(self, frame):
         self.get_error_data()
         t = np.linspace(0,len(self.error_data), len(self.error_data))
-        t = t*1e-6
+        t = t / self.sample_rate
         self.line.set_data(t, self.error_data)
         self.axe.set_ylim(min(self.error_data-0.001),max(self.error_data)+0.001)
         return self.error_data
@@ -263,7 +263,7 @@ class Quarto:
 
         self.get_error_data()
         t = np.linspace(0,len(self.error_data), len(self.error_data))
-        t = t*1e-6
+        t = t / self.sample_rate
 
         self.axe = plt.axes()
         self.line, = self.axe.plot(t, self.error_data)
