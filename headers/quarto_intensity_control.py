@@ -6,9 +6,10 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from onix.analysis.debug.laser_linewidth import LaserLinewidth
 
+samples_per_call = 50000 # how many samples the Quarto returns every time you ask for error or control data
 
 class Quarto:
-    def __init__(self, location='/dev/ttyACM1'):
+    def __init__(self, location='/dev/ttyACM0'):
         self.address = location
         self.device = serial.Serial(self.address,
                                     baudrate=115200,
@@ -25,11 +26,14 @@ class Quarto:
         response = self.device.readlines()
 
     def _get_param(self, param):
+        # TODO: separate this function to parts.
+        # One function gets the raw data
+        # Several functions parses the data to bool, floats.
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
         out = param + '\n'
         self.device.write(out.encode('utf-8'))
-        time.sleep(0.1)
+        time.sleep(0.1) # TODO: test without this
         response = self.device.readlines()[0].decode('utf-8').strip('\n')
         response = float(re.findall(r'\d+\.\d+', response)[0])
         print(param, ": ", response)
@@ -41,7 +45,7 @@ class Quarto:
         out = param + " " + str(val) + '\n'
         self.state = val
         self.device.write(out.encode('utf-8'))
-        time.sleep(0.1) #test without this
+        time.sleep(0.1) # TODO: test without this
         response = self.device.readlines()[0].decode('utf-8').strip('\n')
         response = float(re.findall(r'\d+\.\d+', response)[0])
         print(param, ": ", response)
@@ -50,7 +54,7 @@ class Quarto:
     def get_p_gain(self):
         self.p_gain = self._get_param("p_gain")    
 
-    def get_i_time(self): #error
+    def get_i_time(self):
         self.i_time = self._get_param("i_time")
 
     def get_d_time(self):
@@ -76,7 +80,7 @@ class Quarto:
         self.device.reset_output_buffer()
         out = "pid_state\n"
         self.device.write(out.encode('utf-8'))
-        time.sleep(0.1)
+        time.sleep(0.1) #TODO: test without this
         response = str(self.device.readlines()[0])[15:16] 
         print("PID State: ", response)
 
@@ -84,7 +88,7 @@ class Quarto:
         self.p_gain = self._set_param("p_gain", val)    
 
     def set_i_time(self, val):
-        self.i_time = self._set_param("i_gain", val)
+        self.i_time = self._set_param("i_time", val)
 
     def set_d_time(self, val):
         self.d_time = self._set_param("d_time", val)
@@ -110,7 +114,7 @@ class Quarto:
         out = "pid_state " + str(val) + '\n'
         self.state = val
         self.device.write(out.encode('utf-8'))
-        time.sleep(0.1) #test without this
+        time.sleep(0.1) # TODO: test without this
         response = str(self.device.readlines()[0])[15:16]
         print("PID State: ", response)
     
@@ -120,13 +124,12 @@ class Quarto:
         self.device.reset_output_buffer()
         out = "error_data\n"
         self.device.write(out.encode('utf-8'))
-        for i in range(50000): 
+        for i in range(samples_per_call): 
             try:
                 self.error_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
             except ValueError as e:
                 print(i)
-                #raise e
-                print(self.device.readline())
+                raise e
         self.error_data = np.asarray(self.error_data)
 
         return self.error_data
@@ -137,7 +140,7 @@ class Quarto:
         self.device.reset_output_buffer()
         out = "output_data\n"
         self.device.write(out.encode('utf-8'))
-        for i in range(50000): 
+        for i in range(samples_per_call): 
             try:
                 self.output_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
             except ValueError as e:
@@ -279,7 +282,7 @@ class Quarto:
         t = np.linspace(0,len(self.output_data), len(self.output_data))
         t = t*1e-6
         self.line.set_data(t, self.output_data)
-        self.axe.set_ylim(min(self.output_data)-0.001,max(self.output_data)+0.001) #self.axe.set_ylim(min(self.errdata),max(self.errdata))
+        self.axe.set_ylim(min(self.output_data)-0.001,max(self.output_data)+0.001) 
         return self.output_data
 
     def animated_output_data(self):
