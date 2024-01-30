@@ -26,7 +26,7 @@ float d_time = 0.0;  // us
 // keeps track of the integral term
 float integral = 0.0;
 // limits the integral term magnitude so it does not blow up
-float integral_limit = 2.0;
+float integral_limit = 10.0;
 float current_error = 0.0;
 // last error signal for D gain.
 float previous_error = -100.0;
@@ -38,7 +38,7 @@ float error_offset = 0.3;
 float output_offset = 0.2;
 // output voltage limits
 float output_lower_limit = 0.0;
-float output_upper_limit = 2.0;
+float output_upper_limit = 10.0;
 
 // PID state
 // 0: off
