@@ -15,7 +15,11 @@ class Quarto:
                                     baudrate=115200,
                                     timeout=0.2)
 
-        self.sample_time = 2e-6 # TODO: ask the quarto what its sampling rate is, don't use fixed number
+        #self.sample_time = 2e-6 # TODO: ask the quarto what its sampling rate is, don't use fixed number
+        #self.sample_rate = 1/self.sample_time
+
+        sample_time_us = int(self.get_param_float("sample_time")) # sample time, in us 
+        self.sample_time = sample_time_us * 1e-6
         self.sample_rate = 1/self.sample_time
         
         self.device.reset_input_buffer()
@@ -32,22 +36,9 @@ class Quarto:
         self.device.write(out.encode('utf-8'))
         time.sleep(0.1) # TODO: test without this
         response = self.device.readlines()
-        return response[0].decode('utf-8').strip('\n')
-
-    def _get_param_float(self, param):
-        response = self._get_param(param)
-        response = float(re.findall(r'[-+]?\d+\.\d+', response)[0])
+        response = response[0].decode('utf-8').strip('\n').split(" ")[-1] #should work, unless if gives you some weird bytes thing in which it will give you ] at the end
         print(param, ": ", response)
         return response
-
-    def _get_param_bool(self, param):
-        response = self._get_param(param)
-        response = int(re.findall(r'[-+]?\d', response)[0])
-        print(param, ": ", response)
-        if response == 0:
-            return False
-        elif response == 1:
-            return True
 
     def _set_param(self, param, val):
         self.device.reset_input_buffer()
@@ -56,78 +47,64 @@ class Quarto:
         self.state = val
         self.device.write(out.encode('utf-8'))
         time.sleep(0.1) # TODO: test without this
-        
-    
-    def _set_param_float(self, param, val):
-        self._set_param(param, val)
-        response = self.device.readlines()[0].decode('utf-8').strip('\n')
-        response = float(re.findall(r'\d+\.\d+', response)[0])
+        response = self.device.readlines()
+        response = response[0].decode('utf-8').strip('\n').split(" ")[-1] #should work, unless if gives you some weird bytes thing in which it will give you ] at the end
         print(param, ": ", response)
         return response
     
-    def _set_param_bool(self, param, val):
-        self._set_param(param, val)
-        response = response.decode('utf-8').strip('\n')
-        response = int(re.findall(r'\d', response)[0])
-        print(param, ": ", response)
-        if response == 0:
-            return False
-        elif response == 1:
-            return True
-    
     def get_p_gain(self):
-        self.p_gain = self._get_param_float("p_gain")    
+        self.p_gain = float(self._get_param("p_gain"))    
 
     def get_i_time(self):
-        self.i_time = self._get_param_float("i_time")
+        self.i_time = float(self._get_param("i_time"))
 
     def get_d_time(self):
-        self.d_time = self._get_param_float("d_time")
+        self.d_time = float(self._get_param("d_time"))
     
     def get_integral_limit(self):
-        self.integral_limit = self._get_param_float("integral_limit")
+        self.integral_limit = float(self._get_param("integral_limit"))
 
     def get_error_offset(self):
-        self.error_offset = self._get_param_float("error_offset")
+        self.error_offset = float(self._get_param("error_offset"))
 
     def get_output_offset(self):
-        self.output_offset = self._get_param_float("output_offset")
+        self.output_offset = float(self._get_param("output_offset"))
 
     def get_output_lower_limit(self):
-        self.output_lower_limit = self._get_param_float("output_lower_limit")
+        self.output_lower_limit = float(self._get_param("output_lower_limit"))
 
     def get_output_uppper_limit(self):
-        self.output_upper_limit = self._get_param_float("output_upper_limit")
+        self.output_upper_limit = float(self._get_param("output_upper_limit"))
 
     def get_pid_state(self):
-        self.pid_state = self._get_param_bool("pid_state")
+        self.pid_state = int(self._get_param("pid_state"))
 
     def set_p_gain(self, val):
-        self.p_gain = self._set_param_float("p_gain", val)    
+        self.p_gain = float(self._set_param("p_gain", val))    
 
     def set_i_time(self, val):
-        self.i_time = self._set_param_float("i_time", val)
+        self.i_time = float(self._set_param("i_time", val))
 
     def set_d_time(self, val):
-        self.d_time = self._set_param_float("d_time", val)
+        self.d_time = float(self._set_param("d_time", val))
     
     def set_integral_limit(self, val):
-        self.integral_limit = self._set_param_float("integral_limit", val)
+        self.integral_limit = float(self._set_param("integral_limit", val))
 
     def set_error_offset(self, val):
-        self.error_offset = self._set_param_float("error_offset", val)
+        self.error_offset = float(self._set_param("error_offset", val))
 
     def set_output_offset(self, val):
-        self.output_offset = self._set_param_float("output_offset", val)
+        self.output_offset = float(self._set_param("output_offset", val))
 
     def set_output_lower_limit(self, val):
-        self.output_lower_limit = self._set_param_float("output_lower_limit", val)
+        self.output_lower_limit = float(self._set_param("output_lower_limit", val))
 
     def set_output_upper_limit(self, val):
-        self.output_upper_limit =self._set_param_float("output_upper_limit", val)
+        self.output_upper_limit = float(self._set_param("output_upper_limit", val))
 
     def set_pid_state(self, val):
-        self.pid_state = self._set_param_bool("pid_state", val)
+        self.pid_state = int(self._set_param("pid_state", val))
     
     def get_error_data(self):
         self.error_data = []

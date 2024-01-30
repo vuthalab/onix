@@ -157,6 +157,13 @@ void update_pid(void) {
   }
 }
 
+void cmd_adc_interval(qCommand& qC, Stream& S){
+  if ( qC.next() != NULL) {
+    adc_interval = atof(qC.current());
+  }
+  S.printf("sampling rate is %f\n", adc_interval);
+}
+
 void cmd_p_gain(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
     p_gain = atof(qC.current());
@@ -229,8 +236,8 @@ void cmd_pid_state(qCommand& qC, Stream& S){
 }
 
 void cmd_error_data(qCommand& qC, Stream& S){
-  pause_error_data = true; // pause in data taking during process
-  for (int i = error_index; i < data_length; i++) {
+  pause_error_data = true; // pause data taking during process
+  for (int i = error_index; i < data_length; i++) { // don't necessarily want to use the entirety of data length in here; make a new param get_data_length that you can set in python and then you return only that much data
     S.printf("%f\n", error_data[i]);
   }
   for (int i = 0; i < error_index; i++) {
@@ -240,7 +247,7 @@ void cmd_error_data(qCommand& qC, Stream& S){
 }
 
 void cmd_output_data(qCommand& qC, Stream& S){
-  pause_output_data = true; // pause in data taking during process
+  pause_output_data = true; // pause data taking during process
   for (int i = output_index; i < data_length; i++) {
     S.printf("%f\n", output_data[i]);
   }
@@ -284,6 +291,7 @@ void setup(void) {
   qC.addCommand("pid_state", cmd_pid_state);
   qC.addCommand("error_data", cmd_error_data);
   qC.addCommand("output_data", cmd_output_data);
+  qC.addCommand("sample_time", cmd_adc_interval);
   configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
   triggerMode(PID_PULSE_TRIGGER, INPUT);
   enableInterruptTrigger(PID_PULSE_TRIGGER, BOTH_EDGES, pid_pulse);  // TODO: read trigger state when started.
