@@ -32,19 +32,17 @@ class Quarto:
         self.device.write(out.encode('utf-8'))
         time.sleep(0.1) # TODO: test without this
         response = self.device.readlines()
-        return response
+        return response[0].decode('utf-8').strip('\n')
 
     def _get_param_float(self, param):
         response = self._get_param(param)
-        response = response.decode('utf-8').strip('\n')
-        response = float(re.findall(r'\d+\.\d+', response)[0])
+        response = float(re.findall(r'[-+]?\d+\.\d+', response)[0])
         print(param, ": ", response)
         return response
 
-    def _get_param_bool(self, param): # this should only be used for PID state
+    def _get_param_bool(self, param):
         response = self._get_param(param)
-        response = response.decode('utf-8').strip('\n')
-        response = int(re.findall(r'\d', response)[0])
+        response = int(re.findall(r'[-+]?\d', response)[0])
         print(param, ": ", response)
         if response == 0:
             return False
