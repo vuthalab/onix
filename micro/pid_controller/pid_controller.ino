@@ -35,7 +35,7 @@ float previous_error = -100.0;
 float error_offset = 0.3;
 
 // output voltage offset
-float output_offset = 0.2;
+float output_offset = 10.0;
 // output voltage limits
 float output_lower_limit = 0.0;
 float output_upper_limit = 10.0;
@@ -155,13 +155,6 @@ void update_pid(void) {
       output_index = 0;
     }
   }
-}
-
-void cmd_adc_interval(qCommand& qC, Stream& S){
-  if ( qC.next() != NULL) {
-    adc_interval = atof(qC.current());
-  }
-  S.printf("sampling rate is %f\n", adc_interval);
 }
 
 void cmd_p_gain(qCommand& qC, Stream& S){
@@ -291,7 +284,6 @@ void setup(void) {
   qC.addCommand("pid_state", cmd_pid_state);
   qC.addCommand("error_data", cmd_error_data);
   qC.addCommand("output_data", cmd_output_data);
-  qC.addCommand("sample_time", cmd_adc_interval);
   configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
   triggerMode(PID_PULSE_TRIGGER, INPUT);
   enableInterruptTrigger(PID_PULSE_TRIGGER, BOTH_EDGES, pid_pulse);  // TODO: read trigger state when started.
