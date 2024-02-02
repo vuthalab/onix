@@ -15,7 +15,7 @@ const uint8_t CONTROL_OUTPUT = 1;
 // interval in us for ADC data reading.
 // Shorter inverval will cause the program to freeze due to too many ADC reading requests.
 // Longer interval slow down the PID loop.
-uint16_t adc_interval = 2;
+uint16_t adc_interval = 2; 
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_5V;
 
@@ -157,6 +157,15 @@ void update_pid(void) {
   }
 }
 
+void cmd_adc_interval(qCommand& qC, Stream& S){
+  if ( qC.next() != NULL) {
+    adc_interval = atoi(qC.current()); // string to uint16_t?
+    disableADC(ERROR_INPUT);
+    configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
+  }
+  S.printf("adc interval is %u\n", (unsigned int)adc_interval);
+}
+
 void cmd_p_gain(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
     p_gain = atof(qC.current());
@@ -284,6 +293,7 @@ void setup(void) {
   qC.addCommand("pid_state", cmd_pid_state);
   qC.addCommand("error_data", cmd_error_data);
   qC.addCommand("output_data", cmd_output_data);
+  qC.addCommand("adc_interval", cmd_adc_interval);
   configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
   triggerMode(PID_PULSE_TRIGGER, INPUT);
   enableInterruptTrigger(PID_PULSE_TRIGGER, BOTH_EDGES, pid_pulse);  // TODO: read trigger state when started.
