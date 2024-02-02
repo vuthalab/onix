@@ -40,6 +40,16 @@ float output_offset = 10.0;
 float output_lower_limit = 0.0;
 float output_upper_limit = 10.0;
 
+// byte to store information as to how close we are to reaching integral and output limits
+uint8_t indicator = B00000000;
+float acceptable_output_range = output_upper_limit - output_lower_limit;
+float output_lower_warning = output_lower_limit + 0.1 * acceptable_output_range;
+float output_upper_warning = output_upper_limit - 0.1 * acceptable_output_range;
+
+float acceptable_integral_range = 2 * integral_limit;
+float integral_lower_warning = -integral_lower_limit + 0.1 * acceptable_integral_range;
+float integral_upper_warning = integral_lower_limit - 0.1 * acceptable_integral_range;
+
 // PID state
 // 0: off
 // 1: continuous feedback on
@@ -60,6 +70,7 @@ bool pause_error_data = false;
 float output_data[MAX_DATA_LENGTH];
 int output_index = 0;
 bool pause_output_data = false;
+int get_data_length = MAX_DATA_LENGTH
 
 
 void adc_loop(void) {
@@ -237,15 +248,32 @@ void cmd_pid_state(qCommand& qC, Stream& S){
   S.printf("pid state is %i\n", pid_state);
 }
 
+void cmd_get_data_length(qCommand& qC, Stream& S){
+  if ( qC.next() != NULL) {
+    get_data_length = atoi(qC.current());
+  }
+  S.printf("get_data_length is %i\n", get_data_length);
+}
+
+// Check this- if correct use the same on cmd_output_data
 void cmd_error_data(qCommand& qC, Stream& S){
   pause_error_data = true; // pause data taking during process
-  for (int i = error_index; i < data_length; i++) { // don't necessarily want to use the entirety of data length in here; make a new param get_data_length that you can set in python and then you return only that much data
+  end_data_index = get_data_length + error_index;
+  if (end_data_index > data_length) {
+    for (int i = error_index; i < data_length; i++) { 
     S.printf("%f\n", error_data[i]);
   }
-  for (int i = 0; i < error_index; i++) {
+  for (int i = 0; i < get_data_length - data_length + error_index ; i++) {
     S.printf("%f\n", error_data[i]);
   }
   pause_error_data = false;
+}
+  else{
+    for (int i = error_index; i <= error_index + get_data_length; i++) { 
+    S.printf("%f\n", error_data[i]);
+  }
+  pause_error_data = false;
+  }
 }
 
 void cmd_output_data(qCommand& qC, Stream& S){
@@ -257,6 +285,33 @@ void cmd_output_data(qCommand& qC, Stream& S){
     S.printf("%f\n", output_data[i]);
   }
   pause_output_data = false;
+}
+
+// Check this
+void cmd_limit_warnings(qCommand& qC, Stream& S){
+  // look at the integral and output limits warnings and print the appropriate number
+  // do these bit numbers 0 or 1 index (here i assume they 1 index)
+  if (output > output_upper_limit || output < output_lower_limit) {
+      indicator |= (1 << 5); // change the appropriate bit, performs indicator = indicator | 1<<5 which should place a 1 in the 6th place of indicator
+    }
+  if ( (output < output_lower_warning && output > output_lower_limit) || (output > output_upper_warning && output < output_upper_limit) ) {
+    indicator |= (1 << 4);
+  }
+  if (output <= output_upper_warning && output >= output_lower_warning){
+      indicator |= (1 << 3);
+  }
+  if (integral > integral_limit || integral < -integral_limit) {
+      indicator |= (1 << 2); 
+    }
+  if ( (integral < integral_lower_warning && integral > -integral_limit) || (integral > integral_upper_warning && integral < integral_limit) ) {
+    indicator |= (1 << 1);
+  }
+  if (integral <= integral_upper_warning && integral >= integral_lower_warning){
+      indicator |= (1 << 0);
+  }
+  S.print("Indicator bit is "); 
+  S.println(indicator);
+  indicator = B00000000 // need to reset the byte when done, no idea if this actally works
 }
 
 void pid_pulse_rising(void) {
@@ -294,6 +349,7 @@ void setup(void) {
   qC.addCommand("error_data", cmd_error_data);
   qC.addCommand("output_data", cmd_output_data);
   qC.addCommand("adc_interval", cmd_adc_interval);
+  qC.addCommand("limit_warnings", cmd_limit_warnings);
   configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
   triggerMode(PID_PULSE_TRIGGER, INPUT);
   enableInterruptTrigger(PID_PULSE_TRIGGER, BOTH_EDGES, pid_pulse);  // TODO: read trigger state when started.

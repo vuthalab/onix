@@ -2,7 +2,6 @@ import numpy as np
 
 class PowerSpectrum:
     """
-    Error in calculating the power spectrum. 
     Calculates the power spectrum of the laser.
     Args:
         error_signals: 2D list or np.array of floats. Multiple traces of laser error signals.
@@ -23,9 +22,9 @@ class PowerSpectrum:
 
     def _calculate_frequencies(self, voltage_trace): 
         """
-        Calculates the frequencies at which we will find the power. As the length of each trace and time resolution is constant, this is constant. 
+        Calculates the frequencies at which we will find the spectrum. 
         """
-        frequencies = np.fft.fftfreq(len(voltage_trace), self._time_resolution) # the frequency ouput of this always starts with 0
+        frequencies = np.fft.fftfreq(len(voltage_trace), self._time_resolution) 
         self.fft_mask = frequencies > 0
         f = frequencies[self.fft_mask]
         return f
@@ -39,7 +38,6 @@ class PowerSpectrum:
         W_V_calculated = np.abs(V_f) ** 2
         W_V = np.zeros(len(self.frequencies))
         W_V += 2 * W_V_calculated[self.fft_mask] 
-        self.dc_offset = W_V_calculated[0]
         return W_V 
     
     def _power_spectrum(self, voltages_list): 
@@ -71,10 +69,18 @@ class PowerSpectrum:
         return self.frequencies
     
     @property
-    def power_spectrum(self):
+    def voltage_spectrum(self):
         return np.sqrt(np.mean(self.power_spectrums, axis = 0))
     
     @property
+    def relative_voltage_spectrum(self):
+        return np.sqrt(np.mean(self.power_spectrums, axis = 0) * (1/np.mean(self.power_spectrums)))
+    
+    @property
+    def power_spectrum(self):
+        return np.mean(self.power_spectrums, axis = 0)
+    
+    @property
     def relative_power_spectrum(self):
-        return np.sqrt(np.mean(self.power_spectrums, axis = 0)) * (1/self.dc_offset)
+        return np.mean(self.power_spectrums, axis = 0) * (1/np.mean(self.power_spectrums))
 
