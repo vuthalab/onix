@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from onix.analysis.power_spectrum import PowerSpectrum
 
-samples_per_call = 50000 # how many samples the Quarto returns every time you ask for error or control data; will be changed soon
 
 class Quarto:
     def __init__(self, location='/dev/ttyACM1'):
@@ -82,6 +81,11 @@ class Quarto:
         val = int(self._get_param("pid_state"))
         self.pid_state = val
         return val
+    
+    def get_integral(self):
+        val = float(self._get_param("integral"))
+        self.integral = val
+        return val
 
     def set_p_gain(self, val):
         val = float(self._set_param("p_gain", val)) 
@@ -128,19 +132,40 @@ class Quarto:
         self.pid_state = val
         return val
     
-    def output_limit_indicator(self, var):
-        val = self._get_param("limit_warnings") # this should return a byte which we have to look at to figure out what warnings to print
     
-    def get_error_data(self):
+    def output_limit_indicator(self):
+        """
+        Prints warnings of if integrator and output are near their limits (within 10%) or outside of their limits.
+        """
+        val = int(self._get_param("limit_warnings"))
+    
+        if (val // 2**0) % 2 == 1:
+            print("Integral warning")
+        elif (val // 2**1) % 2 == 1:
+            print("Integral out of bounds")
+        else:
+            print("Integrator good")
+        
+        if (val // 2**2) % 2 == 1:
+            print("Output warning")
+        elif (val // 2**3) % 2 == 1:
+            print("Output out of bounds")
+        else:
+            print("Output good")
+        
+        #return val
+
+    
+    def get_error_data(self, val = 50000):
         """
         Returns list of error data
         """
         self.error_data = []
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
-        out = "error_data\n"
+        out = "error_data " + str(val) + "\n"
         self.device.write(out.encode('utf-8'))
-        for i in range(samples_per_call): 
+        for i in range(val): 
             try:
                 self.error_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
             except ValueError as e:
@@ -150,16 +175,16 @@ class Quarto:
 
         return self.error_data
     
-    def get_output_data(self):
+    def get_output_data(self, val = 50000):
         """
         Returns list of output data
         """
         self.output_data = []
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
-        out = "output_data\n"
+        out = "output_data " + str(val) + "\n"
         self.device.write(out.encode('utf-8'))
-        for i in range(samples_per_call): 
+        for i in range(val): 
             try:
                 self.output_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
             except ValueError as e:
