@@ -240,28 +240,40 @@ void cmd_pid_state(qCommand& qC, Stream& S){
   S.printf("pid state is %i\n", pid_state);
 }
 
+void serial_print_data(Stream& S, float array[], int next_index, int length) {
+  if (length < 0) {
+    return;
+  }
+  int last_index = next_index - 1;
+  if (last_index < 0) {
+    last_index += MAX_DATA_LENGTH;
+  }
+  int first_index = last_index - length + 1;
+  if (first_index < 0) {
+    first_index += MAX_DATA_LENGTH;
+  }
+  if (first_index > last_index) {
+    for (int i = first_index; i < MAX_DATA_LENGTH; i++) {
+      S.printf("%f\n", array[i]);
+    }
+    for (int i = 0; i <= last_index; i++) {
+      S.printf("%f\n", array[i]);
+    }
+  }
+  else {
+    for (int i = first_index; i <= last_index; i++) {
+      S.printf("%f\n", array[i]);
+    }
+  }
+}
+
 void cmd_error_data(qCommand& qC, Stream& S){
   pause_error_data = true; // pause data taking during process
   int get_data_length = MAX_DATA_LENGTH;
   if ( qC.next() != NULL) {
     get_data_length = atoi(qC.current());
   }
-
-  int last_data_point = error_index - 1;
-  int first_data_point = last_data_point - get_data_length + 1;
-  if (first_data_point > 0){
-    for (int i = first_data_point; i <= last_data_point; i++) {
-      S.printf("%f\n", error_data[i]);
-    }
-  }
-  else {
-    for (int i = MAX_DATA_LENGTH - get_data_length + error_index; i <= MAX_DATA_LENGTH; i++) {
-      S.printf("%f\n", error_data[i]);
-    }
-    for (int i = 0; i <= last_data_point; i++) {
-      S.printf("%f\n", error_data[i]);
-    }
-  }
+  serial_print_data(S, error_data, error_index, get_data_length);
   pause_error_data = false;
 }
 
@@ -271,22 +283,7 @@ void cmd_output_data(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
     get_data_length = atoi(qC.current());
   }
-
-  int last_data_point = error_index - 1;
-  int first_data_point = last_data_point - get_data_length + 1;
-  if (first_data_point > 0){
-    for (int i = first_data_point; i <= last_data_point; i++) {
-      S.printf("%f\n", output_data[i]);
-    }
-  }
-  else {
-    for (int i = MAX_DATA_LENGTH - get_data_length + error_index; i <= MAX_DATA_LENGTH; i++) {
-      S.printf("%f\n", output_data[i]);
-    }
-    for (int i = 0; i <= last_data_point; i++) {
-      S.printf("%f\n", output_data[i]);
-    }
-  }
+  serial_print_data(S, output_data, output_index, get_data_length);
   pause_output_data = false;
 }
 
