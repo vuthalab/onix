@@ -7,6 +7,7 @@ qCommand qC;
 
 // error signal input port
 const uint8_t ERROR_INPUT = 1;
+const uint8_t REFERENCE_INPUT = 2;
 // trigger input port for enabling PID.
 const uint8_t PID_PULSE_TRIGGER = 2;
 // control signal output port
@@ -22,6 +23,8 @@ const adc_scale_t ADC_SCALE = BIPOLAR_5V;
 float p_gain = -0.3;
 float i_time = 0.25;  // us
 float d_time = 100.0;  // us
+float V_reference = 0.0;
+bool use_voltage_reference = false;
 
 // keeps track of the integral term
 float integral = 0.0;
@@ -57,6 +60,7 @@ bool pid_trigger_high = false;
 
 // Data saved in Quarto for computer readout
 const int MAX_DATA_LENGTH = 50000;
+float last_reference = 1.0;
 int data_length = MAX_DATA_LENGTH;
 float error_data[MAX_DATA_LENGTH];
 int error_index = 0;
@@ -67,9 +71,27 @@ bool pause_output_data = false;
 
 
 void adc_loop(void) {
-  current_error = readADC1_from_ISR();
+  switch (ERROR_INPUT) {
+    case 1:
+      current_error = readADC1_from_ISR();
+      break;
+    case 2:
+      current_error = readADC2_from_ISR();
+      break;
+    case 3:
+      current_error = readADC3_from_ISR();
+      break;
+    case 4:
+      current_error = readADC4_from_ISR();
+      break;
+  }
   if (!pause_error_data) {
-    error_data[error_index] = current_error;
+    if (use_voltage_reference) {
+      error_data[error_index] = current_error / last_reference * V_reference;
+    }
+    else {
+      error_data[error_index] = current_error;
+    }
     if (error_index < data_length - 1) {
       error_index++;
     }
@@ -78,6 +100,23 @@ void adc_loop(void) {
     }
   }
   update_pid();  // this function must be fast compared to the ADC sample interval.
+}
+
+void reference_adc_loop(void) {
+  switch (REFERENCE_INPUT) {
+    case 1:
+      last_reference = readADC1_from_ISR();
+      break;
+    case 2:
+      last_reference = readADC2_from_ISR();
+      break;
+    case 3:
+      last_reference = readADC3_from_ISR();
+      break;
+    case 4:
+      last_reference = readADC4_from_ISR();
+      break;
+  }
 }
 
 float new_integral(float integral, float integral_change) {
@@ -151,7 +190,9 @@ void cmd_adc_interval(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
     adc_interval = atoi(qC.current()); // string to uint16_t?
     disableADC(ERROR_INPUT);
+    disableADC(REFERENCE_INPUT);
     configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
+    configureADC(REFERENCE_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, reference_adc_loop);
   }
   S.printf("adc interval is %u\n", (unsigned int)adc_interval);
 }
@@ -310,19 +351,14 @@ void cmd_limit_warnings(qCommand& qC, Stream& S) {
   S.println(indicator);
 }
 
-void pid_pulse_rising(void) {
-  pid_trigger_high = true;
-  if (pid_state == 2) {
-    setLEDBlue(true);
+void v_ref(qCommand& qC, Stream& S) {
+  if ( qC.next() != NULL) {
+    V_reference = atof(qC.current());
+    use_voltage_reference = (V_reference > 0.0)
   }
+  S.printf("voltage reference is %f\n", V_reference);
 }
 
-void pid_pulse_falling(void) {
-  pid_trigger_high = false;
-  if (pid_state == 2) {
-    setLEDBlue(false);
-  }
-}
 
 void pid_pulse(void) {
   bool state = triggerRead(PID_PULSE_TRIGGER);
@@ -347,9 +383,12 @@ void setup(void) {
   qC.addCommand("adc_interval", cmd_adc_interval);
   qC.addCommand("limit_warnings", cmd_limit_warnings);
   qC.addCommand("integral", cmd_integral);
+  qC.addCommand("v_ref", cmd_v_ref);
   configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
+  configureADC(REFERENCE_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, reference_adc_loop);
   triggerMode(PID_PULSE_TRIGGER, INPUT);
-  enableInterruptTrigger(PID_PULSE_TRIGGER, BOTH_EDGES, pid_pulse);  // TODO: read trigger state when started.
+  pid_pulse();
+  enableInterruptTrigger(PID_PULSE_TRIGGER, BOTH_EDGES, pid_pulse);
 }
 
 void loop(){
