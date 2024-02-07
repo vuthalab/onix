@@ -1,3 +1,4 @@
+from functools import partial
 import serial
 import time
 import re
@@ -6,6 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 from onix.analysis.power_spectrum import PowerSpectrum
 
+
+DEFAULT_GET_DATA_LENGTH = 50000
 
 class Quarto:
     def __init__(self, location='/dev/ttyACM1'):
@@ -156,10 +159,12 @@ class Quarto:
         #return val
 
     
-    def get_error_data(self, val = 50000):
+    def get_error_data(self, val = None):
         """
         Returns list of error data
         """
+        if val is None:
+            val = DEFAULT_GET_DATA_LENGTH
         self.error_data = []
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
@@ -175,10 +180,12 @@ class Quarto:
 
         return self.error_data
     
-    def get_output_data(self, val = 50000):
+    def get_output_data(self, val = None):
         """
         Returns list of output data
         """
+        if val is None:
+            val = DEFAULT_GET_DATA_LENGTH
         self.output_data = []
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
@@ -350,6 +357,39 @@ class Quarto:
         ani = animation.FuncAnimation(fig=fig, func=self._animate_output, frames = 10, interval=10, blit=False)
 
         plt.show()
+
+    def animate_relative_voltage_spectrum(self, averages=10):
+        fig, ax = plt.subplots()
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("Relative voltage noise density $\\sqrt{\\mathrm{Hz}}^{-1}$")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time)
+        line, = ax.plot([], [])
+        worker = partial(
+            self._worker_animate_relative_voltage_spectrum,
+            ax,
+            line,
+            noise,
+            averages,
+        )
+        ani = animation.FuncAnimation(
+            fig=fig,
+            func=worker,
+        )
+        plt.show()
+
+    def _worker_animate_relative_voltage_spectrum(self, ax, line, noise: PowerSpectrum, averages, frame):
+        print(frame)  # frame 0 is run twice. TODO: it should only run one time.
+        data = self.get_error_data()
+        if frame < averages:
+            noise.add_data(data)
+        else:
+            noise.update_data(data)
+        line.set_data(noise.f, noise.relative_voltage_spectrum)
+        ax.set_ylim(min(noise.relative_voltage_spectrum), max(noise.relative_voltage_spectrum))
+        ax.set_xlim(min(noise.f), max(noise.f))
+
 
     def animated_relative_voltage_spectrum(self, repeats = 10):
         """
