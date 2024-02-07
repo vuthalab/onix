@@ -8,12 +8,12 @@ from onix.units import ureg, Q_
 from onix.sequences.pd_noise import pdNoiseMeasurement
 from onix.analysis.correlate import get_correlated_signal
 from onix.analysis.debug.laser_linewidth import LaserLinewidth
+from onix.analysis.power_spectrum import PowerSpectrum, CCedPowerSpectrum
 
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.headers.digitizer import DigitizerVisa
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.quarto_intensity_control import Quarto
-from onix.headers.RigolDM3068 import DM3068
 
 
 try:
@@ -21,13 +21,6 @@ try:
     print("m4i is already defined.")
 except Exception:
     m4i = M4i6622()
-
-try:
-    DM3068
-    print("DM3068 already defined")
-except Exception:
-    DM3068 = DM3068()
-
 
 ##
 try:
@@ -50,7 +43,7 @@ params = {
         "buffer": 20e-3 # s
     },
 
-    "device": "quarto",  # "quarto", "gage", "DM3068"
+    "device": "quarto",  # "quarto", "gage"
     "use_sequence": True,
     "chasm_burning": False,
     "repeats": 5,
@@ -67,6 +60,7 @@ if params["chasm_burning"]:
     time.sleep(1)
     m4i.stop_sine_outputs()
     print("chasm burning finished.")
+
 if params["use_sequence"]:
     sequence = pdNoiseMeasurement(
         ao_parameters=params["ao"],
@@ -76,6 +70,7 @@ if params["use_sequence"]:
     )
     sequence.setup_sequence()
     m4i.setup_sequence(sequence)
+
 else:
     m4i.set_sine_output(params["ao"]["channel"], params["ao"]["frequency"], params["ao"]["amplitude"])
     m4i.set_ttl_output(params["pid_trigger_channel"], True)
@@ -117,8 +112,6 @@ if params["device"] == "quarto":
     params["detect"]["sample_time"] = T
     segment_size = int(T * sample_rate)
 
-## RIGOL
-
 
 ## collect data
 print("data collection started.")
@@ -126,8 +119,6 @@ if params["device"] == "gage":
     Vt = np.zeros((0, segment_size))
     Vm = np.zeros((0, segment_size))
 elif params["device"] == "quarto":
-    Vt = np.zeros((0, segment_size))
-elif params["device"] == "DM3068":
     Vt = np.zeros((0, segment_size))
 
 for kk in range(params["repeats"]):
@@ -145,64 +136,46 @@ for kk in range(params["repeats"]):
     elif params["device"] == "quarto":
         time.sleep(T + 0.1)
         Vt = np.append(Vt, [q.get_error_data()], axis=0)
-    elif params["device"] == "DM3068":
-        for i in range(50000):
-            val = DM3068.get_voltage()
-
 
     print(f"{kk + 1} / {params['repeats']} finished")
+
 if params["device"] == "gage" and params["use_sequence"]:
     m4i.stop_sequence()
+
 print("data collection ended.")
 
 ##
 if params["device"] == "gage":
-    spectrum0 = LaserLinewidth(
-        error_signals = Vt,
-        time_resolution = 1 / sample_rate,
-        discriminator_slope = 1,  # not used
-        max_points_per_decade = 100,
-    )
-    spectrum1 = LaserLinewidth(
-        error_signals = Vm,
-        time_resolution = 1 / sample_rate,
-        discriminator_slope = 1,  # not used
-        max_points_per_decade = 100,
-    )
-    spectrum_cc = LaserLinewidth(
-        error_signals = Vt,
-        time_resolution = 1 / sample_rate,
-        discriminator_slope = 1,  # not used
-        max_points_per_decade = 100,
-        correlation_error_signals = Vm,
-    )
+    N_Vt = len(Vt)
+    time_resolution = 1 / sample_rate
+    spectrum0 = spectrum1 = PowerSpectrum(N_Vt, time_resolution)
+    spectrum0.add_data(Vt)
+    spectrum1.add_data(Vm)
+
+    spectrum_cc = CCedPowerSpectrum(N_Vt, time_resolution)
+    spectrum_cc.add_data(Vt, Vm)
+
     Vtavg = np.mean(Vt)
     Vmavg = np.mean(Vm)
     print(Vtavg, Vmavg)
+
 elif params["device"] == "quarto":
-    spectrum0 = LaserLinewidth(
-        error_signals = Vt,
-        time_resolution = 1 / sample_rate,
-        discriminator_slope = 1,  # not used
-        max_points_per_decade = 100,
-    )
+    N_Vt = len(Vt)
+    time_resolution = 1 / sample_rate
+    spectrum0 = PowerSpectrum(N_Vt, time_resolution)
     Vtavg = np.mean(Vt)
     print(Vtavg)
-elif params["device"] == "DM3068":
-    spectrum0 = LaserLinewidth(
-        error_signals = Vt,
-        time_resolution = 1 / sample_rate,
-        discriminator_slope = 1, # not used
-        max_points_per_decade = 100,
 
-    )
+
 ## Plot Spectrum
 plt.ylabel("Avg fractional noise spectrum $\\sqrt{\\mathrm{Hz}}^{-1}$")
 plt.xlabel("Frequency (Hz)")
+
 if params["device"] == "gage":
-    plt.loglog(spectrum0.f, np.sqrt(spectrum0.W_V) / Vtavg, label="channel 1", alpha=0.6)
-    plt.loglog(spectrum1.f, np.sqrt(spectrum1.W_V) / Vmavg, label="channel 2", alpha=0.6)
-    plt.loglog(spectrum_cc.f, np.sqrt(np.abs(spectrum_cc.W_V)) / np.sqrt(Vtavg * Vmarg), label="cross correlation", alpha=0.6)
+    plt.loglog(spectrum0.f, spectrum0.relative_voltage_spectrum / Vtavg, label="channel 1", alpha=0.6)
+    plt.loglog(spectrum1.f, spectrum1.relative_voltage_spectrum / Vmavg, label="channel 2", alpha=0.6)
+    plt.loglog(spectrum_cc.f, np.sqrt(np.abs(spectrum_cc.relative_voltage_spectrum)) / np.sqrt(Vtavg * Vmavg), label="cross correlation", alpha=0.6)
+
 elif params["device"] == "quarto":
     plt.loglog(spectrum0.f, np.sqrt(spectrum0.W_V) / np.abs(Vtavg), label="channel 1", alpha=0.6)
 plt.legend()
