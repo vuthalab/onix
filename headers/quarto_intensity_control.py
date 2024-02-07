@@ -305,7 +305,7 @@ class Quarto:
         plt.xlabel("time [s]")
         plt.ylabel("error voltage [V]")
 
-        ani = animation.FuncAnimation(fig=fig, func=self._worker_animate_error, frames = 10, interval=10, blit=False)
+        ani = animation.FuncAnimation(fig=fig, func=self._worker_animate_error, frames = 10, interval=10, cache_frame_data = False, blit=False)
         plt.show()
 
     def _worker_animate_error(self, frame):
@@ -336,7 +336,7 @@ class Quarto:
         plt.xlabel("time [s]")
         plt.ylabel("output voltage [V]")
 
-        ani = animation.FuncAnimation(fig=fig, func=self._worker_animate_output, interval = 10, blit=False)
+        ani = animation.FuncAnimation(fig=fig, func=self._worker_animate_output, interval = 10, cache_frame_data = False, blit=False)
 
         plt.show()
 
