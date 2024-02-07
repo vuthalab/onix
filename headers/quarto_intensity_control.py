@@ -374,7 +374,8 @@ class Quarto:
         ani = animation.FuncAnimation(
             fig=fig,
             func=worker,
-            init_func = lambda: None # TODO: this should be the only change needed to stop frame 0 from going twice
+            init_func = lambda: None,
+            cache_frame_data = False,
         )
         plt.show()
 
