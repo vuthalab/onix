@@ -74,7 +74,7 @@ class PowerSpectrum:
     
     @property
     def relative_voltage_spectrum(self):
-        return np.sqrt(np.mean(self.power_spectrums, axis = 0) * (1/np.mean(self.power_spectrums)))
+        return np.sqrt(np.mean(self.power_spectrums, axis = 0)) / np.abs(np.mean(self._error_signals))
     
     @property
     def power_spectrum(self):
@@ -82,5 +82,5 @@ class PowerSpectrum:
     
     @property
     def relative_power_spectrum(self):
-        return np.mean(self.power_spectrums, axis = 0) * (1/np.mean(self.power_spectrums))
+        return np.mean(self.power_spectrums, axis = 0) / np.mean(self._error_signals) ** 2
 

@@ -11,175 +11,247 @@ from onix.analysis.debug.laser_linewidth import LaserLinewidth
 
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.headers.digitizer import DigitizerVisa
-#from onix.headers.awg.M4i6622 import M4i6622
+from onix.headers.awg.M4i6622 import M4i6622
+from onix.headers.quarto_intensity_control import Quarto
+from onix.headers.RigolDM3068 import DM3068
 
 
-#m4i = M4i6622()
+try:
+    m4i
+    print("m4i is already defined.")
+except Exception:
+    m4i = M4i6622()
+
+try:
+    DM3068
+    print("DM3068 already defined")
+except Exception:
+    DM3068 = DM3068()
+
 
 ##
+try:
+    q
+except Exception:
+    q = Quarto("/dev/ttyACM2")
 
 params = {
-    "digitizer_channel": 0,
-    "channels": 1,
+    "digitizer_channel": 2,
+    "pid_trigger_channel": 1,
 
     "ao": {
-        "channel": 0,
-        "frequency": 80e6, # Hz
-        "amplitude": 0
+        "channel": 1,
+        "frequency": 75e6, # Hz
+        "amplitude": 800
     },
 
     "detect": {
-        "sample_time" : 1000e-3, # s
-        "buffer": 10e-3 # s
-    }
+        "sample_time" : 50e-3, # s
+        "buffer": 20e-3 # s
+    },
 
+    "device": "quarto",  # "quarto", "gage", "DM3068"
+    "use_sequence": True,
+    "chasm_burning": False,
+    "repeats": 5,
 }
 
 ## Sequence Setup
-sequence = pdNoiseMeasurement(
-    ao_parameters=params["ao"],
-    detect_parameters=params["detect"],
-    digitizer_channel=params["digitizer_channel"]
-)
-sequence.setup_sequence()
-m4i.setup_sequence(sequence)
+if params["chasm_burning"]:
+    print("chasm burning started")
+    m4i.start_sine_outputs()
+    for f in np.linspace(params["ao"]["frequency"] - 2e6, params["ao"]["frequency"] + 2e6, 40):
+        m4i.set_sine_output(params["ao"]["channel"], f, 2000)
+        time.sleep(0.1)
+    m4i.set_sine_output(params["ao"]["channel"], params["ao"]["frequency"], 2000)
+    time.sleep(1)
+    m4i.stop_sine_outputs()
+    print("chasm burning finished.")
+if params["use_sequence"]:
+    sequence = pdNoiseMeasurement(
+        ao_parameters=params["ao"],
+        detect_parameters=params["detect"],
+        digitizer_channel=params["digitizer_channel"],
+        pid_trigger_channel=params["pid_trigger_channel"],
+    )
+    sequence.setup_sequence()
+    m4i.setup_sequence(sequence)
+else:
+    m4i.set_sine_output(params["ao"]["channel"], params["ao"]["frequency"], params["ao"]["amplitude"])
+    m4i.set_ttl_output(params["pid_trigger_channel"], True)
+    m4i.start_sine_outputs()
 
 ## Digitizer setup PCIE
+if params["device"] == "gage":
+    T = params["detect"]["sample_time"]
+    sample_rate = 100e6
+    segment_size = int(T * sample_rate)
+    try:
+        dg
+    except Exception:
+        dg = Digitizer()
+    segment_count = 1
+    dg.set_acquisition_config(
+        num_channels=2,
+        sample_rate=sample_rate,
+        segment_size=segment_size,
+        segment_count=segment_count,
+    )
+    dg.set_channel_config(channel=1, range=5, high_impedance=False)
+    dg.set_channel_config(channel=2, range=5, high_impedance=False)
+    if params["use_sequence"]:
+        dg.set_trigger_source_edge()
+    else:
+        dg.set_trigger_source_software()
+    dg.write_configs_to_device()
 
-T = params["detect"]["sample_time"]
-sample_rate = int(1e8)
-segment_size = int(T * sample_rate)
-segment_count = 2
-repeats = 10
-dg = Digitizer(False)
-val = dg.configure_system(
-    mode = params["channels"],
-    sample_rate = sample_rate,
-    segment_size = segment_size,
-    segment_count = segment_count,
-    voltage_range = 2,
-)
 
-val = dg.configure_trigger(
-    source = "software",
-)
+## Digitizer setup Quarto
+if params["device"] == "quarto":
+    try:
+        q
+    except Exception:
+        q = Quarto("/dev/ttyACM1")
+    sample_rate = 500e3
+    T = 0.1
+    params["detect"]["sample_time"] = T
+    segment_size = int(T * sample_rate)
 
-## Digitizer setup Agilent
-# sample_rate = 1e7
-# segment_count = 100
-# segment_size = int(T * sample_rate)
-# T = params["detect"]["sample_time"]
-# dg.configure_acquisition(
-#     sample_rate=sample_rate,
-#     samples_per_record=segment_size,
-#     num_records=segment_count,
-# )
-# dg.configure_channels(channels=[1, 2], voltage_range=2)
-# dg.set_trigger_source_external()
-# dg.set_arm(triggers_per_arm=segment_count)
+## RIGOL
 
+
+## collect data
+print("data collection started.")
+if params["device"] == "gage":
+    Vt = np.zeros((0, segment_size))
+    Vm = np.zeros((0, segment_size))
+elif params["device"] == "quarto":
+    Vt = np.zeros((0, segment_size))
+elif params["device"] == "DM3068":
+    Vt = np.zeros((0, segment_size))
+
+for kk in range(params["repeats"]):
+    if params["device"] == "gage":
+        dg.start_capture()
+        if params["use_sequence"]:
+            m4i.start_sequence()
+            m4i.wait_for_sequence_complete()
+        else:
+            time.sleep(T + 0.1)
+        dg.wait_for_data_ready(1)
+        digitizer_sample_rate, digitizer_data = dg.get_data()
+        Vt = np.append(Vt, digitizer_data[0], axis=0)
+        Vm = np.append(Vm, digitizer_data[1], axis=0)
+    elif params["device"] == "quarto":
+        time.sleep(T + 0.1)
+        Vt = np.append(Vt, [q.get_error_data()], axis=0)
+    elif params["device"] == "DM3068":
+        for i in range(50000):
+            val = DM3068.get_voltage()
+
+
+    print(f"{kk + 1} / {params['repeats']} finished")
+if params["device"] == "gage" and params["use_sequence"]:
+    m4i.stop_sequence()
+print("data collection ended.")
 
 ##
-Vt = np.zeros((0, segment_size))
-Vm = np.zeros((0, segment_size))
-
-for kk in range(repeats):
-    dg.arm_digitizer()
-    #dg.initiate_data_acquisition()
-
-    for i in tqdm(range(segment_count)):
-        time.sleep(T)
-    #    m4i.start_sequence()
-    #    m4i.wait_for_sequence_complete()
-
-    #Vt, Vm = dg.get_waveforms([1,2], records=(1,segment_count))
-    Vt = np.append(Vt, dg.get_data()[0], axis=0)
-    if params["channels"] == 2:
-        Vm = np.append(Vm, dg.get_data()[1], axis=0)
-
-#m4i.stop_sequence()
-Vtavg = np.mean(Vt)
-print(Vtavg)
-if params["channels"] == 2:
-    Vmavg = np.mean(Vm)
-    print(Vtavg, Vmavg)
-
-##
-spectrum0 = LaserLinewidth(
-    error_signals = Vt,
-    time_resolution = 1 / sample_rate,
-    discriminator_slope = 1,  # not used
-    max_points_per_decade = 100,
-)
-if params["channels"] == 2:
+if params["device"] == "gage":
+    spectrum0 = LaserLinewidth(
+        error_signals = Vt,
+        time_resolution = 1 / sample_rate,
+        discriminator_slope = 1,  # not used
+        max_points_per_decade = 100,
+    )
     spectrum1 = LaserLinewidth(
         error_signals = Vm,
         time_resolution = 1 / sample_rate,
         discriminator_slope = 1,  # not used
         max_points_per_decade = 100,
     )
-    correlated = [get_correlated_signal(Vt[kk], Vm[kk]) for kk in range(len(Vt))]
-    spectrum_correlation = LaserLinewidth(
-        error_signals = correlated,
-        time_resolution = 1 / sample_rate,
-        discriminator_slope = 1,  # not used
-        max_points_per_decade = 100,
-    )
-    spectrum_correlation1 = LaserLinewidth(
+    spectrum_cc = LaserLinewidth(
         error_signals = Vt,
         time_resolution = 1 / sample_rate,
         discriminator_slope = 1,  # not used
         max_points_per_decade = 100,
         correlation_error_signals = Vm,
     )
+    Vtavg = np.mean(Vt)
+    Vmavg = np.mean(Vm)
+    print(Vtavg, Vmavg)
+elif params["device"] == "quarto":
+    spectrum0 = LaserLinewidth(
+        error_signals = Vt,
+        time_resolution = 1 / sample_rate,
+        discriminator_slope = 1,  # not used
+        max_points_per_decade = 100,
+    )
+    Vtavg = np.mean(Vt)
+    print(Vtavg)
+elif params["device"] == "DM3068":
+    spectrum0 = LaserLinewidth(
+        error_signals = Vt,
+        time_resolution = 1 / sample_rate,
+        discriminator_slope = 1, # not used
+        max_points_per_decade = 100,
 
-##
-def get_correlated_signal(V1: np.ndarray, V2: np.ndarray) -> np.ndarray:
-    V1_f = np.fft.fft(V1)
-    V2_f = np.fft.fft(V2)
-    return np.abs(np.fft.ifft(np.sqrt(np.conjugate(V1_f) * V2_f)))
-
+    )
 ## Plot Spectrum
-#plt.ylabel(r"Avg voltage spectrum - baseline $\mathrm{V}/\sqrt{\mathrm{Hz}}$")
-plt.ylabel("Avg voltage spectrum $\\mathrm{V}/\\sqrt{\\mathrm{Hz}}$")
+plt.ylabel("Avg fractional noise spectrum $\\sqrt{\\mathrm{Hz}}^{-1}$")
 plt.xlabel("Frequency (Hz)")
-plt.loglog(spectrum0.f, np.sqrt(spectrum0.W_V), label="channel 1", alpha=0.6)
-if params["channels"] == 2:
-    plt.loglog(spectrum1.f, np.sqrt(spectrum1.W_V), label="channel 2", alpha=0.6)
-    plt.loglog(spectrum_correlation.f, np.sqrt(np.abs(spectrum_correlation.W_V)), label="correlation", alpha=0.6)
-    plt.loglog(spectrum_correlation1.f, np.sqrt(np.abs(spectrum_correlation1.W_V)), label="correlation_no_magnitude", alpha=0.6)
-    plt.legend()
-#plt.legend()
+if params["device"] == "gage":
+    plt.loglog(spectrum0.f, np.sqrt(spectrum0.W_V) / Vtavg, label="channel 1", alpha=0.6)
+    plt.loglog(spectrum1.f, np.sqrt(spectrum1.W_V) / Vmavg, label="channel 2", alpha=0.6)
+    plt.loglog(spectrum_cc.f, np.sqrt(np.abs(spectrum_cc.W_V)) / np.sqrt(Vtavg * Vmarg), label="cross correlation", alpha=0.6)
+elif params["device"] == "quarto":
+    plt.loglog(spectrum0.f, np.sqrt(spectrum0.W_V) / np.abs(Vtavg), label="channel 1", alpha=0.6)
+plt.legend()
 plt.show()
 
 
 ## Save Data
+if params["device"] == "gage":
+    data = {
+        "f": spectrum0.f,
+        "W_V1": spectrum0.W_V,
+        "V1_avg": Vtavg,
+        "W_V2": spectrum1.W_V,
+        "V2_avg": Vmavg,
+        "W_Vcc": np.abs(spectrum_cc.W_V),
+        "Vcc_avg": np.sqrt(Vtavg * Vmavg),
+    }
+elif params["device"] == "quarto":
+    data = {
+        "f": spectrum0.f,
+        "W_V1": spectrum0.W_V,
+        "V1_avg": Vtavg,
+    }
 
-data = {
-    "f": spectrum0.f,
-    "W_V1": spectrum0.W_V,
-    "V1_avg": Vtavg,
-}
-if params["channels"] == 2:
-    data["V2_avg"] = Vmavg
-    data["W_V2"] = spectrum1.W_V
-    data["W_V_correlation"] = spectrum_correlation.W_V
-    data["W_V_correlation_no_magnitude"] = spectrum_correlation1.W_V
-
+p_gain = q.get_p_gain()
+i_time = q.get_i_time()
+d_time = q.get_d_time()
+pid_state = q.get_pid_state()
 headers = {
     "params": params,
+    "pid_state": q.pid_state,
+    "p_gain": q.p_gain,
+    "i_time": q.i_time,
+    "d_time": q.d_time,
 }
 name = "PD Noise Spectra"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)
-del spectrum0
-del Vt
-del Vtavg
-if params["channels"] == 2:
-    del correlated
-    del spectrum1
-    del spectrum_correlation
+if params["device"] == "gage":
+    del Vt
     del Vm
+    del Vtavg
     del Vmavg
+    del spectrum0
+    del spectrum1
+    del spectrum_cc
+elif params["device"] == "quarto":
+    del Vt
+    del Vtavg
+    del spectrum0
 
 ##

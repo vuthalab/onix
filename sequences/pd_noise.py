@@ -5,7 +5,8 @@ from onix.sequences.sequence import (
     Segment,
     SegmentEmpty,
     AWGSinePulse,
-    TTLPulses
+    TTLPulses,
+    TTLOn,
 )
 
 from onix.units import Q_, ureg
@@ -16,13 +17,16 @@ class pdNoiseMeasurement(Sequence):
         self,
         ao_parameters: Dict,
         detect_parameters: Dict,
-        digitizer_channel: int,):
+        digitizer_channel: int,
+        pid_trigger_channel: int,
+    ):
 
         super().__init__()
 
         self._ao_parameters = ao_parameters
         self._detect_parameters = detect_parameters
         self._digitizer_channel = digitizer_channel
+        self._pid_trigger_channel = pid_trigger_channel
         self._add_measurement()
 
     def _add_measurement(self):
@@ -37,6 +41,9 @@ class pdNoiseMeasurement(Sequence):
             TTL = TTLPulses([[1e-3, 2e-3]])
             segment.add_ttl_function(self._digitizer_channel, TTL)
 
+            TTL = TTLOn()
+            segment.add_ttl_function(self._pid_trigger_channel, TTL)
+
             self.add_segment(segment)
 
         if duration > 200 * 1e-3:
@@ -48,6 +55,9 @@ class pdNoiseMeasurement(Sequence):
 
             TTL = TTLPulses([[1e-3, 2e-3]])
             segment.add_ttl_function(self._digitizer_channel, TTL)
+
+            TTL = TTLOn()
+            segment.add_ttl_function(self._pid_trigger_channel, TTL)
 
             self.add_segment(segment)
 
