@@ -18,7 +18,7 @@ const uint8_t CONTROL_OUTPUT = 1;
 // Longer interval slow down the PID loop.
 uint16_t adc_interval = 2; 
 const uint16_t ADC_DELAY = 0;
-const adc_scale_t ADC_SCALE = BIPOLAR_5V;
+const adc_scale_t ADC_SCALE = BIPOLAR_10V;
 
 float p_gain = -0.3;
 float i_time = 0.25;  // us
@@ -348,10 +348,10 @@ void cmd_limit_warnings(qCommand& qC, Stream& S) {
   S.println(indicator);
 }
 
-void v_ref(qCommand& qC, Stream& S) {
+void cmd_v_ref(qCommand& qC, Stream& S) {
   if ( qC.next() != NULL) {
     V_reference = atof(qC.current());
-    use_voltage_reference = (V_reference > 0.0)
+    use_voltage_reference = (V_reference > 0.0);
   }
   S.printf("voltage reference is %f\n", V_reference);
 }
