@@ -135,7 +135,6 @@ class Quarto:
         self.pid_state = val
         return val
     
-    
     def output_limit_indicator(self):
         """
         Prints warnings of if integrator and output are near their limits (within 10%) or outside of their limits.
@@ -156,9 +155,6 @@ class Quarto:
         else:
             print("Output good")
         
-        #return val
-
-    
     def get_error_data(self, val = None):
         """
         Returns list of error data
@@ -205,8 +201,8 @@ class Quarto:
         """
         Plots one trace of error data
         """
-        a = self.get_error_data()
-        ts = np.arange(0,len(a))
+        data = self.get_error_data()
+        ts = np.arange(0,len(data))
         ts = ts*self.sample_time
 
         plt.plot(ts, a)
@@ -218,8 +214,8 @@ class Quarto:
         """
         Plots one trace of output data
         """
-        a = self.get_output_data()
-        ts = np.arange(0,len(a))
+        data = self.get_output_data()
+        ts = np.arange(0,len(data))
         ts = ts*self.sample_time
 
         plt.plot(ts, a)
@@ -229,27 +225,25 @@ class Quarto:
 
     def _calculate_spectrum(self, repeats = 10):
         """
-        Calculates the voltage and power spectrums, both un-normalized and relative.
+        Calculates the voltage and power spectrums, both the un-normalized and relative.
         """
-        self.repeats = repeats 
-        voltages = []
-        for i in range(self.repeats):
-            voltages.append(self.get_error_data())
+        noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time)
+        for i in range(repeats):
+            noise.add_data(self.get_error_data())
             time.sleep(0.2)
-            
-        noise = PowerSpectrum(voltages, self.sample_time)
+
         self.f = noise.f
-        self.voltage_noise = noise.voltage_spectrum
-        self.relative_voltage_noise = noise.relative_voltage_spectrum
-        self.power_noise = noise.power_spectrum
-        self.relative_power_noise = noise.relative_power_spectrum
+        self.voltage_spectrum = noise.voltage_spectrum
+        self.relative_voltage_spectrum = noise.relative_voltage_spectrum
+        self.power_spectrum = noise.power_spectrum
+        self.relative_power_spectrum = noise.relative_power_spectrum
 
     def plot_voltage_noise(self, repeats = 10):
         """
         Plot voltage noise spectrum using repeats number of averages
         """
         self._calculate_spectrum(repeats)
-        plt.plot(self.f, self.voltage_noise)
+        plt.plot(self.f, self.voltage_spectrum)
         plt.xscale("log")
         plt.yscale("log")
         plt.xlabel("Frequency (Hz)")
@@ -262,7 +256,7 @@ class Quarto:
         Plot relative voltage noise spectrum using repeats number of averages
         """
         self._calculate_spectrum(repeats)
-        plt.plot(self.f, self.relative_voltage_noise)
+        plt.plot(self.f, self.relative_voltage_spectrum)
         plt.xscale("log")
         plt.yscale("log")
         plt.xlabel("Frequency (Hz)")
@@ -275,7 +269,7 @@ class Quarto:
         Plot power noise spectrum using repeats number of averages
         """
         self._calculate_spectrum(repeats)
-        plt.plot(self.f, self.power_noise)
+        plt.plot(self.f, self.power_spectrum)
         plt.xscale("log")
         plt.yscale("log")
         plt.xlabel("Frequency (Hz)")
@@ -288,24 +282,13 @@ class Quarto:
         Plot relative power noise spectrum using repeats number of averages
         """
         self._calculate_spectrum(repeats)
-        plt.plot(self.f, self.relative_power_noise)
+        plt.plot(self.f, self.relative_power_spectrum)
         plt.xscale("log")
         plt.yscale("log")
         plt.xlabel("Frequency (Hz)")
         plt.ylabel("Relative power noise density $\\mathrm{Hz}^{-1}$")
         plt.tight_layout()
         plt.show()
-        
-    def _animate_error(self, frame):
-        """
-        Updates frames when animating error data
-        """
-        self.get_error_data()
-        t = np.linspace(0,len(self.error_data), len(self.error_data))
-        t = t * self.sample_time
-        self.line.set_data(t, self.error_data)
-        self.axe.set_ylim(min(self.error_data-0.001),max(self.error_data)+0.001)
-        return self.error_data
 
     def animated_error_data(self): # would be better to have these update, not refresh
         """
@@ -322,20 +305,19 @@ class Quarto:
         plt.xlabel("time [s]")
         plt.ylabel("error voltage [V]")
 
-        ani = animation.FuncAnimation(fig=fig, func=self._animate_error, frames = 10, interval=10, blit=False)
+        ani = animation.FuncAnimation(fig=fig, func=self._worker_animate_error, frames = 10, interval=10, blit=False)
         plt.show()
 
-
-    def _animate_output(self, frame):
+    def _worker_animate_error(self, frame):
         """
-        Updates frames when animating output data
+        Updates frames when animating error data
         """
-        self.get_output_data()
-        t = np.linspace(0,len(self.output_data), len(self.output_data))
-        t = t*self.sample_time
-        self.line.set_data(t, self.output_data)
-        self.axe.set_ylim(min(self.output_data)-0.001,max(self.output_data)+0.001) 
-        return self.output_data
+        self.get_error_data()
+        t = np.linspace(0,len(self.error_data), len(self.error_data))
+        t = t * self.sample_time
+        self.line.set_data(t, self.error_data)
+        self.axe.set_ylim(min(self.error_data-0.001),max(self.error_data)+0.001)
+        return self.error_data
 
     def animated_output_data(self): # would be better to have these update, not refresh
         """
@@ -354,9 +336,20 @@ class Quarto:
         plt.xlabel("time [s]")
         plt.ylabel("output voltage [V]")
 
-        ani = animation.FuncAnimation(fig=fig, func=self._animate_output, frames = 10, interval=10, blit=False)
+        ani = animation.FuncAnimation(fig=fig, func=self._worker_animate_output, interval = 10, blit=False)
 
         plt.show()
+
+    def _worker_animate_output(self, frame):
+        """
+        Updates frames when animating output data
+        """
+        self.get_output_data()
+        t = np.linspace(0,len(self.output_data), len(self.output_data))
+        t = t*self.sample_time
+        self.line.set_data(t, self.output_data)
+        self.axe.set_ylim(min(self.output_data)-0.001,max(self.output_data)+0.001) 
+        return self.output_data
 
     def animate_relative_voltage_spectrum(self, averages=10):
         fig, ax = plt.subplots()
@@ -366,117 +359,24 @@ class Quarto:
         ax.set_yscale("log")
         noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time)
         line, = ax.plot([], [])
-        worker = partial(
-            self._worker_animate_relative_voltage_spectrum,
-            ax,
-            line,
-            noise,
-            averages,
-        )
+
+        def worker(frame):
+            print(frame)  # frame 0 is run twice. TODO: it should only run one time.
+            data = self.get_error_data()
+            if frame < averages:
+                noise.add_data(data)
+            else:
+                noise.update_data(data)
+            line.set_data(noise.f, noise.relative_voltage_spectrum)
+            ax.set_ylim(min(noise.relative_voltage_spectrum), max(noise.relative_voltage_spectrum))
+            ax.set_xlim(min(noise.f), max(noise.f))
+
         ani = animation.FuncAnimation(
             fig=fig,
             func=worker,
+            init_func = lambda: None # TODO: this should be the only change needed to stop frame 0 from going twice
         )
         plt.show()
 
-    def _worker_animate_relative_voltage_spectrum(self, ax, line, noise: PowerSpectrum, averages, frame):
-        print(frame)  # frame 0 is run twice. TODO: it should only run one time.
-        data = self.get_error_data()
-        if frame < averages:
-            noise.add_data(data)
-        else:
-            noise.update_data(data)
-        line.set_data(noise.f, noise.relative_voltage_spectrum)
-        ax.set_ylim(min(noise.relative_voltage_spectrum), max(noise.relative_voltage_spectrum))
-        ax.set_xlim(min(noise.f), max(noise.f))
-
-
-    def animated_relative_voltage_spectrum(self, repeats = 10):
-        """
-        Plots a rolling average of the relative voltage spectrum
-        """
-        self._animated_fft_first_n(repeats)
-        ani = animation.FuncAnimation(fig=self.fig, func=self._animate_relative_voltage_spectrum, cache_frame_data = False)
-        plt.show()
-        
-    def _animated_fft_first_n(self, repeats = 10):
-        """
-        Plots the spectrum when we have less data than averages we wish to take
-        """
-        self.fig = plt.figure()
-
-        self.repeats = repeats 
-        self.voltages = []
-        self.voltages.append(self.get_error_data())
-        time.sleep(0.2)
-
-        self.noise = PowerSpectrum(self.voltages, self.sample_time)
-        self.f = self.noise.f
-        self.relative_voltage_noise = self.noise.relative_voltage_spectrum
-
-        self.axe = plt.axes()
-
-        self.line, = self.axe.plot(self.f, self.relative_voltage_noise)
-        plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Relative voltage noise density $\\sqrt{\\mathrm{Hz}}^{-1}$")
-        plt.xscale("log")
-        plt.yscale("log")
-
-        ani = animation.FuncAnimation(fig=self.fig, func=self._animate_fft_first_n, frames = self.repeats - 1, repeat = False)
-        plt.show()
-    
-    def _animate_fft_first_n(self, frame):
-        """
-        Updates frames when we have less data than averages we wish to take
-        """
-        new_trace = self.get_error_data()
-        time.sleep(0.2)
-        self.noise.add_data(new_trace)
-        self.f = self.noise.f
-        self.relative_voltage_noise = self.noise.relative_voltage_spectrum
-        self.line.set_data(self.f, self.relative_voltage_noise)
-        self.axe.set_ylim(min(self.relative_voltage_noise),max(self.relative_voltage_noise))
-        self.axe.set_xscale("log")
-        self.axe.set_yscale("log")
-
-        return self.relative_voltage_noise
-        
-    def _animate_relative_voltage_spectrum(self, frame):
-        new_trace = self.get_error_data()
-        time.sleep(0.2)
-        self.noise.update_data(new_trace)
-        self.f = self.noise.f
-        self.relative_voltage_noise = self.noise.relative_voltage_spectrum
-        self.line.set_data(self.f, self.relative_voltage_noise)
-        self.axe.set_ylim(min(self.relative_voltage_noise),max(self.relative_voltage_noise))
-        self.axe.set_xscale("log")
-        self.axe.set_yscale("log")
-
-        return self.relative_voltage_noise
-    
-    # def animated_fft_delay(self, repeats = 10):
-    #     fig = plt.figure()
-
-    #     self.repeats = repeats 
-    #     self.voltages = []
-    #     for i in range(self.repeats):
-    #         self.voltages.append(self.get_error_data())
-    #         time.sleep(0.2)
-
-    #     self.noise = PowerSpectrum(self.voltages, self.sample_time)
-    #     self.f = self.noise.f
-    #     self.fractional_noise = self.noise.relative_power_spectrum
-
-    #     self.axe = plt.axes()
-
-    #     self.line, = self.axe.plot(self.f, self.fractional_noise)
-    #     plt.xlabel("Frequency (Hz)")
-    #     plt.ylabel("Fractional voltage noise density $\\sqrt{\\mathrm{Hz}}^{-1}$")
-    #     plt.xscale("log")
-    #     plt.yscale("log")
-
-    #     ani = animation.FuncAnimation(fig=fig, func=self._animate_fft, cache_frame_data = False)
-    #     plt.show()
-    
     def close(self):
         self.device.close()

@@ -4,12 +4,17 @@ class PowerSpectrum:
     """
     Calculates the power spectrum of the laser.
     Args:
-        error_signals: 2D list or np.array of floats. Multiple traces of laser error signals.
+        num_of_samples: int, number of samples per trace
         time_resolution: float, error signal time resolution in s.
 
     Properties:
         f: np.array, frequency axis for Fourier-transformed data.
-        W_V: np.array, voltage noise power spectrum.
+        num_of_averages: int, number of traces calculated
+        error_signal_average: float, average of all voltages across all traces
+        voltage_spectrum: ndarray, voltage noise spectrum
+        relative_voltage_spectrum: ndarray, voltage noise spectrum divided by average voltage
+        power_spectrum: ndarray, power noise spectrum
+        relative_power_spectrum: ndarray, power noise spectrum divided by average voltage squared
     """
     def __init__(self, num_of_samples: int, time_resolution: float):
         self._num_of_samples = num_of_samples
