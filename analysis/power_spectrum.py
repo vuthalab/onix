@@ -53,8 +53,7 @@ class PowerSpectrum:
         V_T = voltage_trace / np.sqrt(self._duration)
         V_f = np.fft.fft(V_T) * self._time_resolution
         W_V_calculated = np.abs(V_f) ** 2
-        W_V = np.zeros(len(self.frequencies))
-        W_V += 2 * W_V_calculated[self.fft_mask] 
+        W_V = 2 * W_V_calculated[self.fft_mask] 
         return W_V 
 
     @property
@@ -129,8 +128,7 @@ class CCedPowerSpectrum:
         V_f_1 = np.fft.fft(V_T_1) * self._time_resolution
         V_f_2 = np.fft.fft(V_T_2) * self._time_resolution
         W_V_calculated = np.conjugate(V_f_1) * V_f_2
-        W_V = np.zeros(len(self.frequencies), dtype=complex)
-        W_V += 2 * W_V_calculated[self.fft_mask] 
+        W_V = 2 * W_V_calculated[self.fft_mask] 
         return W_V 
 
     @property
