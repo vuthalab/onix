@@ -139,11 +139,15 @@ class CCedPowerSpectrum:
 
     @property
     def num_of_averages(self):
-        return len(self._error_signal_avgs)
+        return len(self._error_signal_1_avgs)
 
     @property
-    def error_signal_average(self):
-        return np.average(self._error_signal_avgs)
+    def error_signal_1_average(self):
+        return np.average(self._error_signal_1_avgs)
+    
+    @property
+    def error_signal_2_average(self):
+        return np.average(self._error_signal_2_avgs)
 
     @property
     def voltage_spectrum(self):
@@ -151,7 +155,7 @@ class CCedPowerSpectrum:
     
     @property
     def relative_voltage_spectrum(self):
-        return self.voltage_spectrum / np.abs(self.error_signal_average)
+        return self.voltage_spectrum / np.sqrt(self.error_signal_1_average * self.error_signal_2_average)
     
     @property
     def power_spectrum(self):
@@ -159,5 +163,5 @@ class CCedPowerSpectrum:
     
     @property
     def relative_power_spectrum(self):
-        return self.power_spectrum / self.error_signal_average ** 2
+        return self.power_spectrum / (self.error_signal_1_average * self.error_signal_2_average)
 

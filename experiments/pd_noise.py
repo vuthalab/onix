@@ -148,8 +148,9 @@ print("data collection ended.")
 if params["device"] == "gage":
     N_Vt = len(Vt)
     time_resolution = 1 / sample_rate
-    spectrum0 = spectrum1 = PowerSpectrum(N_Vt, time_resolution)
+    spectrum0 = PowerSpectrum(N_Vt, time_resolution)
     spectrum0.add_data(Vt)
+    spectrum1 = PowerSpectrum(N_Vt, time_resolution)
     spectrum1.add_data(Vm)
 
     spectrum_cc = CCedPowerSpectrum(N_Vt, time_resolution)
