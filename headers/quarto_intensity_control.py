@@ -1,7 +1,5 @@
-from functools import partial
 import serial
 import time
-import re
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
@@ -20,6 +18,7 @@ class Quarto:
         sample_time_us = float(self._get_param("adc_interval")) 
         self.sample_time = sample_time_us * 1e-6
         self.sample_rate = 1/self.sample_time
+        self.backgrounds = {}
         
     def _get_param(self, param):
         self.device.reset_input_buffer()
@@ -137,7 +136,7 @@ class Quarto:
     
     def output_limit_indicator(self):
         """
-        Prints warnings of if integrator and output are near their limits (within 10%) or outside of their limits.
+        Prints warnings if integrator and output are near (within 10% of) their limits or outside of their limits.
         """
         val = int(self._get_param("limit_warnings"))
     
@@ -205,7 +204,7 @@ class Quarto:
         ts = np.arange(0,len(data))
         ts = ts*self.sample_time
 
-        plt.plot(ts, a)
+        plt.plot(ts, data)
         plt.xlabel("time [s]")
         plt.ylabel("error voltage [V]")
         plt.show()
@@ -218,17 +217,19 @@ class Quarto:
         ts = np.arange(0,len(data))
         ts = ts*self.sample_time
 
-        plt.plot(ts, a)
+        plt.plot(ts, data)
         plt.xlabel("time [s]")
         plt.ylabel("output voltage [V]")
         plt.show()
 
-    def _calculate_spectrum(self, repeats = 10):
+    # TODO: check if there is a cleaner way that doesn't require this function
+    def _calculate_spectrum(self, averages = 10):
         """
-        Calculates the voltage and power spectrums, both the un-normalized and relative.
+        averages: int
+        Calculates the averaged voltage and power spectrums, both the absolute and relative.
         """
         noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time)
-        for i in range(repeats):
+        for i in range(averages):
             noise.add_data(self.get_error_data())
             time.sleep(0.2)
 
@@ -238,146 +239,223 @@ class Quarto:
         self.power_spectrum = noise.power_spectrum
         self.relative_power_spectrum = noise.relative_power_spectrum
 
-    def plot_voltage_noise(self, repeats = 10):
+    def _spectrum_plot_details(self, ax, spectrum_type, background_subtraction = False):
         """
-        Plot voltage noise spectrum using repeats number of averages
+        Puts axes in log scales, labels axes appropriately depending on spectrum type.
+
+        spectrum_type: string, the type of sepectrum to plot
+            - "voltage spectrum"
+            - "relative voltage spectrum"
+            - "power spectrum"
+            - "relative power spectrum"
+        
+        background_subtraction: bool, if true it adds "Background subtracted" to the y axis label
         """
-        self._calculate_spectrum(repeats)
-        plt.plot(self.f, self.voltage_spectrum)
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Voltage noise density (V/$\\sqrt{\\mathrm{Hz}}$)")
-        plt.tight_layout()
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel("Frequency (Hz)")
+        if spectrum_type == "voltage spectrum":
+            ylabel = "Voltage noise density (V/$\\sqrt{\\mathrm{Hz}}$)"
+        elif spectrum_type == "relative voltage spectrum":
+            ylabel = "Relative voltage noise density $\\sqrt{\\mathrm{Hz}}^{-1}$"
+        elif spectrum_type == "power spectrum":
+            ylabel = "Power noise density ($V^2/ \\mathrm{Hz}$)"
+        elif spectrum_type == "relative power spectrum":
+            ylabel = "Relative power noise density $\\mathrm{Hz}^{-1}$"
+        else:
+            raise ValueError("spectrum_type is not one of the supported four types")
+        
+        if background_subtraction == True:
+            ylabel = "Background subtracted " + ylabel
+        
+        ax.set_ylabel(ylabel)
+
+    def plot_voltage_noise(self, averages = 10):
+        """
+        Plot voltage noise spectrum using averages.
+        """
+        self._calculate_spectrum(averages)
+        fig, ax = plt.subplots()
+        ax.plot(self.f, self.voltage_spectrum)
+        self._spectrum_plot_details(ax, "voltage spectrum")
         plt.show()
 
-    def plot_relative_voltage_noise(self, repeats = 10):
+    def plot_relative_voltage_noise(self, averages = 10):
         """
-        Plot relative voltage noise spectrum using repeats number of averages
+        Plot relative voltage noise spectrum using averages.
         """
-        self._calculate_spectrum(repeats)
-        plt.plot(self.f, self.relative_voltage_spectrum)
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Relative voltage noise density $\\sqrt{\\mathrm{Hz}}^{-1}$")
-        plt.tight_layout()
+        self._calculate_spectrum(averages)
+        fig, ax = plt.subplots()
+        ax.plot(self.f, self.relative_voltage_spectrum)
+        self._spectrum_plot_details(ax, "relative voltage spectrum")
         plt.show()
 
-    def plot_power_noise(self, repeats = 10):
+    def plot_power_noise(self, averages = 10):
         """
-        Plot power noise spectrum using repeats number of averages
+        Plot power noise spectrum using averages
         """
-        self._calculate_spectrum(repeats)
-        plt.plot(self.f, self.power_spectrum)
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Power noise density ($V^2/ \\mathrm{Hz}$)")
-        plt.tight_layout()
+        self._calculate_spectrum(averages)
+        fig, ax = plt.subplots()
+        ax.plot(self.f, self.power_spectrum)
+        self._spectrum_plot_details(ax, "power spectrum")
         plt.show()
 
-    def plot_relative_power_noise(self, repeats = 10):
+    def plot_relative_power_noise(self, averages = 10):
         """
-        Plot relative power noise spectrum using repeats number of averages
+        Plot relative power noise spectrum using averages.
         """
-        self._calculate_spectrum(repeats)
-        plt.plot(self.f, self.relative_power_spectrum)
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Relative power noise density $\\mathrm{Hz}^{-1}$")
-        plt.tight_layout()
+        self._calculate_spectrum(averages)
+        fig, ax = plt.subplots()
+        ax.plot(self.f, self.relative_power_spectrum)
+        self._spectrum_plot_details(ax, "relative power spectrum")
         plt.show()
 
     def animated_error_data(self): # would be better to have these update, not refresh
         """
         Creates refreshing plot of error data
         """
-        fig = plt.figure()
+        fig, ax = plt.subplots()
+        line, = ax.plot([], [])
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel("Error Voltage [V]")
+        t = np.linspace(0, DEFAULT_GET_DATA_LENGTH, DEFAULT_GET_DATA_LENGTH)
 
-        self.get_error_data()
-        t = np.linspace(0,len(self.error_data), len(self.error_data))
-        t = t * self.sample_time
+        def worker(frame):
+            """
+            Updates frames when animating error data
+            """
+            data = self.get_error_data()
+            self.line.set_data(t, data)
+            self.axe.set_ylim(min(data)-0.001,max(data)+0.001) 
 
-        self.axe = plt.axes()
-        self.line, = self.axe.plot(t, self.error_data)
-        plt.xlabel("time [s]")
-        plt.ylabel("error voltage [V]")
-
-        ani = animation.FuncAnimation(fig=fig, func=self._worker_animate_error, frames = 10, interval=10, cache_frame_data = False, blit=False)
+        ani = animation.FuncAnimation(
+            fig=fig,
+            func=worker,
+            init_func = lambda: None,
+            interval = 10,
+            cache_frame_data = False,
+            blit=False
+        )
         plt.show()
-
-    def _worker_animate_error(self, frame):
-        """
-        Updates frames when animating error data
-        """
-        self.get_error_data()
-        t = np.linspace(0,len(self.error_data), len(self.error_data))
-        t = t * self.sample_time
-        self.line.set_data(t, self.error_data)
-        self.axe.set_ylim(min(self.error_data-0.001),max(self.error_data)+0.001)
-        return self.error_data
 
     def animated_output_data(self): # would be better to have these update, not refresh
         """
         Creates refreshing plot of output data
         """
-        fig = plt.figure()
+        fig, ax = plt.subplots()
+        line, = ax.plot([], [])
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel("Output Voltage [V]")
+        t = np.linspace(0, DEFAULT_GET_DATA_LENGTH, DEFAULT_GET_DATA_LENGTH)
 
-        self.get_output_data()
-        t = np.linspace(0,len(self.output_data), len(self.output_data))
-        t = t*self.sample_time
+        def worker(frame):
+            """
+            Updates frames when animating output data
+            """
+            data = self.get_output_data()
+            self.line.set_data(t, data)
+            self.axe.set_ylim(min(data)-0.001,max(data)+0.001) 
 
-        self.axe = plt.axes()
-        self.axe.set_ylim(min(self.output_data)-0.01,max(self.output_data)+0.01)
-
-        self.line, = self.axe.plot(t, self.output_data)
-        plt.xlabel("time [s]")
-        plt.ylabel("output voltage [V]")
-
-        ani = animation.FuncAnimation(fig=fig, func=self._worker_animate_output, interval = 10, cache_frame_data = False, blit=False)
-
+        ani = animation.FuncAnimation(
+            fig=fig,
+            func=worker,
+            init_func = lambda: None,
+            interval = 10,
+            cache_frame_data = False,
+            blit=False
+        )
         plt.show()
 
-    def _worker_animate_output(self, frame):
-        """
-        Updates frames when animating output data
-        """
-        self.get_output_data()
-        t = np.linspace(0,len(self.output_data), len(self.output_data))
-        t = t*self.sample_time
-        self.line.set_data(t, self.output_data)
-        self.axe.set_ylim(min(self.output_data)-0.001,max(self.output_data)+0.001) 
-        return self.output_data
-
-    def animate_relative_voltage_spectrum(self, averages=10):
+    def _aniamted_spectrum(self, spectrum_type, averages, background_subtraction = False, background = None):
         fig, ax = plt.subplots()
-        ax.set_xlabel("Frequency (Hz)")
-        ax.set_ylabel("Relative voltage noise density $\\sqrt{\\mathrm{Hz}}^{-1}$")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
+        self._spectrum_plot_details(ax, spectrum_type, background_subtraction)
         noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time)
         line, = ax.plot([], [])
 
         def worker(frame):
-            print(frame)  # frame 0 is run twice. TODO: it should only run one time.
             data = self.get_error_data()
             if frame < averages:
                 noise.add_data(data)
             else:
                 noise.update_data(data)
-            line.set_data(noise.f, noise.relative_voltage_spectrum)
-            ax.set_ylim(min(noise.relative_voltage_spectrum), max(noise.relative_voltage_spectrum))
+
+            # TODO: will this be too inefficient for animating a spectrum? Probably, as in every frame you go through the same unnecesary if statements
+            if background_subtraction == False:
+                if spectrum_type == "voltage spectrum":
+                    line.set_data(noise.f, noise.voltage_spectrum)
+                    ax.set_ylim(min(noise.voltage_spectrum), max(noise.voltage_spectrum))
+                elif spectrum_type == "relative voltage spectrum":
+                    line.set_data(noise.f, noise.relative_voltage_spectrum)
+                    ax.set_ylim(min(noise.relative_voltage_spectrum), max(noise.relative_voltage_spectrum))
+                elif spectrum_type == "power spectrum":
+                    line.set_data(noise.f, noise.power_spectrum)
+                    ax.set_ylim(min(noise.power_spectrum), max(noise.power_spectrum))
+                elif spectrum_type == "relative power spectrum":
+                    line.set_data(noise.f, noise.relative_power_spectrum)
+                    ax.set_ylim(min(noise.relative_power_spectrum), max(noise.relative_power_spectrum))
+            elif background_subtraction == True:
+                    background_subtracted_spectrum = [noise.power_spectrum[i] - self.backgrounds[background][i] for i in len(self.power_spectrum)]
+                    line.set_data(noise.f, background_subtracted_spectrum)
+                    ax.set_ylim(min(background_subtracted_spectrum), max(background_subtracted_spectrum))
+
             ax.set_xlim(min(noise.f), max(noise.f))
 
         ani = animation.FuncAnimation(
             fig=fig,
             func=worker,
             init_func = lambda: None,
+            interval = 10, # TODO: interval is time between frames in ms. Find the appropriate value
             cache_frame_data = False,
+            blit=False # TODO: blitting should make the animation faster. Verify this is true
         )
         plt.show()
+
+    def animate_voltage_spectrum(self, averages=10):
+        self._aniamted_spectrum("voltage spectrum", averages)
+        
+    def animate_relative_voltage_spectrum(self, averages=10):
+        self._aniamted_spectrum("relative voltage spectrum", averages)
+
+    def animate_power_spectrum(self, averages=10):
+        self._aniamted_spectrum("power spectrum", averages)
+        
+    def animate_relative_power_spectrum(self, averages=10):
+        self._aniamted_spectrum("relative power spectrum", averages)
+
+    def new_background(self, name, averages = 10):
+        """
+        name: string
+        averages: int
+        Saves a new background power spectrum in the dictionary self.backgrounds under the specifed name
+        """
+        noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time)
+        for i in range(averages):
+            noise.add_data(self.get_error_data())
+
+        self.backgrounds[name] = noise.power_spectrum
+    
+    def remove_background(self, name):
+        """
+        name: string
+        Remove a background that you no longer need
+        """
+        del self.backgrounds[name]
+
+    def plot_background_subtracted_spectrum(self, background, averages = 10):
+        """
+        background: str, which background spectrum you want to subtract
+        averages: int,
+        Take a power spectrum with averages, and remove the specified background
+        """
+        self._calculate_spectrum(averages)
+        fig, ax = plt.subplots()
+        background_subtracted_spectrum = [self.power_spectrum[i] - self.backgrounds[background][i] for i in len(self.power_spectrum)]
+        ax.plot(self.f, background_subtracted_spectrum)
+        self._spectrum_plot_details(ax, "power spectrum", background_subtraction = True)
+        plt.show()
+
+    def animate_background_subtracted_spectrum(self, background, averages = 10):
+        self._aniamted_spectrum("power spectrum", averages, background_subtraction = True, background = background)
 
     def close(self):
         self.device.close()
