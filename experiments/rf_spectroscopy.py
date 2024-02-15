@@ -75,10 +75,10 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude": 2000,  # 4200
-        "offset": -46 * ureg.kHz,
+        "amplitude": 4000,  # 4200
+        "offset": -210 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "duration": 0.07 * ureg.ms,
+        "duration": 0.5 * ureg.ms,
     },
 }
 
@@ -138,68 +138,57 @@ start_time = time.time()
 
 ## scan freq
 
+# params = default_params.copy()
+# first_data_id = None
+#
+# params["rf"]["amplitude"] = 2000
+# params["rf"]["duration"] = 0.07 * ureg.ms
+#
+# rf_frequencies = np.arange(-140, 190, 10)
+# rf_frequencies *= ureg.kHz
+# for kk in range(len(rf_frequencies)):
+#     params["rf"]["offset"] = rf_frequencies[kk]
+#     data_id = run_experiment(params)
+#     print(data_id)
+#     if first_data_id == None:
+#         first_data_id = data_id
+#
+#
+# params["rf"]["amplitude"] = 4200
+# params["rf"]["duration"] = 0.15 * ureg.ms
+#
+# rf_frequencies = np.append(np.arange(-300, -140, 10), np.arange(190, 350, 10))
+# rf_frequencies *= ureg.kHz
+# for kk in range(len(rf_frequencies)):
+#     params["rf"]["offset"] = rf_frequencies[kk]
+#     data_id = run_experiment(params)
+#     print(data_id)
+#
+#
+# params = default_params.copy()
+# first_data_id = None
+#
+# rf_frequencies = np.arange(-300, 350, 10)
+# rf_frequencies *= ureg.kHz
+# for kk in range(len(rf_frequencies)):
+#     params["rf"]["offset"] = rf_frequencies[kk]
+#     data_id = run_experiment(params)
+#     print(data_id)
+#     if first_data_id == None:
+#         first_data_id = data_id
+
+## scan time
+rf_times = np.linspace(0.01, 1, 10) * ureg.ms
 params = default_params.copy()
 first_data_id = None
 
-params["rf"]["amplitude"] = 2000
-params["rf"]["duration"] = 0.07 * ureg.ms
-
-rf_frequencies = np.arange(-140, 190, 10)
-rf_frequencies *= ureg.kHz
-for kk in range(len(rf_frequencies)):
-    params["rf"]["offset"] = rf_frequencies[kk]
+for kk in range(len(rf_times)):
+    params["rf"]["duration"] = rf_times[kk]
     data_id = run_experiment(params)
     print(data_id)
     if first_data_id == None:
         first_data_id = data_id
-
-
-params["rf"]["amplitude"] = 4200
-params["rf"]["duration"] = 0.15 * ureg.ms
-
-rf_frequencies = np.append(np.arange(-300, -140, 10), np.arange(190, 350, 10))
-rf_frequencies *= ureg.kHz
-for kk in range(len(rf_frequencies)):
-    params["rf"]["offset"] = rf_frequencies[kk]
-    data_id = run_experiment(params)
-    print(data_id)
-
-## scan time
-# rf_amplitudes = [500, 1000, 2000, 4200]
-# rf_max_times = np.array([4, 2, 1, 0.5])
-# rf_offsets = np.array([-46, 100, -203, 250]) * ureg.kHz
-#
-# params = default_params.copy()
-#
-# first_data_id = None
-# for jj in range(5):
-#     for kk in range(len(rf_amplitudes)):
-#         params["rf"]["amplitude"] = rf_amplitudes[kk]
-#         for ll in range(len(rf_offsets)):
-#             params["rf"]["offset"] = rf_offsets[ll]
-#             rf_max_time = rf_max_times[kk]
-#             if ll > 1:
-#                 rf_max_time *= 4
-#             for rf_time in np.flip(np.linspace(0.01, rf_max_time, 25)):
-#                 params["rf"]["duration"] = rf_time * ureg.ms
-#                 data_id = run_experiment(params)
-#                 print(data_id)
-#                 if first_data_id == None:
-#                     first_data_id = data_id
-#
-
-# rf_times = np.linspace(0.01, 1, 25) * ureg.ms
-# params = default_params.copy()
-# first_data_id = None
-#
-# for ll in range(1000):
-#     for kk in range(len(rf_times)):
-#         params["rf"]["duration"] = rf_times[kk]
-#         data_id = run_experiment(params)
-#         print(data_id)
-#         if first_data_id == None:
-#             first_data_id = data_id
-#             params["first_data_id"] = data_id
+        params["first_data_id"] = data_id
 
 ## scan antihole and time
 # rf_times = np.linspace(0.01, 0.5, 10) * ureg.ms

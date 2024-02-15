@@ -4,7 +4,7 @@ import numpy as np
 from onix.data_tools import save_experiment_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.sequences.rf_sat_abs_spectroscopy import RFSatAbsSpectroscopy
+from onix.sequences.rf_comb_detuning_spectroscopy import RFCombDetuningSpectroscopy
 from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
@@ -31,7 +31,7 @@ except Exception:
 
 ## function to run the experiment
 def run_experiment(params):
-    sequence = RFSatAbsSpectroscopy(  # Only change the part that changed
+    sequence = RFCombDetuningSpectroscopy(  # Only change the part that changed
         ao_parameters=params["ao"],
         eos_parameters=params["eos"],
         field_plate_parameters=params["field_plate"],
@@ -76,7 +76,7 @@ def run_experiment(params):
         "params": params,
         "detunings": sequence.analysis_parameters["detect_detunings"]
     }
-    name = "RF Saturation Absorption Spectroscopy"
+    name = "RF Comb Saturation Absorption Spectroscopy"
     data_id = save_experiment_data(name, data, headers)
     print(data_id)
     #print()
@@ -91,7 +91,7 @@ default_params = {
         "order": 2,
         "frequency": 75 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 600,
+        "detect_amplitude": 550,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -136,8 +136,8 @@ default_params = {
             "use_sequential": True,
             "name": "rf_coil",
             "transition": "ab",
-            "offset_start": 30 * ureg.kHz, #-110 * ureg.kHz
-            "offset_end": 170 * ureg.kHz, #20 * ureg.kHz
+            "offset_start": -110 * ureg.kHz, #30 * ureg.kHz
+            "offset_end": 20 * ureg.kHz, #170 * ureg.kHz
             "amplitude": 2000,
             "duration": 5 * ureg.ms,
         }
@@ -156,21 +156,17 @@ default_params = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "amplitude_1": 500,  # 4200
-        "amplitude_2": 500,  # 1100
-        "offset_1": -40 * ureg.kHz,
-        "offset_2": -40 * ureg.kHz,
-        "frequency_1_span": 0 * ureg.kHz,
-        "frequency_2_span": 0 * ureg.kHz,
-        "detuning_1": 0 * ureg.kHz,
-        "detuning_2": 0 * ureg.kHz,
-        "pulse_1_time": 0.4 * ureg.ms,
-        "pulse_2_time": 0.4 * ureg.ms,
-        "delay_time": 0.2 * ureg.ms,
-        "phase_noise": 0.,
+        "pump_amplitude": 1000,  # 4200
+        "probe_amplitude": 250,  # 1100
+        "pump_offsets": np.array(np.arange(- 40-167 - 50, -40-167+50, 8)) * ureg.kHz,
+        "probe_offset": 0 * ureg.kHz,
+        "pump_time": 0.8 * ureg.ms,
+        "probe_time": 0.8 * ureg.ms,
+        "delay_time": 1.0 * ureg.ms,
+        "probe_phase": np.pi/2,
     },
 }
-default_sequence = RFSatAbsSpectroscopy(
+default_sequence = RFCombDetuningSpectroscopy(
     ao_parameters=default_params["ao"],
     eos_parameters=default_params["eos"],
     field_plate_parameters=default_params["field_plate"],
@@ -195,73 +191,48 @@ dg.set_trigger_source_edge()
 dg.write_configs_to_device()
 
 
-## wavemeter scan
-# def set_wavemeter_to_setpoint_and_wait(setpoint):
-#     wm.set_lock_setpoint(5, setpoint)
-#     freq = wm.read_frequency(5)
-#     while not isinstance(freq, float) or abs(wm.read_frequency(5) - setpoint) > 0.001:
-#         time.sleep(1)
-#         freq = wm.read_frequency(5)
-#     time.sleep(20)
-#     print(wm.read_frequency(5))
-#
-# ## wavemeter scan and experiment scan
-# wavemeter_setpoints = [516847.85, 516848.05, 516847.55]
-# scan_range = 20
-# scan_step = 3
-#
-# center_freqs = [258, -213, -46]  # -208, -41, 263
-# amplitudes = [4200, 4200, 800] #[4200, 800, 4200]
-#
-# for setpoint in wavemeter_setpoints:
-#     set_wavemeter_to_setpoint_and_wait(setpoint)
-#
-#     for kk in range(4):
-#         for ll in range(len(center_freqs)):
-#             center_freq = center_freqs[ll]
-#             rf_offset_2s = np.arange(center_freq - scan_range, center_freq + scan_range, scan_step)
-#             rf_offset_2s *= ureg.kHz
-#             for mm in range(len(rf_offset_2s)):
-#                 params = default_params.copy()
-#                 params["rf"]["amplitude_1"] = 2000
-#                 params["rf"]["pulse_1_time"] = 0.09 * ureg.ms
-#                 params["rf"]["amplitude_2"] = amplitudes[ll]
-#                 params["rf"]["pulse_2_time"] = 0.25 * ureg.ms
-#                 params["rf"]["offset_2"] = rf_offset_2s[mm]
-#
-#                 params["field_plate"]["amplitude"] = 4500
-#                 run_experiment(params)
-#                 params["field_plate"]["amplitude"] = -4500
-#                 run_experiment(params)
-# set_wavemeter_to_setpoint_and_wait(516847.4)
+## scan
+scan_range = 0.1
+scan_step = 0.01
+scan_center_ref = 0
+probe_amplitude_ref = 250
 
-## temp
-scan_range = 5
-scan_step = 1
-pump_offset_center = -40
-pump_offset_range = 1
-pump_offset_step = 10
-b_bbar = -167
-a_abar = 323
-probe_vertical_power = 500
-probe_cross_power = 2000
+# ## left
+# scan_center = scan_center_ref
+# probe_amplitude = probe_amplitude_ref * 4
+#
+# probe_offsets = np.arange(scan_center - scan_range, scan_center + scan_range, scan_step)
+# probe_offsets *= ureg.kHz
+# params = default_params.copy()
+# for kk in range(len(probe_offsets)):
+#     params["rf"]["probe_offset"] = probe_offsets[kk]
+#     params["rf"]["probe_amplitude"] = probe_amplitude
+#     run_experiment(params)
+#
+#
+# ## center
+# scan_center = scan_center_ref + 167
+# probe_amplitude = probe_amplitude_ref
+#
+# probe_offsets = np.arange(scan_center - scan_range, scan_center + scan_range, scan_step)
+# probe_offsets *= ureg.kHz
+# params = default_params.copy()
+# for kk in range(len(probe_offsets)):
+#     params["rf"]["probe_offset"] = probe_offsets[kk]
+#     params["rf"]["probe_amplitude"] = probe_amplitude
+#     run_experiment(params)
 
+## right
+scan_center = scan_center_ref + 303 - 2
+probe_amplitude = probe_amplitude_ref
+
+probe_offsets = np.arange(scan_center - scan_range, scan_center + scan_range, scan_step)
+probe_offsets *= ureg.kHz
 params = default_params.copy()
-for pump_offset in np.arange(pump_offset_center - pump_offset_range, pump_offset_center + pump_offset_range, pump_offset_step):
-    params["rf"]["offset_1"] = pump_offset * ureg.kHz
-    print(pump_offset)
-    for probe_offset in np.arange(pump_offset - scan_range, pump_offset + scan_range, scan_step):
-        params["rf"]["offset_2"] = probe_offset * ureg.kHz
-        params["rf"]["amplitude_2"] = probe_vertical_power
-        run_experiment(params)
-    for probe_offset in np.arange(pump_offset + b_bbar - scan_range, pump_offset + b_bbar + scan_range, scan_step):
-        params["rf"]["offset_2"] = probe_offset * ureg.kHz
-        params["rf"]["amplitude_2"] = probe_cross_power
-        run_experiment(params)
-    for probe_offset in np.arange(pump_offset + a_abar - scan_range, pump_offset + a_abar + scan_range, scan_step):
-        params["rf"]["offset_2"] = probe_offset * ureg.kHz
-        params["rf"]["amplitude_2"] = probe_cross_power
-        run_experiment(params)
+for kk in range(len(probe_offsets)):
+    params["rf"]["probe_offset"] = probe_offsets[kk]
+    params["rf"]["probe_amplitude"] = probe_amplitude
+    run_experiment(params)
 
 ## scan
 # scan_range = 10

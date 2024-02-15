@@ -6,13 +6,13 @@ from onix.units import ureg
 
 shared_params = {
     "wm_channel": 5,
-    "repeats": 1,
+    "repeats": 3,
     "ao": {
         "name": "ao_dp",
         "order": 2,
         "frequency": 75 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 450,
+        "detect_amplitude": 550,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -38,7 +38,7 @@ shared_params = {
         "use": False,
         "amplitude": 4500,
         "stark_shift": 2 * ureg.MHz,
-        "padding_time": 5 * ureg.ms,
+        "padding_time": 15 * ureg.ms,
     },
     "chasm": {
         "transition": "bb",

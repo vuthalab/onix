@@ -1,20 +1,71 @@
-from typing import Any
+import numbers
+from typing import Any, Union, Optional
+
+import numpy as np
 
 from onix.models.hyperfine import energies
 from onix.sequences.sequence import (
     AWGConstant,
+    AWGFunction,
+    AWGSineTrain,
     AWGSinePulse,
+    AWGSineSweep,
     Segment,
     SegmentEmpty,
     Sequence,
-    TTLOn,
 )
 from onix.sequences.shared import antihole_segment, chasm_segment, detect_segment, rf_assist_segment
-from onix.units import ureg
+from onix.units import ureg, Q_
 from onix.awg_maps import get_channel_from_name
 
 
-class RFSpectroscopy(Sequence):
+class RFPumpAndProbe(AWGFunction):
+    def __init__(
+        self,
+        pump_frequencies,
+        pump_amplitude,
+        pump_time,
+        delay_time,
+        probe_frequency,
+        probe_amplitude,
+        probe_time,
+        probe_phase,
+    ):
+        self._pump_frequencies = pump_frequencies.to("Hz").magnitude
+        self._pump_amplitude = pump_amplitude
+        self._pump_time = pump_time.to("s").magnitude
+        self._delay_time = delay_time.to("s").magnitude
+        self._probe_frequency = probe_frequency.to("Hz").magnitude
+        self._probe_amplitude = probe_amplitude
+        self._probe_time = probe_time.to("s").magnitude
+        self._probe_phase = probe_phase
+
+
+    def output(self, times):
+        def sine(times, frequency, amplitude, phase, start_time, end_time):
+            mask = np.heaviside(times - start_time, 1) - np.heaviside(times - end_time, 1)
+            return mask * amplitude * np.sin(2 * np.pi * frequency * times + phase)
+
+        data = np.zeros(len(times))
+        start_time = 0
+        for pump_frequency in self._pump_frequencies:
+            end_time = start_time + self._pump_time
+            data += sine(times, pump_frequency, self._pump_amplitude, 0, start_time, end_time)
+            start_time = end_time + self._delay_time
+        end_time = start_time + self._probe_time
+        data += sine(times, self._probe_frequency, self._probe_amplitude, self._probe_phase, start_time, end_time)
+        return data
+
+    @property
+    def max_amplitude(self) -> float:
+        return np.max([self._pump_amplitude, self._probe_amplitude])
+
+    @property
+    def min_duration(self) -> Q_:
+        time = (self._pump_time + self._delay_time) * len(self._pump_frequencies) + self._probe_time
+        return time * ureg.s
+
+class RFCombSatAbsSpectroscopy(Sequence):
     def __init__(
         self,
         ao_parameters: dict[str, Any],
@@ -39,21 +90,11 @@ class RFSpectroscopy(Sequence):
 
     def _add_optical_segments(self):
         segment, self._chasm_repeats = chasm_segment(
-            "chasm",
+            "chasm_bb",
             self._ao_parameters,
             self._eos_parameters,
             self._field_plate_parameters,
             self._chasm_parameters,
-        )
-        self.add_segment(segment)
-        params = self._chasm_parameters.copy()
-        params["transition"] = "ca"
-        segment, self._chasm_repeats = chasm_segment(
-            "chasm_ca",
-            self._ao_parameters,
-            self._eos_parameters,
-            self._field_plate_parameters,
-            params,
         )
         self.add_segment(segment)
         params = self._chasm_parameters.copy()
@@ -66,17 +107,28 @@ class RFSpectroscopy(Sequence):
             params,
         )
         self.add_segment(segment)
+        params = self._chasm_parameters.copy()
+        params["transition"] = "ca"
+        segment, self._chasm_repeats = chasm_segment(
+            "chasm_ca",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            params,
+        )
+        self.add_segment(segment)
 
-        self._antihole_segments_and_repeats = antihole_segment(
+        segment, self._antihole_repeats = antihole_segment(
             "antihole",
             self._ao_parameters,
             self._eos_parameters,
             self._field_plate_parameters,
             self._antihole_parameters,
-            return_separate_segments=True,
+            return_separate_segments=False,
         )
-        for segment, repeats in self._antihole_segments_and_repeats:
-            self.add_segment(segment)
+        self.add_segment(segment)
+
+
         segment = rf_assist_segment(
             "rf_assist",
             self._antihole_parameters["rf_assist"],
@@ -107,22 +159,41 @@ class RFSpectroscopy(Sequence):
             self._field_plate_parameters,
             self._detect_parameters,
         )
-        segment.add_ttl_function(1, TTLOn())
         self.add_segment(segment)
 
     def _add_rf_segment(self):
         lower_state = self._rf_parameters["transition"][0]
         upper_state = self._rf_parameters["transition"][1]
-        frequency = (
-            energies["7F0"][upper_state]
-            - energies["7F0"][lower_state]
-            + self._rf_parameters["offset"]
-            + self._rf_parameters["detuning"]
-        )
-        segment = Segment("rf", self._rf_parameters["duration"])
-        rf_pulse = AWGSinePulse(frequency, self._rf_parameters["amplitude"])
+        transition_center = energies["7F0"][upper_state] - energies["7F0"][lower_state]
+
+        pump_offsets = self._rf_parameters["pump_offsets"]
+        pump_freqs = transition_center + pump_offsets
+        pump_time = self._rf_parameters["pump_time"]
+        pump_amplitude = self._rf_parameters["pump_amplitude"]
+
+        probe_offset = self._rf_parameters["probe_offset"]
+        probe_freq = transition_center + probe_offset
+        probe_time = self._rf_parameters["probe_time"]
+        probe_amplitude = self._rf_parameters["probe_amplitude"]
+        probe_phase = self._rf_parameters["probe_phase"]
+
+        delay_time = self._rf_parameters["delay_time"]
         rf_channel = get_channel_from_name(self._rf_parameters["name"])
-        segment.add_awg_function(rf_channel, rf_pulse)
+
+        segment = Segment("rf")
+        segment.add_awg_function(
+            rf_channel,
+            RFPumpAndProbe(
+                pump_freqs,
+                pump_amplitude,
+                pump_time,
+                delay_time,
+                probe_freq,
+                probe_amplitude,
+                probe_time,
+                probe_phase,
+            )
+        )
         self.add_segment(segment)
 
     def _add_helper_segments(self):
@@ -132,7 +203,6 @@ class RFSpectroscopy(Sequence):
         break_time = 10 * ureg.ms
         segment = SegmentEmpty("long_break", break_time)
         self.add_segment(segment)
-
 
         segment = Segment("field_plate_break", break_time)
         if self._field_plate_parameters["use"]:
@@ -149,14 +219,10 @@ class RFSpectroscopy(Sequence):
         detect_antihole_repeats = self._detect_parameters["antihole_repeats"]
         detect_rf_repeats = self._detect_parameters["rf_repeats"]
 
-
         segment_repeats = []
-
-        segment_repeats.append(("chasm_ac", self._chasm_repeats))
         for kk in range(self._chasm_repeats):
-            segment_repeats.append(("chasm", 1))
-            segment_repeats.append(("chasm_ca", 1))
-            #segment_repeats.append(("rf_assist1", 1))
+            segment_repeats.append(("chasm_bb", 1))
+            segment_repeats.append(("rf_assist1", 1))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_chasm_repeats))
@@ -164,20 +230,13 @@ class RFSpectroscopy(Sequence):
         segment_repeats.append(
             ("field_plate_break", self._field_plate_repeats)
         )  # waiting for the field plate to go high
-        for kk in range(self._antihole_segments_and_repeats[0][1]):
+        for kk in range(self._antihole_repeats):
             if self._antihole_parameters["rf_assist"]["use_sequential"]:
                 segment_repeats.append(("rf_assist", 1))
-            for segment, repeats in self._antihole_segments_and_repeats:
-                segment_repeats.append((segment.name, 1))
-
-        # segment_repeats.append(("long_break", 300))
-        # segment_repeats.append(("chasm", self._chasm_repeats))
-        # for kk in range(self._antihole_segments_and_repeats[0][1]):
-        #     for segment, repeats in self._antihole_segments_and_repeats:
-        #         segment_repeats.append((segment.name, 1))
-        # segment_repeats.append(
-        #     ("break", self._field_plate_repeats)
-        # )  # waiting for the field plate to go low
+            segment_repeats.append(("antihole", self._antihole_repeats))
+        segment_repeats.append(
+            ("break", self._field_plate_repeats)
+        )  # waiting for the field plate to go low
         segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_antihole_repeats))
 

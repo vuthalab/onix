@@ -9,7 +9,7 @@ import numpy as np
 
 from onix.data_tools import save_experiment_data
 
-from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
+from onix.headers.RigolDS1102 import RigolDS1102
 from onix.headers.wavemeter.wavemeter import WM
 
 wavemeter = WM()
@@ -28,40 +28,12 @@ import sys
 ## calibration at zero optical power
 # dg.autozero(dg_channels)
 
-## set digitizer parameters
-try:
-    dg
-    print("dg is already defined.")
-except Exception:
-    dg = Digitizer()
+## set scope parameters
 
+scope = RigolDS1102(path='/dev/usbtmc2')
+scope.write(":key:force")
+scope.write(":key:lock disable")
 
-set_sample_rate = 100e6
-duration = 0.1
-dg.set_acquisition_config(
-    num_channels=2,
-    sample_rate=set_sample_rate,
-    segment_size=int(duration * set_sample_rate),
-    segment_count=1,
-)
-
-dg.set_channel_config(channel=1, range=1, high_impedance=True)
-dg.set_channel_config(channel=2, range=5, high_impedance=True)
-dg.set_trigger_source_software()
-dg.write_configs_to_device()
-
-#
-# dg.configure_acquisition(
-#     sample_rate=sample_rate,
-#     samples_per_record=int(duration*sample_rate),
-# )
-# dg.configure_channels(
-#     channels=dg_channels,
-#     voltage_range=voltage_range,
-# )
-# dg.set_trigger_source_immediate()
-# dg.set_arm(triggers_per_arm=1)
-#
 def wavemeter_frequency():
     freq = wavemeter.read_frequency(5)
     if isinstance(freq, str):
@@ -80,6 +52,17 @@ def get_contrast():
     # print(f'Measured contrast is {contrast}')
     return contrast
 
+def get_data():
+    curr_scope = scope.ReadScope()
+    ch1_out = curr_scope[1]
+    ch2_out = curr_scope[2]
+    #signal = np.mean(ch1_out)
+    #signal_err = np.std(ch1_out)/np.sqrt(len(ch1_out))
+    #normalizer = np.mean(ch2_out)
+    #normalizer_err = np.std(ch2_out)/np.sqrt(len(ch2_out))
+
+    return [ch1_out, ch2_out]
+
 ## initialize data
 frequency_before_GHz = []
 V_transmission = []
@@ -91,14 +74,11 @@ times = []
 
 
 ## take data manually
-dg.start_capture()
-timeout = 1
-dg.wait_for_data_ready(duration+timeout)
-sample_rate, data = dg.get_data()
 
-V1 = data[0][0]
-V2 = data[1][0]
+data = get_data()
 
+V1 = data[0]
+V2 = data[1]
 times.append(time.time())
 
 frequency_before_GHz.append(wavemeter_frequency())
@@ -108,7 +88,6 @@ V_monitor.append(V2)
 
 frequency_after_GHz.append(wavemeter_frequency())
 contrast_after.append(get_contrast())
-print(V2)
 print(frequency_before_GHz[-1], contrast_after[-1], np.average(V1), np.average(V2), np.average(V1 + V2), np.average(V1) / np.average(V2))
 print("transmission", np.average(V1), "normalizer", np.average(V2), "contrast", contrast_after[-1])
 
@@ -117,35 +96,10 @@ print("transmission", np.average(V1), "normalizer", np.average(V2), "contrast", 
  ## take data loop
 try:
     while True:
-        """dg.initiate_data_acquisition()
-        freq_before = wavemeter_frequency()
-        time.sleep(duration)
-        voltages = dg.get_waveforms(dg_channels)
-        V1 = voltages[0][0]
-        V2 = voltages[1][0]
-        # if np.average(V1) < 0.5 or np.average(V2) < 0.5:
-        #     text = "Power too low."
-        #     reader.say(text)
-        #     reader.runAndWait()
-        #     reader.stop()
-        # elif np.average(V1) > 3.5 or np.average(V2) > 3.5:
-        #     text = "Power too high."
-        #     reader.say(text)
-        #     reader.runAndWait()
-        #     reader.stop()
-        times.append(time.time())
-        frequency_before_GHz.append(freq_before)
-        V_transmission.append(V1)
-        V_monitor.append(V2)
-        frequency_after_GHz.append(wavemeter_frequency())
-        print(f"{frequency_before_GHz[-1]:.3f}", f"{np.average(V1):.5f}", f"{np.average(V2):.5f}", f"{np.average(V1 + V2):.3f}", f"{np.average(V1) / np.average(V2):.4f}")"""
-        dg.start_capture()
-        timeout = 1
-        dg.wait_for_data_ready(duration+timeout)
-        sample_rate, data = dg.get_data()
+        data = get_data()
 
-        V1 = data[0][0]
-        V2 = data[1][0]
+        V1 = data[0]
+        V2 = data[1]
         times.append(time.time())
 
         frequency_before_GHz.append(wavemeter_frequency())
@@ -155,7 +109,6 @@ try:
 
         frequency_after_GHz.append(wavemeter_frequency())
         contrast_after.append(get_contrast())
-        print(V2)
         print(frequency_before_GHz[-1], contrast_after[-1], np.average(V1), np.average(V2), np.average(V1 + V2), np.average(V1) / np.average(V2))
         print("transmission", np.average(V1), "normalizer", np.average(V2), "contrast", contrast_after[-1])
         time.sleep(30)
@@ -167,6 +120,7 @@ except KeyboardInterrupt:
 ## save data
 data = {
     "times": times,
+
     "V_transmission": V_transmission,
     "V_monitor": V_monitor,
     "frequency_before_GHz": frequency_before_GHz,

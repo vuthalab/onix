@@ -129,6 +129,18 @@ class RFSatAbsSpectroscopy(Sequence):
             self._field_plate_parameters,
         )
         self.add_segment(segment)
+        params = self._antihole_parameters["rf_assist"].copy()
+        params["offset_start"] = -110 * ureg.kHz
+        params["offset_end"] = 170 * ureg.kHz
+        # params["amplitude"] = 0
+        params1 = self._field_plate_parameters.copy()
+        params1["use"] = False
+        segment = rf_assist_segment(
+            "rf_assist1",
+            params,
+            params1,
+        )
+        self.add_segment(segment)
 
         segment, self.analysis_parameters = detect_segment(
             "detect",
@@ -227,7 +239,7 @@ class RFSatAbsSpectroscopy(Sequence):
 
         for kk in range(self._chasm_repeats):
             segment_repeats.append(("chasm", 1))
-            segment_repeats.append(("chasm_ac", 1))
+            segment_repeats.append(("rf_assist1", 1))
         segment_repeats.append(("break", 1))
         segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_chasm_repeats))
