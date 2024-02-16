@@ -180,6 +180,23 @@ class FLIRCamera:
         self.root.after(50,self.refresh_live_display)
         self.root.mainloop()
         
+    def open_live_display(self):
+        self.root = tk.Tk()
+        self.root.title("FLIR Camera")
+        
+        self.img_box = tk.Label()
+        self.img_box.pack()
+        
+        
+        img_arr = self.get_img_array()
+        pil_img = (Image.fromarray(img_arr)).resize((int(self.width/2),int(self.height/2)))
+        tk_img = ImageTk.PhotoImage(pil_img)
+        
+        self.img_box.configure(image=tk_img)
+        
+        self.root.after(50,self.refresh_live_display)
+        self.root.mainloop()
+        
     def get_exposure(self):
         return self.camera.ExposureTime
         
