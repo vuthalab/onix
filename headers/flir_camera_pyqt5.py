@@ -158,16 +158,6 @@ class FLIRCamera:
         plt.colorbar()
 
         plt.show()
-        
-    def refresh_live_display(self):
-        img_arr = self.get_img_array()
-        pil_img = (Image.fromarray(img_arr)).resize((int(self.width/2),int(self.height/2)))
-        tk_img = ImageTk.PhotoImage(pil_img)
-        
-        self.img_box.configure(image=tk_img)
-        self.img_box.image = tk_img
-        
-        self.root.after(500,self.refresh_live_display)
 
     def open_live_display(self):
         img_arr = self.get_img_array()
@@ -243,7 +233,7 @@ if __name__=='__main__':
     app = QtWidgets.QApplication([])
     cam = FLIRCamera()
     cam.set_gain(0)
-    cam.set_exposure(50e3)
+    cam.set_exposure(1e3)
     imvOCTTopLeft = pg.ImageView(view=pg.PlotItem())
     scale = pg.ScaleBar(size=10,suffix = "px")
     viewbox = imvOCTTopLeft.view
