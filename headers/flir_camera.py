@@ -8,6 +8,10 @@ import cv2
 from onix.analysis.fitter import Fitter
 from matplotlib import animation
 from matplotlib.patches import Circle
+
+#from PyQt5 import QtWidgets
+#import pyqtgraph as pg
+#import numpy as np
 """
 Compatible with a hardware trigger on Line 3 (green = ground; brown = signal)
 """
@@ -162,7 +166,27 @@ class FLIRCamera:
         self.img_box.image = tk_img
         
         self.root.after(500,self.refresh_live_display)
-        
+
+    # def open_live_display_pyqtgraph(self):
+    #     app = QtWidgets.QApplication([])
+
+    #     imvOCTTopLeft = pg.ImageView(view=pg.PlotItem())
+
+    #     imvOCTTopLeft.view.getAxis('left').setScale(0.6)
+    #     imvOCTTopLeft.view.getAxis('bottom').setScale(0.4)
+    #     scale = pg.ScaleBar(size=10,suffix = "px")
+    #     viewbox = imvOCTTopLeft.view
+    #     if not isinstance(viewbox, pg.ViewBox): viewbox = viewbox.getViewBox()
+    #     scale.setParentItem(viewbox)
+    #     scale.anchor((1, 1), (1, 1), offset=(-20, -20))
+    #     imvOCTTopLeft.show()
+
+    #     app.exec()
+
+    #     while True:
+    #         img_arr = self.get_img_array()
+    #         imvOCTTopLeft.setImage(img_arr)
+
     def open_live_display(self):
         self.root = tk.Tk()
         self.root.title("FLIR Camera")
