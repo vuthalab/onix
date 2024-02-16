@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List, Tuple
 import warnings
 
 import numpy as np
@@ -10,6 +10,8 @@ from onix.sequences.sequence import (
     AWGSineTrain,
     MultiSegments,
     Segment,
+    SegmentEmpty,
+    Sequence,
     TTLPulses,
 )
 from onix.units import Q_, ureg
@@ -143,14 +145,10 @@ def detect_segment(
     start_time = ttl_start_time + detect_padding_time
     on_time = detect_parameters["on_time"]
     off_time = detect_parameters["off_time"]
-    end_time = (
-        start_time + (on_time + off_time) * len(detect_detunings) + detect_padding_time
-    )
     eo_amplitude = eo_parameters["amplitude"]
-    eo_pulse = AWGSinePulse(
-        frequency, eo_amplitude, start_time=start_time, end_time=end_time
-    )
-    segment.add_awg_function(eo_parameters["channel"], eo_pulse)
+    eo_pulse = AWGSinePulse(frequency, eo_amplitude)
+    eo_channel = get_channel_from_name(eo_parameters["name"])
+    segment.add_awg_function(eo_channel, eo_pulse)
 
     ao_frequencies = (
         ao_parameters["frequency"] + detect_detunings / ao_parameters["order"]
@@ -213,5 +211,125 @@ def _scan_segment(
     ao_pulse = AWGSineSweep(start, end, ao_parameters["amplitude"], 0, duration)
     segment.add_awg_function(ao_parameters["channel"], ao_pulse)
     eo_pulse = AWGSinePulse(frequency, eo_parameters["amplitude"])
-    segment.add_awg_function(eo_parameters["channel"], eo_pulse)
+    eo_channel = get_channel_from_name(eo_parameters["name"])
+    segment.add_awg_function(eo_channel, eo_pulse)
     return (segment, repeats)
+
+
+class SharedSequence(Sequence):
+    def __init__(
+        self,
+        ao_parameters: dict[str, Any],
+        eos_parameters: dict[str, Any],
+        field_plate_parameters: dict[str, Any],
+        chasm_parameters: dict[str, Any],
+        antihole_parameters: dict[str, Any],
+        rf_parameters: dict[str, Any],
+        detect_parameters: dict[str, Any],
+    ):
+        super().__init__()
+        self._ao_parameters = ao_parameters
+        self._eos_parameters = eos_parameters
+        self._field_plate_parameters = field_plate_parameters
+        self._chasm_parameters = chasm_parameters
+        self._antihole_parameters = antihole_parameters
+        self._rf_parameters = rf_parameters
+        self._detect_parameters = detect_parameters
+        self._add_chasm()
+        self._add_antihole()
+        self._add_detect()
+        self._add_breaks()
+
+    def _add_chasm(self):  # TODO: combine multiple chasm segments
+        segment, self._chasm_repeats = chasm_segment(
+            "chasm",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            self._chasm_parameters,
+        )
+        self.add_segment(segment)
+        params = self._chasm_parameters.copy()
+        params["transition"] = "ca"
+        segment, self._chasm_repeats = chasm_segment(
+            "chasm_ca",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            params,
+        )
+        self.add_segment(segment)
+
+    def _add_antihole(self):
+        segment, self._antihole_repeats = antihole_segment(
+            "antihole",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            self._antihole_parameters,
+            return_separate_segments=True,
+        )
+        self.add_segment(segment)
+
+    def _add_detect(self):
+        segment, self.analysis_parameters = detect_segment(
+            "detect",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            self._detect_parameters,
+        )
+        self.analysis_parameters["detect_groups"] = []
+        self.add_segment(segment)
+
+    def _add_breaks(self):
+        break_time = 10 * ureg.us
+        segment = SegmentEmpty("break", break_time)
+        self.add_segment(segment)
+        break_time = 10 * ureg.ms
+        segment = SegmentEmpty("long_break", break_time)
+        self.add_segment(segment)
+
+
+        segment = Segment("field_plate_break", break_time)
+        if self._field_plate_parameters["use"]:
+            field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
+            field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            segment.add_awg_function(field_plate_channel, field_plate)
+        self.add_segment(segment)
+        self._field_plate_repeats = int(
+            self._field_plate_parameters["padding_time"] / break_time
+        )
+
+    def define_chasm(self):
+        segment_steps = []
+        segment_steps.append(("chasm", self._chasm_repeats))
+        segment_steps.append(("long_break", 5))  # TODO: replace with shutter.
+        detect_cycles = self._detect_parameters["cycles"]["chasm"]
+        segment_steps.append(("detect", detect_cycles))
+        self.analysis_parameters["detect_groups"].append(("chasm", detect_cycles))
+        return segment_steps
+
+    def define_antihole(self):
+        segment_steps = []
+        # waiting for the field plate to go high
+        segment_steps.append(("field_plate_break", self._field_plate_repeats))
+        segment_steps.append(("antihole", self._antihole_repeats))
+        # waiting for the field plate to go low
+        segment_steps.append(("break", self._field_plate_repeats))
+        segment_steps.append(("long_break", 5))  # TODO: replace with shutter.
+        detect_cycles = self._detect_parameters["cycles"]["antihole"]
+        segment_steps.append(("detect", detect_cycles))
+        self.analysis_parameters["detect_groups"].append(("antihole", detect_cycles))
+        return segment_steps
+
+    def define_after_antihole(self):
+        """This must be defined in derived classes."""
+        raise NotImplementedError()
+
+    def setup_sequence(self):
+        segment_steps = []
+        segment_steps.extend(self.define_chasm())
+        segment_steps.extend(self.define_antihole())
+        segment_steps.extend(self.define_after_antihole())
+        return super().setup_sequence(segment_steps)
