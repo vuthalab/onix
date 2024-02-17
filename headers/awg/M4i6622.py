@@ -1,3 +1,6 @@
+# TODO: after stop sine output cannot run new sequence
+# TODO: start_sequence incorrectly starts sine output on the first board.
+
 from typing import Literal, Optional, Union
 
 import numpy as np
@@ -139,7 +142,7 @@ class M4i6622:
         self._ttl_parameters = []
         for channel in self._ttl_channels:
             self._ttl_parameters.append(False)
-        self._sine_segment_duration = 100 * ureg.us
+        self._sine_segment_duration = 1 * ureg.ms
         self._sine_segments = {
             "__sine_0": Segment("__sine_0", duration=self._sine_segment_duration),
             "__sine_1": Segment("__sine_1", duration=self._sine_segment_duration),
@@ -302,8 +305,7 @@ class M4i6622:
         self._aligned_buffer[index] = pvAllocMemPageAligned(len(data) * self._bytes_per_sample)
         # this variable must maintain a reference after exit.
         data = data.astype(np.int16)
-        #self._aligned_buffer[index][:] = data
-        pyspcm.memmove(self._aligned_buffer[index], data.ctypes.data, len(data))  # NOTE: check if this works.
+        pyspcm.memmove(self._aligned_buffer[index], data.ctypes.data, 2 * len(data))
         ret = pyspcm.spcm_dwDefTransfer_i64(
             hcard,
             pyspcm.SPCM_BUF_DATA,

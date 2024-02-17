@@ -8,6 +8,7 @@ from onix.sequences.sequence import (
     AWGSinePulse,
     AWGConstant,
     AWGSineSweep,
+    AWGSineSweepEnveloped,
     AWGSineTrain,
     MultiSegments,
     Segment,
@@ -17,6 +18,7 @@ from onix.sequences.sequence import (
     TTLPulses,
 )
 from onix.units import Q_, ureg
+from onix.awg_maps import get_channel_from_name
 
 
 # TODO: transition to optical detuning function.
@@ -73,6 +75,25 @@ def chasm_segment(
                 )
     segment = MultiSegments(name, segments)
     return (segment, repeats)
+
+
+def rf_assist_segment(
+    name: str,
+    rf_assist_parameters: dict[str, Any],
+    field_plate_parameters: dict[str, Any],
+):
+    segment = Segment(name)
+    rf_channel = get_channel_from_name(rf_assist_parameters["name"])
+    lower_state = rf_assist_parameters["transition"][0]
+    upper_state = rf_assist_parameters["transition"][1]
+    frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state]
+    rf_assist_pulse = AWGSineSweep(rf_assist_parameters["offset_start"] + frequency, rf_assist_parameters["offset_end"] + frequency, rf_assist_parameters["amplitude"], 0, rf_assist_parameters["duration"])
+    segment.add_awg_function(rf_channel, rf_assist_pulse)
+    if field_plate_parameters["use"]:
+        field_plate = AWGConstant(field_plate_parameters["amplitude"])
+        field_plate_channel = get_channel_from_name(field_plate_parameters["name"])
+        segment.add_awg_function(field_plate_channel, field_plate)
+    return segment
 
 
 def antihole_segment(
@@ -152,7 +173,6 @@ def detect_segment(
             - energies["7F0"][F_state]
             + eo_parameters["offset"]
         )
-
     detect_detunings = detect_parameters["detunings"]
     if field_plate_parameters["use"]:
         all_detunings = np.empty(
@@ -185,7 +205,8 @@ def detect_segment(
         ao_parameters["detect_amplitude"],
         start_time=start_time + off_time / 2,
     )
-    segment.add_awg_function(ao_parameters["channel"], ao_pulse)
+    ao_channel = get_channel_from_name(ao_parameters["name"])
+    segment.add_awg_function(ao_channel, ao_pulse)
 
     segment.add_ttl_function(get_channel_from_name(shutter_parameters["name"]), TTLOn())
 
@@ -208,7 +229,7 @@ def detect_segment(
         "digitizer_duration": segment.duration - ttl_start_time,
         "detect_pulse_times": detect_pulse_times,
     }
-    segment._duration = segment.duration + 4 * ureg.us  # make sure that the digitizer can trigger again
+    segment._duration = segment.duration + 20 * ureg.us  # make sure that the digitizer can trigger again
     return (segment, analysis_parameters)
 
 

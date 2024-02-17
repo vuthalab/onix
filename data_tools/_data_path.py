@@ -24,6 +24,16 @@ def _get_current_date_directory() -> List[str]:
     return (year + "_" + month, day)
 
 
+def get_last_expts_data_number():
+    dnum_file = op.join(expt_folder, "last_dnum")
+    with open(dnum_file, "r") as f:
+        try:
+            last_dnum = int(f.readline())
+        except ValueError:
+            pass
+    return last_dnum
+
+
 def _increment_last_data_number(folder: str) -> int:
     """Increases the "last_dnum" file counter by 1 and returns the increased number."""
     os.makedirs(folder, exist_ok=True)
@@ -45,12 +55,24 @@ def _increment_last_data_number(folder: str) -> int:
 
 
 def _locate_expt_data_number(data_number: int) -> Tuple[str, str]:
-    """Walks through all subfolders to find an experiment file path."""
+    """Try to find the symlink, otherwise walks through all subfolders to find an experiment file path."""
+    link_folder_name = str(data_number // 100000).rjust(expt_rjust - 5, "0")
+    folder = op.join(expt_folder, "links", link_folder_name)
+    file = str(data_number)
+    if op.exists(op.join(folder, file)):
+        return (folder, file)
+    
     start_str = str(data_number).rjust(expt_rjust, "0") + " - "
-    for path, dirs, files in os.walk(expt_folder):
-        for file in files:
-            if file.startswith(start_str) and file.endswith(".npz"):
-                return (path, file)
+    with os.scandir(expt_folder) as it:
+        for year_month in it:
+            if year_month.is_dir():
+                with os.scandir(year_month.path) as it1:
+                    for day in it1:
+                        if day.is_dir():
+                            with os.scandir(day.path) as it2:
+                                for file in it2:
+                                    if file.name.startswith(start_str) and file.name.endswith(".npz"):
+                                        return (os.path.join(expt_folder, year_month.name, day.name), file.name)
     raise ValueError(f"Experiment data number {data_number} is not found.")
 
 
@@ -65,12 +87,20 @@ def _locate_anly_data_number(data_number: int) -> Tuple[str, str]:
 
 
 def get_new_experiment_path(data_name: str) -> Tuple[int, str]:
-    """Gets the data number and file path for new experiment data."""
+    """Gets the data number and file path for new experiment data.
+    
+    Also creates a symlink pointing to the file.
+    """
     year_month, day = _get_current_date_directory()
     data_number = _increment_last_data_number(expt_folder)
     folder = op.join(expt_folder, year_month, day)
     os.makedirs(folder, exist_ok=True)
     file_name = str(data_number).rjust(expt_rjust, "0") + " - " + data_name + ".npz"
+
+    link_folder_name = str(data_number // 100000).rjust(expt_rjust - 5, "0")
+    link_folder = op.join(expt_folder, "links", link_folder_name)
+    os.makedirs(link_folder, exist_ok=True)
+    os.symlink(op.join(folder, file_name), op.join(link_folder, str(data_number)))
     return (data_number, op.join(folder, file_name))
 
 

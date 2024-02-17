@@ -229,15 +229,15 @@ quadrupole_angles = {
 }
 
 
-# Harish's notebook, for 153Eu3+:YSO. Probably comes from scaling the 151Eu number by the nuclear magnetic dipole moment ratio.
+# Yano1991 and Yano1992. Sign comes from Cruzeiro2018.
 quadrupole_tensor_magnitudes_MHz = {
     "7F0": {
-        "D": -32.02,
-        "E": -7.19,
+        "D": -32.0,
+        "E": -32.0 * 0.674 / 3,
     },
     "5D0": {
-        "D": 69.67,
-        "E": 15.33,
+        "D": 69.7,
+        "E": 69.7 * 0.660 / 3,
     },
 }
 
@@ -275,17 +275,18 @@ Zeeman_angles = {
 }
 
 
-# Cruzeiro2018, for 151Eu3+:YSO.
+_mu_ratio = 1.5324 / 3.4718 # https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html
+# Cruzeiro2018, for 151Eu3+:YSO, scaled by the 153 / 151 nuclear magnetic dipole moment.
 Zeeman_tensor_magnitudes_MHz_per_T = {
     "7F0": {
-        "g_1": 4.3,
-        "g_2": 5.559,
-        "g_3": -10.891,
+        "g_1": 4.3 * _mu_ratio,
+        "g_2": 5.559 * _mu_ratio,
+        "g_3": -10.891 * _mu_ratio,
     },
     "5D0": {
-        "g_1": 9.11,
-        "g_2": 9.158,
-        "g_3": 9.069,
+        "g_1": 9.11 * _mu_ratio,
+        "g_2": 9.158 * _mu_ratio,
+        "g_3": 9.069 * _mu_ratio,
     },
 }
 
@@ -301,7 +302,7 @@ Zeeman_tensor_D = {
     "5D0": rotate(
         rotate(
             Zeeman_tensor_own_frame(**Zeeman_tensor_magnitudes_MHz_per_T["5D0"]),
-            **quadrupole_angles["5D0"],
+            **Zeeman_angles["5D0"],
         ),
         **dielectric_angles,
     ),
@@ -330,16 +331,29 @@ states = {
     ),
 }
 
+def get_optical_hyperfine_probabilities(B_field):
+    states_7F0 = HyperfineStates(
+        state_labels["7F0"],
+        quadrupole_tensor_D["7F0"],
+        Zeeman_tensor_D["7F0"],
+        B_field,
+    )
 
-# hyperfine transition dipole matrix elements
-optical_hyperfine_probabilities = {}
-g_energies, g_states = states["7F0"].energies_and_eigenstates()
-e_energies, e_states = states["5D0"].energies_and_eigenstates()
-for kk, g_label in enumerate(state_labels["7F0"]):
-    optical_hyperfine_probabilities[g_label] = {}
-    for ll, e_label in enumerate(state_labels["5D0"]):
-        optical_hyperfine_probabilities[g_label][e_label] = np.abs(
-            g_states[kk].overlap(e_states[ll]) * e_states[ll].overlap(g_states[kk])
-        )
+    states_5D0 = HyperfineStates(
+        state_labels["5D0"],
+        quadrupole_tensor_D["5D0"],
+        Zeeman_tensor_D["5D0"],
+        B_field,
+    )
 
-del g_energies, g_states, e_energies, e_states, kk, g_label, ll, e_label
+    optical_hyperfine_probabilities = {}
+    g_energies, g_states = states_7F0.energies_and_eigenstates()
+    e_energies, e_states = states_5D0.energies_and_eigenstates()
+    for kk, g_label in enumerate(state_labels["7F0"]):
+        optical_hyperfine_probabilities[g_label] = {}
+        for ll, e_label in enumerate(state_labels["5D0"]):
+            optical_hyperfine_probabilities[g_label][e_label] = np.abs(
+                g_states[kk].overlap(e_states[ll]) * e_states[ll].overlap(g_states[kk])
+            )
+    
+    return optical_hyperfine_probabilities

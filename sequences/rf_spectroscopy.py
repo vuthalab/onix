@@ -7,9 +7,11 @@ from onix.sequences.sequence import (
     Segment,
     SegmentEmpty,
     Sequence,
+    TTLOn,
 )
-from onix.sequences.shared import antihole_segment, chasm_segment, detect_segment
+from onix.sequences.shared import antihole_segment, chasm_segment, detect_segment, rf_assist_segment
 from onix.units import ureg
+from onix.awg_maps import get_channel_from_name
 
 
 class RFSpectroscopy(Sequence):
@@ -44,13 +46,57 @@ class RFSpectroscopy(Sequence):
             self._chasm_parameters,
         )
         self.add_segment(segment)
+        params = self._chasm_parameters.copy()
+        params["transition"] = "ca"
+        segment, self._chasm_repeats = chasm_segment(
+            "chasm_ca",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            params,
+        )
+        self.add_segment(segment)
+        params = self._chasm_parameters.copy()
+        params["transition"] = "ac"
+        segment, self._chasm_repeats = chasm_segment(
+            "chasm_ac",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            params,
+        )
+        self.add_segment(segment)
 
-        segment, self._antihole_repeats = antihole_segment(
+        self._antihole_segments_and_repeats = antihole_segment(
             "antihole",
             self._ao_parameters,
             self._eos_parameters,
             self._field_plate_parameters,
             self._antihole_parameters,
+            return_separate_segments=True,
+        )
+        for segment, repeats in self._antihole_segments_and_repeats:
+            self.add_segment(segment)
+        segment = rf_assist_segment(
+            "rf_assist",
+            self._antihole_parameters["rf_assist"],
+            self._field_plate_parameters,
+        )
+        if self._field_plate_parameters["use"]:
+            field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
+            field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            segment.add_awg_function(field_plate_channel, field_plate)
+        self.add_segment(segment)
+        params = self._antihole_parameters["rf_assist"].copy()
+        params["offset_start"] = -110 * ureg.kHz
+        params["offset_end"] = 170 * ureg.kHz
+        # params["amplitude"] = 0
+        params1 = self._field_plate_parameters.copy()
+        params1["use"] = False
+        segment = rf_assist_segment(
+            "rf_assist1",
+            params,
+            params1,
         )
         self.add_segment(segment)
 
@@ -61,6 +107,7 @@ class RFSpectroscopy(Sequence):
             self._field_plate_parameters,
             self._detect_parameters,
         )
+        segment.add_ttl_function(1, TTLOn())
         self.add_segment(segment)
 
     def _add_rf_segment(self):
@@ -72,23 +119,26 @@ class RFSpectroscopy(Sequence):
             + self._rf_parameters["offset"]
             + self._rf_parameters["detuning"]
         )
-        print("rf", round(frequency, 2))
         segment = Segment("rf", self._rf_parameters["duration"])
         rf_pulse = AWGSinePulse(frequency, self._rf_parameters["amplitude"])
-        segment.add_awg_function(self._rf_parameters["channel"], rf_pulse)
+        rf_channel = get_channel_from_name(self._rf_parameters["name"])
+        segment.add_awg_function(rf_channel, rf_pulse)
         self.add_segment(segment)
 
     def _add_helper_segments(self):
         break_time = 10 * ureg.us
         segment = SegmentEmpty("break", break_time)
         self.add_segment(segment)
+        break_time = 10 * ureg.ms
+        segment = SegmentEmpty("long_break", break_time)
+        self.add_segment(segment)
+
 
         segment = Segment("field_plate_break", break_time)
         if self._field_plate_parameters["use"]:
             field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
-            segment.add_awg_function(
-                self._field_plate_parameters["channel"], field_plate
-            )
+            field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            segment.add_awg_function(field_plate_channel, field_plate)
         self.add_segment(segment)
         self._field_plate_repeats = int(
             self._field_plate_parameters["padding_time"] / break_time
@@ -99,19 +149,36 @@ class RFSpectroscopy(Sequence):
         detect_antihole_repeats = self._detect_parameters["antihole_repeats"]
         detect_rf_repeats = self._detect_parameters["rf_repeats"]
 
+
         segment_repeats = []
 
-        segment_repeats.append(("chasm", self._chasm_repeats))
+        segment_repeats.append(("chasm_ac", self._chasm_repeats))
+        for kk in range(self._chasm_repeats):
+            segment_repeats.append(("chasm", 1))
+            segment_repeats.append(("chasm_ca", 1))
+            #segment_repeats.append(("rf_assist1", 1))
         segment_repeats.append(("break", 1))
+        segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_chasm_repeats))
 
         segment_repeats.append(
             ("field_plate_break", self._field_plate_repeats)
         )  # waiting for the field plate to go high
-        segment_repeats.append(("antihole", self._antihole_repeats))
-        segment_repeats.append(
-            ("break", self._field_plate_repeats)
-        )  # waiting for the field plate to go low
+        for kk in range(self._antihole_segments_and_repeats[0][1]):
+            if self._antihole_parameters["rf_assist"]["use_sequential"]:
+                segment_repeats.append(("rf_assist", 1))
+            for segment, repeats in self._antihole_segments_and_repeats:
+                segment_repeats.append((segment.name, 1))
+
+        # segment_repeats.append(("long_break", 300))
+        # segment_repeats.append(("chasm", self._chasm_repeats))
+        # for kk in range(self._antihole_segments_and_repeats[0][1]):
+        #     for segment, repeats in self._antihole_segments_and_repeats:
+        #         segment_repeats.append((segment.name, 1))
+        # segment_repeats.append(
+        #     ("break", self._field_plate_repeats)
+        # )  # waiting for the field plate to go low
+        segment_repeats.append(("long_break", 5))
         segment_repeats.append(("detect", detect_antihole_repeats))
 
         segment_repeats.append(("rf", 1))

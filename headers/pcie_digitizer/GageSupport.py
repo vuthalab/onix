@@ -235,7 +235,7 @@ def LoadTriggerConfiguration(handle, trigger, iniFile):
                 if value == 'ac':
                     trig['ExtCoupling'] = CS_COUPLING_AC
                 elif value == 'dc':
-                    trig['ExCoupling'] = CS_COUPLING_DC
+                    trig['ExtCoupling'] = CS_COUPLING_DC
                 else:
                     trig['ExtCoupling'] = int(value)
             elif key == 'range':

@@ -4,7 +4,7 @@ import numbers
 
 import numpy as np
 from onix.units import Q_, ureg
-
+from onix.awg_maps import awg_channels
 
 class Segment:
     def __init__(self, name: str, duration: Optional[Union[float, Q_]] = None):
@@ -18,6 +18,8 @@ class Segment:
     def add_awg_function(self, channel: int, function):
         if not isinstance(channel, int):
             raise ValueError(f"Channel {channel} must be an integer.")
+        if function.max_amplitude > awg_channels[channel]["max_allowed_amplitude"]:
+            raise ValueError(f"Channel {channel} exceeded maximum allowable amplitude.")
         self._awg_pulses[channel] = function
 
     def add_ttl_function(self, channel: int, function):
@@ -158,11 +160,17 @@ class AWGFunction:
     def min_duration(self) -> Q_:
         return 0 * ureg.s
 
+    @property
+    def max_amplitude(self):
+        raise NotImplementedError("Maximum amplitude must be defined.")
 
 class AWGZero(AWGFunction):
     def output(self, times):
         return np.zeros(len(times))
 
+    @property
+    def max_amplitude(self):
+        return 0
 
 class AWGConstant(AWGFunction):
     def __init__(self, amplitude: float):
@@ -172,6 +180,9 @@ class AWGConstant(AWGFunction):
     def output(self, times):
         return np.ones(len(times)) * self._amplitude
 
+    @property
+    def max_amplitude(self):
+        return self._amplitude
 
 class AWGSinePulse(AWGFunction):
     def __init__(
@@ -218,6 +229,9 @@ class AWGSinePulse(AWGFunction):
             return self._start_time
         return 0 * ureg.s
 
+    @property
+    def max_amplitude(self):
+        return self._amplitude
 
 class AWGSineSweep(AWGFunction):
     def __init__(
@@ -267,6 +281,81 @@ class AWGSineSweep(AWGFunction):
     def min_duration(self) -> Q_:
         return self._end_time
 
+    @property
+    def max_amplitude(self):
+        return self._amplitude
+
+# class AWGSineSweepEnveloped(AWGFunction):
+#     def __init__(
+#         self,
+#         start_frequency: Union[float, Q_],
+#         stop_frequency: Union[float, Q_],
+#         amplitude: float,
+#         start_time: Union[float, Q_],
+#         end_time: Union[float, Q_],
+#         phase: float = 0,
+#     ):
+#         super().__init__()
+#         if isinstance(start_frequency, numbers.Number):
+#             start_frequency = start_frequency * ureg.Hz
+#         self._start_frequency: Q_ = start_frequency
+#         if isinstance(stop_frequency, numbers.Number):
+#             stop_frequency = stop_frequency * ureg.Hz
+#         self._stop_frequency: Q_ = stop_frequency
+#         self._amplitude = amplitude
+#         if isinstance(start_time, numbers.Number):
+#             start_time = start_time * ureg.s
+#         self._start_time: Q_ = start_time
+#         if isinstance(end_time, numbers.Number):
+#             end_time = end_time * ureg.s
+#         self._end_time: Q_ = end_time
+#         self._phase = phase
+
+#     def sechEnvelope(self, times):
+#         start_time = self._start_time.to("s").magnitude
+#         end_time = self._end_time.to("s").magnitude
+#         # A0 = 0.9*np.pi
+#         # x0 = np.log(1 + np.tan(A0/2)) - np.log(1 - np.tan(A0/2))
+#         return 1/np.cosh((times - (start_time + end_time)/2)/(end_time-start_time)*8)
+    
+#     def output(self, times):
+#         """Scanning half of the frequency is actually scanning the full range."""
+#         start_frequency = self._start_frequency.to("Hz").magnitude
+#         stop_frequency = self._stop_frequency.to("Hz").magnitude
+#         start_time = self._start_time.to("s").magnitude
+#         end_time = self._end_time.to("s").magnitude
+#         duration = end_time - start_time
+#         frequency_scan = stop_frequency - start_frequency
+#         instant_frequencies = (
+#             times - start_time
+#         ) / duration * frequency_scan / 2 + start_frequency
+#         sine_sweep = self._amplitude * np.sin(
+#             2 * np.pi * instant_frequencies * times + self._phase
+#         )
+#         mask_start = np.heaviside(times - start_time, 0)
+#         mask_end = np.heaviside(end_time - times, 1)
+#         return self.sechEnvelope(times) * sine_sweep * mask_start * mask_end
+
+#     @property
+#     def min_duration(self) -> Q_:
+#         return self._end_time
+
+#     @property
+#     def max_amplitude(self):
+#         return self._amplitude
+
+class AWGSineSweepEnveloped(AWGSineSweep):
+
+    def sechEnvelope(self, times):
+        start_time = self._start_time.to("s").magnitude
+        end_time = self._end_time.to("s").magnitude
+        # A0 = 0.9*np.pi
+        # x0 = np.log(1 + np.tan(A0/2)) - np.log(1 - np.tan(A0/2))
+        return 1/np.cosh((times - (start_time + end_time)/2)/(end_time-start_time)*8)
+    
+    def output(self, times):
+        """Scanning half of the frequency is actually scanning the full range."""
+        return self.sechEnvelope(times) * super().output(times)
 
 class AWGSineTrain(AWGFunction):
     def __init__(
@@ -288,11 +377,10 @@ class AWGSineTrain(AWGFunction):
         if isinstance(frequencies, numbers.Number):
             frequencies = frequencies * ureg.Hz
         elif not isinstance(frequencies, Q_):
-            new_frequencies = []
-            for frequency in frequencies:
-                if isinstance(frequency, numbers.Number):
-                    frequency = frequency * ureg.Hz
-            frequencies = Q_.from_list(new_frequencies)
+            for kk in range(len(frequencies)):
+                if isinstance(frequencies[kk], numbers.Number):
+                    frequencies[kk] = frequencies[kk] * ureg.Hz
+            frequencies = Q_.from_list(frequencies, "Hz")
         self._frequencies: Q_ = frequencies
         self._amplitudes = amplitudes
         self._phases = phases
@@ -308,21 +396,21 @@ class AWGSineTrain(AWGFunction):
             self._frequencies[0]
             is_list_freq = True
             length = len(self._frequencies)
-        except TypeError:
+        except Exception:
             is_list_freq = False
 
         try:
             self._amplitudes[0]
             is_list_amp = True
             length = len(self._amplitudes)
-        except TypeError:
+        except Exception:
             is_list_amp = False
 
         try:
             self._phases[0]
             is_list_phase = True
             length = len(self._phases)
-        except TypeError:
+        except Exception:
             is_list_phase = False
 
         if length is None:
@@ -374,6 +462,9 @@ class AWGSineTrain(AWGFunction):
             self._on_time + self._off_time
         )
 
+    @property
+    def max_amplitude(self):
+        return np.max(self._amplitudes)
 
 class AWGMultiFunctions(AWGFunction):
     def __init__(self, functions: List[AWGFunction], start_times: Q_, end_times: Q_):
@@ -391,7 +482,9 @@ class AWGMultiFunctions(AWGFunction):
         for kk in range(len(self._start_times)):
             start_time = self._start_times[kk].to("s").magnitude
             end_time = self._end_times[kk].to("s").magnitude
-            funclist.append(self._functions[kk].output)
+            def output(function, start_time, times):
+                return function.output(times - start_time)
+            funclist.append(partial(output, self._functions[kk], start_time))
             condlist.append(np.logical_and(times > start_time, times <= end_time))
         funclist.append(zero)
         return np.piecewise(times, condlist, funclist)
@@ -400,6 +493,9 @@ class AWGMultiFunctions(AWGFunction):
     def min_duration(self) -> Q_:
         return max(self._end_times)
 
+    @property
+    def max_amplitude(self):
+        return np.max([function.max_amplitude for function in self._functions])
 
 class TTLFunction:
     def output(self, times):
@@ -475,7 +571,9 @@ class TTLMultiFunctions(TTLFunction):
         for kk in range(len(self._start_times)):
             start_time = self._start_times[kk].to("s").magnitude
             end_time = self._end_times[kk].to("s").magnitude
-            funclist.append(self._functions[kk].output)
+            def output(function, start_time, times):
+                return function.output(times - start_time)
+            funclist.append(partial(output, self._functions[kk], start_time))
             condlist.append(np.logical_and(times > start_time, times <= end_time))
         funclist.append(zero)
         return np.piecewise(times, condlist, funclist)

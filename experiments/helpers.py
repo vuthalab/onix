@@ -1,6 +1,6 @@
+import numpy as np
 from onix.headers.wavemeter.wavemeter import WM
 
-wavemeter = WM()
 
 def wavemeter_frequency(channel: int, try_repeat: int = 0):
     """Returns the wavemeter frequency in GHz.
