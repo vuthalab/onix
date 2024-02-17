@@ -91,7 +91,7 @@ _shared_parameters = {
     },
     "antihole": {
         "transitions": ["ac", "ca"],
-        "durations": 0.1 * ureg.s,
+        "durations": 10 * ureg.ms,
         "repeats": 20,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
@@ -116,7 +116,7 @@ _shared_parameters = {
         "ch2_range": 0.5,
     },
     "shutter": {
-        "name": "shutter",
+        "channel": 1,
         "rise_delay": 2 * ureg.ms,
         "fall_delay": 2 * ureg.ms,
     }

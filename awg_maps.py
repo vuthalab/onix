@@ -53,3 +53,4 @@ def get_channel_from_name(name: str) -> int:
         if awg_channels[channel]["name"] == name:
             return channel
     raise ValueError(f"Channel {name} is not defined.")
+

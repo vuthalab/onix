@@ -191,7 +191,7 @@ def detect_segment(
     ao_channel = get_channel_from_name(ao_parameters["name"])
     segment.add_awg_function(ao_channel, ao_pulse)
 
-    segment.add_ttl_function(get_channel_from_name(shutter_parameters["name"]), TTLOn())
+    segment.add_ttl_function(shutter_parameters["channel"], TTLOn())
 
     detect_pulse_times = [
         (
@@ -228,11 +228,11 @@ def _rf_pump_segment(
     lower_state = rf_parameters["transition"][0]
     upper_state = rf_parameters["transition"][1]
     offset = rf_parameters["offset"]
-    frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + offset
+    center_frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + offset
     scan_detunings = rf_pump_parameters["scan_detunings"][rf_pump_parameters["into"]]
     pulse = AWGSineSweep(
-        frequency + scan_detunings[0],
-        frequency + scan_detunings[1],
+        center_frequency + scan_detunings[0],
+        center_frequency + scan_detunings[1],
         rf_pump_parameters["amplitude"],
         0 * ureg.s,
         duration,
@@ -271,25 +271,19 @@ def _scan_segment(
 class SharedSequence(Sequence):
     def __init__(
         self,
-        ao_parameters: dict[str, Any],
-        eos_parameters: dict[str, Any],
-        field_plate_parameters: dict[str, Any],
-        shutter_parameters: dict[str, Any],
-        chasm_parameters: dict[str, Any],
-        antihole_parameters: dict[str, Any],
-        rf_parameters: dict[str, Any],
-        detect_parameters: dict[str, Any],
+        parameters: dict[str, Any],
         shutter_off_after_antihole: bool = False,
     ):
         super().__init__()
-        self._ao_parameters = ao_parameters
-        self._eos_parameters = eos_parameters
-        self._field_plate_parameters = field_plate_parameters
-        self._shutter_parameters = shutter_parameters
-        self._chasm_parameters = chasm_parameters
-        self._antihole_parameters = antihole_parameters
-        self._rf_parameters = rf_parameters
-        self._detect_parameters = detect_parameters
+        self._ao_parameters = parameters["ao"]
+        self._eos_parameters = parameters["eos"]
+        self._field_plate_parameters = parameters["field_plate"]
+        self._shutter_parameters = parameters["shutter"]
+        self._chasm_parameters = parameters["chasm"]
+        self._antihole_parameters = parameters["antihole"]
+        self._rf_parameters = parameters["rf"]
+        self._rf_pump_parameters = parameters["rf_pump"]
+        self._detect_parameters = parameters["detect"]
         self._shutter_off_after_antihole = shutter_off_after_antihole
         self._define_chasm()
         self._define_antihole()
@@ -303,6 +297,8 @@ class SharedSequence(Sequence):
             self._eos_parameters,
             self._field_plate_parameters,
             self._chasm_parameters,
+            self._rf_parameters,
+            self._rf_pump_parameters,
         )
         self.add_segment(segment)
 
@@ -313,7 +309,8 @@ class SharedSequence(Sequence):
             self._eos_parameters,
             self._field_plate_parameters,
             self._antihole_parameters,
-            return_separate_segments=True,
+            self._rf_parameters,
+            self._rf_pump_parameters,
         )
         self.add_segment(segment)
 
@@ -323,6 +320,7 @@ class SharedSequence(Sequence):
             self._ao_parameters,
             self._eos_parameters,
             self._field_plate_parameters,
+            self._shutter_parameters,
             self._detect_parameters,
         )
         self.analysis_parameters["detect_groups"] = []
@@ -344,8 +342,7 @@ class SharedSequence(Sequence):
         )
 
         segment = Segment("shutter_break", break_time)
-        shutter_channel = get_channel_from_name(self._shutter_parameters["name"])
-        segment.add_ttl_function(shutter_channel, TTLOn())
+        segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
         self.add_segment(segment)
         self._shutter_rise_delay_repeats = int(
             self._shutter_parameters["rise_delay"] / break_time
@@ -375,7 +372,7 @@ class SharedSequence(Sequence):
         detect_cycles = self._detect_parameters["cycles"]["antihole"]
         segment_steps.append(("detect", detect_cycles))
         self.analysis_parameters["detect_groups"].append(("antihole", detect_cycles))
-        segment_steps.append(("break", 1))
+        segment_steps.append(("shutter_break", 1))
         if self._shutter_off_after_antihole:
             segment_steps.append(("break", self._shutter_fall_delay_repeats))
         return segment_steps
