@@ -1,6 +1,5 @@
-from typing import Any, List, Tuple
+from typing import Any
 import warnings
-from collections.abc import Iterable
 
 import numpy as np
 from onix.models.hyperfine import energies
@@ -8,7 +7,6 @@ from onix.sequences.sequence import (
     AWGSinePulse,
     AWGConstant,
     AWGSineSweep,
-    AWGSineSweepEnveloped,
     AWGSineTrain,
     MultiSegments,
     Segment,
@@ -30,6 +28,7 @@ def chasm_segment(
     eos_parameters: dict[str, Any],
     field_plate_parameters: dict[str, Any],
     chasm_parameters: dict[str, Any],
+    rf_parameters: dict[str, Any],
     rf_pump_parameters: dict[str, Any],
 ):
     transitions = chasm_parameters["transitions"]
@@ -54,7 +53,9 @@ def chasm_segment(
 
         if transition.startswith("rf_"):
             name = transition
-            segments.append(_rf_pump_segment(name, rf_pump_parameters, duration))
+            parameters = rf_pump_parameters.copy()
+            parameters["into"] = transition.split("_")[1]
+            segments.append(_rf_pump_segment(name, rf_parameters, parameters, duration))
         else:
             if not field_plate_parameters["use"]:
                 polarities = [0]
@@ -77,31 +78,13 @@ def chasm_segment(
     return (segment, repeats)
 
 
-def rf_assist_segment(
-    name: str,
-    rf_assist_parameters: dict[str, Any],
-    field_plate_parameters: dict[str, Any],
-):
-    segment = Segment(name)
-    rf_channel = get_channel_from_name(rf_assist_parameters["name"])
-    lower_state = rf_assist_parameters["transition"][0]
-    upper_state = rf_assist_parameters["transition"][1]
-    frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state]
-    rf_assist_pulse = AWGSineSweep(rf_assist_parameters["offset_start"] + frequency, rf_assist_parameters["offset_end"] + frequency, rf_assist_parameters["amplitude"], 0, rf_assist_parameters["duration"])
-    segment.add_awg_function(rf_channel, rf_assist_pulse)
-    if field_plate_parameters["use"]:
-        field_plate = AWGConstant(field_plate_parameters["amplitude"])
-        field_plate_channel = get_channel_from_name(field_plate_parameters["name"])
-        segment.add_awg_function(field_plate_channel, field_plate)
-    return segment
-
-
 def antihole_segment(
     name: str,
     ao_parameters: dict[str, Any],
     eos_parameters: dict[str, Any],
     field_plate_parameters: dict[str, Any],
     antihole_parameters: dict[str, Any],
+    rf_parameters: dict[str, Any],
     rf_pump_parameters: dict[str, Any],
 ):
     transitions: list[str] = antihole_parameters["transitions"]
@@ -125,7 +108,7 @@ def antihole_segment(
 
         if transition.startswith("rf_"):
             name = transition
-            segments.append(_rf_pump_segment(name, rf_pump_parameters, duration))
+            segments.append(_rf_pump_segment(name, rf_parameters, rf_pump_parameters, duration))
         else:
             segments.append(
                 _scan_segment(
@@ -231,6 +214,31 @@ def detect_segment(
     }
     segment._duration = segment.duration + 20 * ureg.us  # make sure that the digitizer can trigger again
     return (segment, analysis_parameters)
+
+
+def _rf_pump_segment(
+    name: str,
+    rf_parameters: dict[str, Any],
+    rf_pump_parameters: dict[str, Any],
+    duration: Q_,
+):
+    segment = Segment(name)
+    
+    rf_channel = get_channel_from_name(rf_parameters["name"])
+    lower_state = rf_parameters["transition"][0]
+    upper_state = rf_parameters["transition"][1]
+    offset = rf_parameters["offset"]
+    frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + offset
+    scan_detunings = rf_pump_parameters["scan_detunings"][rf_pump_parameters["into"]]
+    pulse = AWGSineSweep(
+        frequency + scan_detunings[0],
+        frequency + scan_detunings[1],
+        rf_pump_parameters["amplitude"],
+        0 * ureg.s,
+        duration,
+    )
+    segment.add_awg_function(rf_channel, pulse)
+    return segment
 
 
 def _scan_segment(
