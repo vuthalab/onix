@@ -74,28 +74,27 @@ _shared_parameters = {
     "chasm": {
         "transitions": ["bb"],
         "scan": 3 * ureg.MHz,
-        "scan_rates": 15 * ureg.MHz / ureg.s,
-        "pulse_lengths": 10 * ureg.ms,
-        "detuning": 0 * ureg.MHz,
+        "durations": 10 * ureg.ms,
+        "repeats": 20,
+        "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
+    },
+    "rf_pump": {
+        "use": False,
+        "into": "b",
+        "amplitude": 2000,
+        "scan_detunings": {
+            "bbar": np.array([-130, 0]) * ureg.kHz,
+            "b": np.array([0, 130]) * ureg.kHz,
+            "both": np.array([-130, 130]) * ureg.kHz,
+        },
     },
     "antihole": {
         "transitions": ["ac", "ca"],
         "durations": 0.1 * ureg.s,
-        "pulse_lengths": 10 * ureg.ms,
-        "detuning": 0 * ureg.MHz,
+        "repeats": 20,
+        "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
-        "rf": {
-            "use": False,
-            "into": "b",
-            "amplitude": 2000,
-            "duration": 5 * ureg.ms,
-            "scan_detunings": {
-                "b": np.array([-130, 0]) * ureg.kHz,
-                "bbar": np.array([0, 130]) * ureg.kHz,
-                None: np.array([-130, 130]) * ureg.kHz,
-            },
-        },
     },
     "detect": {
         "transition": "bb",
@@ -116,6 +115,11 @@ _shared_parameters = {
         "ch1_range": 2,
         "ch2_range": 0.5,
     },
+    "shutter": {
+        "name": "shutter",
+        "rise_delay": 2 * ureg.ms,
+        "fall_delay": 2 * ureg.ms,
+    }
 }
 
 
