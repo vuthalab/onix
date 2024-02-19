@@ -36,27 +36,27 @@ class Segment:
             if channel not in self._ttl_pulses:
                 self.add_ttl_function(channel, TTLOff())
 
-    def _awg_functions(self, awg_channels: List[int]):
-        functions = []
+    def _awg_pulses_of_channels(self, awg_channels: List[int]):
+        pulses = []
         for channel in awg_channels:
             try:
-                functions.append(self._awg_pulses[channel].output)
+                pulses.append(self._awg_pulses[channel])
             except KeyError:
                 raise KeyError(
                     f"AWG channel {channel} is not defined in the {self.name} segment."
                 )
-        return functions
+        return pulses
 
-    def _ttl_functions(self, ttl_channels: List[int]):
-        functions = []
+    def _ttl_pulses_of_channels(self, ttl_channels: List[int]):
+        pulses = []
         for channel in ttl_channels:
             try:
-                functions.append(self._ttl_pulses[channel].output)
+                pulses.append(self._ttl_pulses[channel])
             except KeyError:
                 raise KeyError(
                     f"TTL channel {channel} is not defined in the {self.name} segment."
                 )
-        return functions
+        return pulses
 
     def get_sample_data(
         self,
@@ -71,15 +71,15 @@ class Segment:
             raise ValueError("Only supports TTL using the 16th bit.")
         ttl_channels = list(ttl_channels_map_to_awg_channels.keys())
         self._fill_all_channels(awg_channels, ttl_channels)
-        awg_functions = self._awg_functions(awg_channels)
-        ttl_functions = self._ttl_functions(ttl_channels)
+        awg_pulses = self._awg_pulses_of_channels(awg_channels)
+        ttl_pulses = self._ttl_pulses_of_channels(ttl_channels)
 
         times = sample_indices / sample_rate
         awg_data = [
-            awg_function(times).astype(np.int16) for awg_function in awg_functions
+            awg_pulse.output(times).astype(np.int16) for awg_pulse in awg_pulses
         ]  # TODO: slow
         ttl_data = [
-            ttl_function(times).astype(np.int16) for ttl_function in ttl_functions
+            ttl_pulse.output(times).astype(np.int16) for ttl_pulse in ttl_pulses
         ]
         for kk, ttl_channel in enumerate(ttl_channels_map_to_awg_channels):
             awg_index = awg_channels.index(

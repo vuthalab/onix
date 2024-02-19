@@ -42,14 +42,14 @@ def chasm_segment(
     for kk, transition in enumerate(transitions):
         try:
             len(durations)
-            duration = durations
-        except TypeError:
             duration = durations[kk]
+        except TypeError:
+            duration = durations
         try:
             len(detunings)
-            detuning = detunings
-        except TypeError:
             detuning = detunings[kk]
+        except TypeError:
+            detuning = detunings
 
         if transition.startswith("rf_"):
             name = transition
@@ -97,14 +97,14 @@ def antihole_segment(
     for kk, transition in enumerate(transitions):
         try:
             len(durations)
-            duration = durations
-        except TypeError:
             duration = durations[kk]
+        except TypeError:
+            duration = durations
         try:
             len(detunings)
-            detuning = detunings
-        except TypeError:
             detuning = detunings[kk]
+        except TypeError:
+            detuning = detunings
 
         if transition.startswith("rf_"):
             name = transition
@@ -179,13 +179,13 @@ def detect_segment(
     segment.add_awg_function(eo_channel, eo_pulse)
 
     ao_frequencies = (
-        ao_parameters["frequency"] + detect_detunings / ao_parameters["order"]
+        ao_parameters["center_frequency"] + detect_detunings / ao_parameters["order"]
     )
     ao_pulse = AWGSineTrain(
         on_time,
         off_time,
         ao_frequencies,
-        ao_parameters["detect_amplitude"],
+        detect_parameters["ao_amplitude"],
         start_time=start_time + off_time / 2,
     )
     ao_channel = get_channel_from_name(ao_parameters["name"])
@@ -258,10 +258,11 @@ def _scan_segment(
         energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
     )
     segment = Segment(name, duration)
-    start = ao_parameters["frequency"] + (detuning - scan) / ao_parameters["order"]
-    end = ao_parameters["frequency"] + (detuning + scan) / ao_parameters["order"]
+    start = ao_parameters["center_frequency"] + (detuning - scan) / ao_parameters["order"]
+    end = ao_parameters["center_frequency"] + (detuning + scan) / ao_parameters["order"]
     ao_pulse = AWGSineSweep(start, end, ao_amplitude, 0, duration)
-    segment.add_awg_function(ao_parameters["channel"], ao_pulse)
+    ao_channel = get_channel_from_name(ao_parameters["name"])
+    segment.add_awg_function(ao_channel, ao_pulse)
     eo_pulse = AWGSinePulse(frequency, eo_parameters["amplitude"])
     eo_channel = get_channel_from_name(eo_parameters["name"])
     segment.add_awg_function(eo_channel, eo_pulse)
@@ -387,3 +388,9 @@ class SharedSequence(Sequence):
         segment_steps.extend(self.get_antihole_sequence())
         segment_steps.extend(self.get_rf_sequence())
         return super().setup_sequence(segment_steps)
+
+    def num_of_record_cycles(self):
+        total_cycles = 0
+        for name, cycles in self.analysis_parameters["detect_groups"]:
+            total_cycles += cycles
+        return total_cycles

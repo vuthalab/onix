@@ -1,4 +1,5 @@
 import time
+import traceback
 from copy import deepcopy
 from typing import Literal, Optional
 import numpy as np
@@ -18,7 +19,7 @@ except Exception:
     except Exception as e:
         m4i = None
         print("m4i is not defined with error:")
-        print(e)
+        print(traceback.format_exc())
 
 try:
     dg  # type: ignore
@@ -29,7 +30,7 @@ except Exception:
     except Exception as e:
         dg = None
         print("dg is not defined with error:")
-        print(e)
+        print(traceback.format_exc())
 
 _shared_parameters = {
     "wm_channel": 5,
@@ -131,9 +132,9 @@ def update_parameters_from_shared(parameters: dict, shared_parameters=None):
     for kk in shared_parameters:
         if kk in parameters:
             if isinstance(parameters[kk], dict):
-                update_parameters_from_shared(parameters[kk], shared_parameters[kk])
-            else:
-                parameters[kk] = shared_parameters[kk]
+                parameters[kk] = update_parameters_from_shared(
+                    parameters[kk], shared_parameters[kk]
+                )
         else:
             parameters[kk] = shared_parameters[kk]
     return parameters

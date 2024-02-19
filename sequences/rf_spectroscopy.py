@@ -18,7 +18,6 @@ class RFSpectroscopy(SharedSequence):
         self._define_rf()
 
     def _define_rf(self):
-        segment = Segment("rf")
     
         rf_channel = get_channel_from_name(self._rf_parameters["name"])
         lower_state = self._rf_parameters["transition"][0]
@@ -28,11 +27,8 @@ class RFSpectroscopy(SharedSequence):
         detuning = self._rf_parameters["detuning"]
         duration = self._rf_parameters["duration"]
         amplitude = self._rf_parameters["amplitude"]
-        pulse = AWGSinePulse(
-            center_frequency + detuning,
-            amplitude,
-            duration,
-        )
+        segment = Segment("rf", duration=duration)
+        pulse = AWGSinePulse(center_frequency + detuning, amplitude)
         segment.add_awg_function(rf_channel, pulse)
         if self._shutter_off_after_antihole:
             segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())

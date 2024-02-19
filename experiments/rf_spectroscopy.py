@@ -16,15 +16,7 @@ from onix.experiments.shared import (
 
 ## function to run the experiment
 def get_sequence(params):
-    sequence = RFSpectroscopy(
-        ao_parameters=params["ao"],
-        eos_parameters=params["eos"],
-        field_plate_parameters=params["field_plate"],
-        chasm_parameters=params["chasm"],
-        antihole_parameters=params["antihole"],
-        rf_parameters=params["rf"],
-        detect_parameters=params["detect"],
-    )
+    sequence = RFSpectroscopy(params)
     return sequence
 
 
@@ -43,7 +35,7 @@ default_sequence = get_sequence(default_params)
 default_sequence.setup_sequence()
 setup_digitizer(
     default_sequence.analysis_parameters["digitizer_duration"],
-    default_sequence.num_of_records(),
+    default_sequence.num_of_record_cycles(),
     default_params["sequence_repeats_per_transfer"],
 )
 
@@ -64,7 +56,6 @@ for kk in range(len(rf_frequencies)):
     sequence = get_sequence(params)
     data = run_sequence(sequence, params)
     data_id = save_data(sequence, params, *data)
-    data_id = save_data()
     print(data_id)
     if first_data_id == None:
         first_data_id = data_id
