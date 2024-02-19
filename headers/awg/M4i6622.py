@@ -597,7 +597,7 @@ class M4i6622:
             raise Exception(f"Get sequence current step failed with code {ret}.")
         return value.value
 
-    def _get_error_information(self, hcard) -> (int, int, str):
+    def _get_error_information(self, hcard) -> tuple[int, int, str]:
         error_register = pyspcm.uint32(0)
         error_code = pyspcm.int32(0)
         text = pyspcm.create_string_buffer(1000)
@@ -771,7 +771,9 @@ class M4i6622:
         if not self._sine_segment_running:
             raise Exception("Sine outputs are already off.")
         self._sine_segment_running = False
-        for hcard in self._hcards:
+        self._stop(self._hcards[0])
+        self._set_trigger_or_mask(self._hcards[0], pyspcm.SPC_TMASK_SOFTWARE)
+        for hcard in self._hcards[1:]:
             self._stop(hcard)
             self._set_trigger_or_mask(hcard, pyspcm.SPC_TMASK_EXT0)
 
