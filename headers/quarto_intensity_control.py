@@ -74,7 +74,7 @@ class Quarto:
         self.output_lower_limit = val
         return val
 
-    def get_output_uppper_limit(self):
+    def get_output_upper_limit(self):
         val = float(self._get_param("output_upper_limit"))
         self.output_upper_limit = val
         return val
