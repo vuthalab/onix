@@ -18,7 +18,6 @@ class RFSpectroscopy(SharedSequence):
         self._define_rf()
 
     def _define_rf(self):
-    
         rf_channel = get_channel_from_name(self._rf_parameters["name"])
         lower_state = self._rf_parameters["transition"][0]
         upper_state = self._rf_parameters["transition"][1]
