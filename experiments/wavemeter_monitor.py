@@ -1,16 +1,8 @@
 import time
 
-import numpy as np
-from onix.data_tools import save_experiment_data
-from onix.units import ureg
-
 from onix.data_tools import save_persistent_data
-
 from onix.headers.wavemeter.wavemeter import WM
-import matplotlib.pyplot as plt
-import sys
 
-from tqdm import tqdm
 
 wavemeter = WM()
 
@@ -36,16 +28,14 @@ def save_data():
 
 frequencies = []
 times = []
+measurement_period_s = 10
 
-total_time = 48 * 60 # minutes
-measurement_period = 5 # min
+try:
+    while True:
+        frequencies.append(wavemeter_frequency())
+        times.append(time.time())
 
-measurements = int(total_time / measurement_period)
-
-for i in tqdm(range(measurements)):
-    frequencies.append(round(wavemeter_frequency(), 3))
-    times.append(time.time())
-
-    time.sleep(measurement_period * 60)
-
-save_data()
+        time.sleep(measurement_period_s)
+except KeyboardInterrupt:
+    save_data()
+    pass
