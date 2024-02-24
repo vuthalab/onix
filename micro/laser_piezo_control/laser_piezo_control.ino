@@ -5,11 +5,6 @@
  * The output monitor from the Vescent goes into the Quarto error input,
  * and Quarto adjusts the piezo to provide slow feedback to keep the error input stable.
  * The Quarto lock trigger output should be connected to relative jump TTL input of the Vescent.
- * NOTE: the wavemeter input and feedback is not implemented yet.
- * An optional wavemeter input can be used. When the wavemeter input deviates
- * from the preset value, Quarto determines that laser has unlocked
- * and disengages the Vescent lock using the lock output TTL. It then adjusts the piezo
- * to adjust the wavemeter input to its preset value and tries to engage the lock again.
  *
  * The quarto has three states:
  * State 0: Quarto output offset and scan can be changed. The lock trigger
@@ -17,12 +12,7 @@
  * State 1: Quarto stops scanning, and changes the lock trigger output to
  * low (locked). It also provides PID feedback to the output offset
  * to keep error input at the last reading in state 0.
- * State 2: In addition to the behavior in state 1, if the wavemeter
- * input drifts away from last input value in state 1 by more than
- * the max_wavemeter_offset, it changes the lock trigger output to high (unlocked),
- * and adjusts the output offset until the wavemeter input is within the max wavemeter offset
- * of the previous input value in state 1. Then it changes lock trigger to
- * low (locked) and restarts the PID feedback to the output offset.
+ * State 2: Detects unlock using the transmission voltage.
 */
 
 #include "qCommand.h"
@@ -31,8 +21,10 @@ qCommand qC;
 
 // error signal analog input port
 const uint8_t ERROR_INPUT = 1;
-// wavemeter signal analog input port
-const uint8_t WAVEMETER_INPUT = 2;
+// cavity transmission signal analog input port
+const uint8_t TRANSMISSION_INPUT = 2;
+// cavity error signal analog input port
+const uint8_t CAVITY_ERROR_INPUT = 3;
 // control signal analog output port
 const uint8_t CONTROL_OUTPUT = 1;
 // laser jump amplitude analog output port
@@ -43,38 +35,31 @@ const uint8_t SCAN_TRIGGER_OUTPUT = 1;
 const uint8_t LOCK_TRIGGER_OUTPUT = 2;
 
 // interval in us for ADC data reading
-const uint16_t ERROR_ADC_INTERVAL = 10;  // related to the scan time in state 0.
-const uint16_t WAVEMETER_ADC_INTERVAL = 10;
+const uint16_t ADC_INTERVAL = 10;  // related to the scan time in state 0.
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ERROR_ADC_SCALE = BIPOLAR_10V;
-const adc_scale_t WAVEMETER_ADC_SCALE = BIPOLAR_10V;
+const adc_scale_t TRANSMISSION_ADC_SCALE = BIPOLAR_2500mV;
+const adc_scale_t CAVITY_ERROR_ADC_SCALE = BIPOLAR_10V;
 
-// scan steps (SCAN_STEPS * ERROR_ADC_INTERVAL = scan time)
+// scan steps (SCAN_STEPS * ADC_INTERVAL = scan time)
 const int SCAN_STEPS = 1000;
 
 // PID parameters for piezo feedback to the error signal
 float p_gain = 0.001;
-float i_time = 10000.0;  // us
+float i_time = 1000.0;  // us
 float d_time = 0.0;  // us
 
 // error signal offset
-float error_offset = 6.0;
+float laser_jump_offset = -6.0;
+// error signal offset
+float error_offset = 5.468;
 // keeps track of the integral term
 float integral = 0.0;
 // limits the integral term magnitude so it does not blow up
-float integral_limit = 10.0;
+float integral_limit = 1.0;
 float current_error = 0.0;
 // last error signal for D gain.
 float previous_error = -100.0;
-
-// PI parameters for piezo feedback to the wavemeter signal
-float p_gain_wm = 0.000001;
-float i_time_wm = 1000000.0;  // us
-
-// wavemeter error signal and integral term
-float error_offset_wm = 0.0;
-float current_error_wm = 0.0;
-float integral_wm = 0.0;
 
 // output voltage offset
 float output_offset = 5.0;
@@ -95,15 +80,23 @@ float integral_upper_warning = integral_limit - 0.1 * acceptable_integral_range;
 
 int state = 0;
 
+// auto relock parameters
+float last_good_integral = 0.0;
+float transmission_unlock_voltage = 0.005;
+const int SAMPLES_CONFIRM_UNLOCK = 10;
+int confirm_unlock_index = -1;
+const int SAMPLES_WAIT_LOCK = 50;
+int wait_lock_index = -1;
+
 // Data saved in Quarto for computer readout
-const int MAX_DATA_LENGTH = 1000;
-int data_length = MAX_DATA_LENGTH;
+const int MAX_DATA_LENGTH = SCAN_STEPS * 2;
+const int SYNC_DATA_LENGTH = SCAN_STEPS;
 float error_data[MAX_DATA_LENGTH];
-int error_index = 0;
-bool pause_error_data = false;
 float output_data[MAX_DATA_LENGTH];
-int output_index = 0;
-bool pause_output_data = false;
+float cavity_error_data[MAX_DATA_LENGTH];
+float transmission_data[MAX_DATA_LENGTH];
+int data_index = 0;
+bool pause_data = false;
 
 
 void error_adc_loop(void) {
@@ -121,32 +114,74 @@ void error_adc_loop(void) {
       current_error = readADC4_from_ISR();
       break;
   }
-  if (!pause_error_data) {
-    error_data[error_index] = current_error;
-    if (error_index < data_length - 1) {
-      error_index++;
+  bool local_pause_data = pause_data;
+  if (!local_pause_data) {
+    error_data[data_index] = current_error;
+  }
+  update_pid(local_pause_data);  // this function must be fast compared to the ADC sample interval.
+  if (!local_pause_data) {
+    if (data_index < MAX_DATA_LENGTH - 1) {
+      data_index++;
     }
     else {
-      error_index = 0;
+      data_index = 0;
     }
   }
-  update_pid();  // this function must be fast compared to the ADC sample interval.
 }
 
-void wavemeter_adc_loop(void) {
-  switch (WAVEMETER_INPUT) {
+void cavity_error_adc_loop(void) {
+  float cavity_error;
+  switch (CAVITY_ERROR_INPUT) {
     case 1:
-      current_error_wm = readADC1_from_ISR();
+      cavity_error = readADC1_from_ISR();
       break;
     case 2:
-      current_error_wm = readADC2_from_ISR();
+      cavity_error = readADC2_from_ISR();
       break;
     case 3:
-      current_error_wm = readADC3_from_ISR();
+      cavity_error = readADC3_from_ISR();
       break;
     case 4:
-      current_error_wm = readADC4_from_ISR();
+      cavity_error = readADC4_from_ISR();
       break;
+  }
+  if (!pause_data) {
+    cavity_error_data[data_index] = cavity_error;
+  }
+}
+
+void transmission_adc_loop(void) {
+  float transmission;
+  switch (TRANSMISSION_INPUT) {
+    case 1:
+      transmission = readADC1_from_ISR();
+      break;
+    case 2:
+      transmission = readADC2_from_ISR();
+      break;
+    case 3:
+      transmission = readADC3_from_ISR();
+      break;
+    case 4:
+      transmission = readADC4_from_ISR();
+      break;
+  }
+  if (!pause_data) {
+    transmission_data[data_index] = transmission;
+  }
+  if (state > 0) {
+    if (wait_lock_index < 0) {
+      if (transmission > transmission_unlock_voltage) {
+        last_good_integral = integral;
+        confirm_unlock_index = -1;
+      }
+      else if (confirm_unlock_index < 0) {
+        confirm_unlock_index = SAMPLES_CONFIRM_UNLOCK - 1;
+      }
+      else if (confirm_unlock_index > 0) {
+        confirm_unlock_index -= 1;
+      }
+    }
   }
 }
 
@@ -162,31 +197,23 @@ float new_integral(float integral, float integral_change) {
   return pending_integral;
 }
 
-bool is_wavemeter_correct(void) {
-  return true;  // TODO: check wavemeter output is correct.
-}
-
-void update_pid(void) {
+void update_pid(bool local_pause_data) {
   bool scan_on = false;
   bool feedback_on = false;
-  bool wm_feedback_on = false;  // TODO: implement wavemeter feedback.
+  bool auto_relock_on = false;
   switch (state) {
     case 0:  // feedback off
       integral = 0.0;
       previous_error = -100.0;
       scan_on = true;
       break;
-    case 1:  // feedback on always
+    case 1:  // feedback on
       feedback_on = true;
       break;
-    case 2:
-      if (is_wavemeter_correct()) {
-        feedback_on = true;
-        break;
-      }
-      else {
-        wm_feedback_on = true;
-      }
+    case 2:  // feedback on, auto relock on
+      feedback_on = true;
+      auto_relock_on = true;
+      break;
     default:
       break;
   }
@@ -206,13 +233,30 @@ void update_pid(void) {
       output_scan_index = 0;
     }
   }
-  else if (feedback_on) {
+  if (auto_relock_on) {
+    if (confirm_unlock_index == 0) {
+      feedback_on = false;
+      wait_lock_index = 2 * SAMPLES_WAIT_LOCK - 1;
+      output = output_offset + last_good_integral;
+      confirm_unlock_index = -1;
+      triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
+    }
+    else if (wait_lock_index >= 0) {
+      feedback_on = false;
+      wait_lock_index -= 1;
+      output = output_offset + last_good_integral;
+      if (wait_lock_index == SAMPLES_WAIT_LOCK) {
+        triggerWrite(LOCK_TRIGGER_OUTPUT, LOW);
+      }
+    }
+  }
+  if (feedback_on) {
     float error = current_error - error_offset;
     float proportional = p_gain * error;
-    integral = new_integral(integral, p_gain * ERROR_ADC_INTERVAL / i_time * error);
+    integral = new_integral(integral, p_gain * ADC_INTERVAL / i_time * error);
     float differential = 0.0;
     if (previous_error > -99.0) {  // not the first data point.
-      differential = p_gain * d_time / ERROR_ADC_INTERVAL * (current_error - previous_error);
+      differential = p_gain * d_time / ADC_INTERVAL * (current_error - previous_error);
     }
     previous_error = error + error_offset;
 
@@ -226,14 +270,8 @@ void update_pid(void) {
   }
   writeDAC(CONTROL_OUTPUT, output);
 
-  if (!pause_output_data) {
-    output_data[output_index] = output;
-    if (output_index < data_length - 1) {
-      output_index++;
-    }
-    else {
-      output_index = 0;
-    }
+  if (!local_pause_data) {
+    output_data[data_index] = output;
   }
 }
 
@@ -271,9 +309,16 @@ void cmd_integral_limit(qCommand& qC, Stream& S){
 void cmd_error_offset(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
     error_offset = atof(qC.current());
-    writeDAC(LASER_JUMP_OUTPUT, -error_offset);
   }
   S.printf("error offset is %f\n", error_offset);
+}
+
+void cmd_laser_jump_offset(qCommand& qC, Stream& S){
+  if ( qC.next() != NULL) {
+    laser_jump_offset = atof(qC.current());
+    writeDAC(LASER_JUMP_OUTPUT, laser_jump_offset);
+  }
+  S.printf("laser jump offset is %f\n", laser_jump_offset);
 }
 
 void cmd_output_offset(qCommand& qC, Stream& S){
@@ -322,14 +367,13 @@ void cmd_state(qCommand& qC, Stream& S){
     integral = 0.0;
     previous_error = -100.0;
     output_scan_index = 0;
-    error_index = 0;
-    output_index = 0;
-
+    data_index = 0;
+    wait_lock_index = -1;
+    confirm_unlock_index = -1;
     triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
     triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
   }
   else {
-    writeDAC(CONTROL_OUTPUT, output_offset);
     triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
     triggerWrite(LOCK_TRIGGER_OUTPUT, LOW);
   }
@@ -364,27 +408,51 @@ void serial_print_data(Stream& S, float array[], int next_index, int length) {
 }
 
 void cmd_error_data(qCommand& qC, Stream& S){
-  pause_error_data = true; // pause data taking during process
+  pause_data = true; // pause data taking during process
   int get_data_length = MAX_DATA_LENGTH;
   if ( qC.next() != NULL) {
     get_data_length = atoi(qC.current());
   }
-  serial_print_data(S, error_data, error_index, get_data_length);
-  pause_error_data = false;
+  serial_print_data(S, error_data, data_index, get_data_length);
+  pause_data = false;
 }
 
 void cmd_output_data(qCommand& qC, Stream& S){
-  pause_output_data = true; // pause data taking during process
+  pause_data = true; // pause data taking during process
   int get_data_length = MAX_DATA_LENGTH;
   if ( qC.next() != NULL) {
     get_data_length = atoi(qC.current());
   }
-  serial_print_data(S, output_data, output_index, get_data_length);
-  pause_output_data = false;
+  serial_print_data(S, output_data, data_index, get_data_length);
+  pause_data = false;
+}
+
+void cmd_all_data(qCommand& qC, Stream& S){
+  pause_data = true; // pause data taking during process
+  int start_index = SYNC_DATA_LENGTH;
+  if (data_index > SYNC_DATA_LENGTH) {
+    start_index = 0;
+  }
+  int end_index = start_index + SYNC_DATA_LENGTH;
+  for (int i = start_index; i < end_index; i++) {
+    S.printf("%f\n", error_data[i]);
+  }
+  for (int i = start_index; i < end_index; i++) {
+    S.printf("%f\n", output_data[i]);
+  }
+  for (int i = start_index; i < end_index; i++) {
+    S.printf("%f\n", transmission_data[i]);
+  }
+  for (int i = start_index; i < end_index; i++) {
+    S.printf("%f\n", cavity_error_data[i]);
+  }
+  output_scan_index = 0;
+  data_index = 0;
+  pause_data = false;
 }
 
 void cmd_limit_warnings(qCommand& qC, Stream& S) {
-  float output = output_data[output_index];
+  float output = output_data[data_index];
 
   int indicator = 0;
   if ((output >= output_upper_limit) || (output <= output_lower_limit)) {
@@ -409,6 +477,7 @@ void setup(void) {
   qC.addCommand("d_time", cmd_d_time);
   qC.addCommand("integral_limit", cmd_integral_limit);
   qC.addCommand("error_offset", cmd_error_offset);
+  qC.addCommand("laser_jump_offset", cmd_laser_jump_offset);
   qC.addCommand("output_offset", cmd_output_offset);
   qC.addCommand("output_scan", cmd_output_scan);
   qC.addCommand("output_lower_limit", cmd_output_lower_limit);
@@ -416,14 +485,16 @@ void setup(void) {
   qC.addCommand("state", cmd_state);
   qC.addCommand("error_data", cmd_error_data);
   qC.addCommand("output_data", cmd_output_data);
+  qC.addCommand("all_data", cmd_all_data);
   qC.addCommand("limit_warnings", cmd_limit_warnings);
   qC.addCommand("integral", cmd_integral);
-  configureADC(ERROR_INPUT, ERROR_ADC_INTERVAL, ADC_DELAY, ERROR_ADC_SCALE, error_adc_loop);
-  configureADC(WAVEMETER_INPUT, WAVEMETER_ADC_INTERVAL, ADC_DELAY, WAVEMETER_ADC_SCALE, wavemeter_adc_loop);
+  configureADC(ERROR_INPUT, ADC_INTERVAL, ADC_DELAY, ERROR_ADC_SCALE, error_adc_loop);
+  configureADC(TRANSMISSION_INPUT, ADC_INTERVAL, ADC_DELAY, TRANSMISSION_ADC_SCALE, transmission_adc_loop);
+  configureADC(CAVITY_ERROR_INPUT, ADC_INTERVAL, ADC_DELAY, CAVITY_ERROR_ADC_SCALE, cavity_error_adc_loop);
   triggerMode(SCAN_TRIGGER_OUTPUT, OUTPUT);
   triggerMode(LOCK_TRIGGER_OUTPUT, OUTPUT);
   triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
-  writeDAC(LASER_JUMP_OUTPUT, -error_offset);
+  writeDAC(LASER_JUMP_OUTPUT, laser_jump_offset);
 }
 
 void loop(){

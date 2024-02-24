@@ -14,7 +14,7 @@ from onix.awg_maps import get_channel_from_name
 
 class RFSpectroscopy(SharedSequence):
     def __init__(self, parameters: dict[str, Any]):
-        super().__init__(parameters, shutter_off_after_antihole=True)
+        super().__init__(parameters, shutter_off_after_antihole=False)
         self._define_rf()
 
     def _define_rf(self):
@@ -29,7 +29,7 @@ class RFSpectroscopy(SharedSequence):
         segment = Segment("rf", duration=duration)
         pulse = AWGSinePulse(center_frequency + detuning, amplitude)
         segment.add_awg_function(rf_channel, pulse)
-        if self._shutter_off_after_antihole:
+        if not self._shutter_off_after_antihole:
             segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
         self.add_segment(segment)
 
@@ -37,6 +37,8 @@ class RFSpectroscopy(SharedSequence):
         # the shutter is open (high) at the beginning of this function.
         segment_steps = []
         segment_steps.append(("rf", 1))
+        if self._shutter_off_after_antihole:
+            segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["rf"]
         segment_steps.append(("detect", detect_cycles))
         self.analysis_parameters["detect_groups"].append(("rf", detect_cycles))

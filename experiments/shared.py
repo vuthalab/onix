@@ -63,7 +63,7 @@ _shared_parameters = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "offset": -26.5 * ureg.kHz,
+        "offset": 20 * ureg.kHz, #-26.5 * ureg.kHz,
     },
     "field_plate": {
         "name": "field_plate",
@@ -73,7 +73,7 @@ _shared_parameters = {
         "padding_time": 5 * ureg.ms,
     },
     "chasm": {
-        "transitions": ["bb"],
+        "transitions": ["bb"], #, "rf_both"
         "scan": 3 * ureg.MHz,
         "durations": 10 * ureg.ms,
         "repeats": 20,
@@ -83,7 +83,7 @@ _shared_parameters = {
     "rf_pump": {
         "use": False,
         "into": "b",
-        "amplitude": 2000,
+        "amplitude": 1000,
         "scan_detunings": {
             "bbar": np.array([-130, 0]) * ureg.kHz,
             "b": np.array([0, 130]) * ureg.kHz,
@@ -100,15 +100,15 @@ _shared_parameters = {
     "detect": {
         "transition": "bb",
         "trigger_channel": 2,
-        "ao_amplitude": 450,
+        "ao_amplitude": 2000,
         "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
         "randomize": False,
         "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
         "cycles": {
-            "chasm": 100,
-            "antihole": 100,
-            "rf": 100,
+            "chasm": 1,
+            "antihole": 1,
+            "rf": 1,
         },
     },
     "digitizer": {
@@ -118,7 +118,7 @@ _shared_parameters = {
     },
     "shutter": {
         "channel": 1,
-        "rise_delay": 2 * ureg.ms,
+        "rise_delay": 3 * ureg.ms,
         "fall_delay": 2 * ureg.ms,
     }
 }

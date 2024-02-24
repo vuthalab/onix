@@ -1,5 +1,4 @@
 import time
-from datetime import datetime
 
 import numpy as np
 from onix.sequences.rf_spectroscopy import RFSpectroscopy
@@ -23,7 +22,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 20,
+    "sequence_repeats_per_transfer": 5,
     "data_transfer_repeats": 1,
     "eos": {
         "ac": {
@@ -79,7 +78,7 @@ start_time = time.time()
 params = default_params.copy()
 first_data_id = None
 
-params["rf"]["amplitude"] = 4200
+params["rf"]["amplitude"] = 2000
 params["rf"]["duration"] = 0.5 * ureg.ms
 
 rf_frequencies = np.arange(-400, 400, 20)

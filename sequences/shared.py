@@ -51,11 +51,11 @@ def chasm_segment(
         except TypeError:
             detuning = detunings
 
+        segment_name = transition
         if transition.startswith("rf_"):
-            name = transition
             parameters = rf_pump_parameters.copy()
             parameters["into"] = transition.split("_")[1]
-            segments.append(_rf_pump_segment(name, rf_parameters, parameters, duration))
+            segments.append(_rf_pump_segment(segment_name, rf_parameters, parameters, duration))
         else:
             if not field_plate_parameters["use"]:
                 polarities = [0]
@@ -64,7 +64,7 @@ def chasm_segment(
             for polarity in polarities:
                 segments.append(
                     _scan_segment(
-                        name,
+                        segment_name,
                         ao_parameters,
                         eos_parameters,
                         transition,
@@ -106,13 +106,13 @@ def antihole_segment(
         except TypeError:
             detuning = detunings
 
+        segment_name = transition
         if transition.startswith("rf_"):
-            name = transition
-            segments.append(_rf_pump_segment(name, rf_parameters, rf_pump_parameters, duration))
+            segments.append(_rf_pump_segment(segment_name, rf_parameters, rf_pump_parameters, duration))
         else:
             segments.append(
                 _scan_segment(
-                    name,
+                    segment_name,
                     ao_parameters,
                     eos_parameters,
                     transition,
