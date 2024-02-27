@@ -12,7 +12,8 @@
  * State 1: Quarto stops scanning, and changes the lock trigger output to
  * low (locked). It also provides PID feedback to the output offset
  * to keep error input at the last reading in state 0.
- * State 2: Detects unlock using the transmission voltage.
+ * State 2: Detects unlock using the transmission voltage. Attempts to relock using the last known
+ * good Quarto output voltage.
 */
 
 #include "qCommand.h"
@@ -56,7 +57,7 @@ float error_offset = 5.468;
 // keeps track of the integral term
 float integral = 0.0;
 // limits the integral term magnitude so it does not blow up
-float integral_limit = 1.0;
+float integral_limit = 2.0;
 float current_error = 0.0;
 // last error signal for D gain.
 float previous_error = -100.0;
@@ -64,7 +65,7 @@ float previous_error = -100.0;
 // output voltage offset
 float output_offset = 5.0;
 // output voltage scan
-float output_scan = 1.0;
+float output_scan = 0.3;
 int output_scan_index = 0;
 // output voltage limits
 float output_lower_limit = 0.0;
@@ -355,27 +356,37 @@ void cmd_output_upper_limit(qCommand& qC, Stream& S){
   output_upper_warning = output_upper_limit - 0.1 * acceptable_output_range;
 }
 
+void cmd_transmission_unlock(qCommand& qC, Stream& S){
+  if ( qC.next() != NULL) {
+    transmission_unlock_voltage = atof(qC.current());
+  }
+  S.printf("transmission unlock is %f\n", transmission_unlock_voltage);
+}
+
 void cmd_integral(qCommand& qC, Stream& S){
   S.printf("integral term is %f\n", integral);
 }
 
 void cmd_state(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
-    state = atoi(qC.current());
-  }
-  if (state == 0) {
-    integral = 0.0;
-    previous_error = -100.0;
-    output_scan_index = 0;
-    data_index = 0;
-    wait_lock_index = -1;
-    confirm_unlock_index = -1;
-    triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
-    triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
-  }
-  else {
-    triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
-    triggerWrite(LOCK_TRIGGER_OUTPUT, LOW);
+    int new_state = atoi(qC.current());
+    if (new_state > 2) {
+      new_state = state;
+    }
+    if (state == 0) {
+      integral = 0.0;
+      previous_error = -100.0;
+      output_scan_index = 0;
+      data_index = 0;
+      wait_lock_index = -1;
+      confirm_unlock_index = -1;
+      triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
+      triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
+    }
+    else {
+      triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
+      triggerWrite(LOCK_TRIGGER_OUTPUT, LOW);
+    }
   }
   S.printf("state is %i\n", state);
 }
@@ -482,6 +493,7 @@ void setup(void) {
   qC.addCommand("output_scan", cmd_output_scan);
   qC.addCommand("output_lower_limit", cmd_output_lower_limit);
   qC.addCommand("output_upper_limit", cmd_output_upper_limit);
+  qC.addCommand("transmission_unlock", cmd_transmission_unlock);
   qC.addCommand("state", cmd_state);
   qC.addCommand("error_data", cmd_error_data);
   qC.addCommand("output_data", cmd_output_data);
