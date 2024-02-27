@@ -6,7 +6,7 @@ from matplotlib import animation
 from onix.analysis.power_spectrum import PowerSpectrum
 
 
-DEFAULT_GET_DATA_LENGTH = 50000
+DEFAULT_GET_DATA_LENGTH = 1000
 
 class Quarto:
     def __init__(self, location='/dev/ttyACM1'):
@@ -235,3 +235,4 @@ class Quarto:
 
     def close(self):
         self.device.close()
+

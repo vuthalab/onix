@@ -100,7 +100,7 @@ _shared_parameters = {
     "detect": {
         "transition": "bb",
         "trigger_channel": 2,
-        "ao_amplitude": 2000,
+        "ao_amplitude": 1700,
         "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
         "randomize": False,
         "on_time": 10 * ureg.us,

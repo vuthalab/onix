@@ -355,11 +355,12 @@ class SharedSequence(Sequence):
     def get_chasm_sequence(self):
         segment_steps = []
         segment_steps.append(("chasm", self._chasm_repeats))
-        segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["chasm"]
-        segment_steps.append(("detect", detect_cycles))
-        self.analysis_parameters["detect_groups"].append(("chasm", detect_cycles))
-        segment_steps.append(("break", self._shutter_fall_delay_repeats))
+        if detect_cycles > 0:
+            segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
+            segment_steps.append(("detect", detect_cycles))
+            self.analysis_parameters["detect_groups"].append(("chasm", detect_cycles))
+            segment_steps.append(("break", self._shutter_fall_delay_repeats))
         return segment_steps
 
     def get_antihole_sequence(self):

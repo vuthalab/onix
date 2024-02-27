@@ -22,7 +22,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 5,
+    "sequence_repeats_per_transfer": 20,
     "data_transfer_repeats": 1,
     "eos": {
         "ac": {
@@ -42,8 +42,8 @@ default_params = {
         },
     },
     "rf": {
-        "amplitude": 2000,  # 4200
-        "detuning": -100 * ureg.kHz,
+        "amplitude": 0,  # 4200
+        "detuning": 0 * ureg.kHz,
         "duration": 0.5 * ureg.ms,
     },
     "antihole": {
@@ -52,6 +52,16 @@ default_params = {
         "repeats": 20,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
+    },
+    "detect": {
+        "detunings": np.array([0.0, 2.0]) * ureg.MHz, # np.linspace(-2, 2, 20) * ureg.MHz, #
+        "on_time": 5 * ureg.us,
+        "off_time": 2 * ureg.us,
+        "cycles": {
+            "chasm": 0,
+            "antihole": 10,
+            "rf": 10,
+        },
     },
 }
 default_params = update_parameters_from_shared(default_params)
@@ -74,23 +84,34 @@ setup_digitizer(
 ## timeit
 start_time = time.time()
 
-## scan freq
+## antihole test
 params = default_params.copy()
 first_data_id = None
-
-params["rf"]["amplitude"] = 2000
-params["rf"]["duration"] = 0.5 * ureg.ms
-
-rf_frequencies = np.arange(-400, 400, 20)
-rf_frequencies *= ureg.kHz
-for kk in range(len(rf_frequencies)):
-    params["rf"]["detuning"] = rf_frequencies[kk]
+for kk in range(100):
     sequence = get_sequence(params)
     data = run_sequence(sequence, params)
     data_id = save_data(sequence, params, *data)
     print(data_id)
     if first_data_id == None:
         first_data_id = data_id
+
+## scan freq
+# params = default_params.copy()
+# first_data_id = None
+#
+# params["rf"]["amplitude"] = 2000
+# params["rf"]["duration"] = 4 * ureg.ms
+#
+# rf_frequencies = np.arange(-300, 300, 20)
+# rf_frequencies *= ureg.kHz
+# for kk in range(len(rf_frequencies)):
+#     params["rf"]["detuning"] = rf_frequencies[kk]
+#     sequence = get_sequence(params)
+#     data = run_sequence(sequence, params)
+#     data_id = save_data(sequence, params, *data)
+#     print(data_id)
+#     if first_data_id == None:
+#         first_data_id = data_id
 
 ## print info
 end_time = time.time()
