@@ -58,3 +58,30 @@ plt.xlabel("time (s)")
 plt.ylabel("detector amplitude (V)")
 plt.legend()
 plt.show()
+
+class Oscilloscope():
+    def __init__(self, data_loc, data_name = "data.csv", params_name = "params.txt"):
+        os.chdir(data_loc)
+        self.data = pd.read_csv(data_name)
+        self.params = pd.read_csv(params_name)
+
+    def get_channel_data(self, channel):
+        return self.data.loc[:, channel].to_numpy()[1:].astype(np.float64)
+
+    def time(self):
+        time_start = self.data.loc[:, "Start"].to_numpy()[0].astype(np.float64)
+        time_increment = self.data.loc[:, "Increment"].to_numpy()[0].astype(np.float64)
+        return np.arange(time_start, time_start + time_increment * len(self.get_channel_data("CH1")), time_increment)
+
+    def plot_channels(self, channels = ["CH1", "CH2", "CH3", "CH4"]):
+        fig, ax = plt.subplots()
+        time = self.time()
+        for channel in channels:
+            ax.plot(time, self.get_channel_data(channel), label = channel)
+        plt.xlabel("time (s)")
+        plt.ylabel("amplitude (V)")
+        plt.legend()
+        plt.show()
+
+oscilloscope = Oscilloscope("C:\\Users\\bassa\\Desktop")
+oscilloscope.plot_channels()
