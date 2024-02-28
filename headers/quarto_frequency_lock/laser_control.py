@@ -3,6 +3,7 @@ from onix.headers.quarto_frequency_lock import Quarto
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
+from PyQt5.QtWidgets import *  
 
 app = pg.mkQApp("Laser control")
 q = Quarto("/dev/ttyACM1")
@@ -48,6 +49,12 @@ win.nextRow()
 
 def update_all():
     data = q.get_all_data()
+    # data = {
+    #     "error": np.ones(1000), 
+    #     "output": np.ones(1000),
+    #     "transmission": np.ones(1000),
+    #     "cavity_error": np.ones(1000)
+    # }
     update_p_error(data["error"])
     update_p_output(data["output"])
     update_p_transmission(data["transmission"])
@@ -57,6 +64,44 @@ timer = QtCore.QTimer()
 timer.timeout.connect(update_all)
 timer.start(50)
 
+# Untested
+# def on_button_pressed():    
+#     if lock_state.text() == "Lock On":
+#         lock_state.setText("Lock Off")
+#         lock_state.setStyleSheet("background-color: Red; color: white;")
+#         # TODO: insert command to change the quarto state
+#     elif lock_state.text() == "Lock Off":
+#         lock_state.setText("Lock On")
+#         lock_state.setStyleSheet("background-color: green; color: white;")
+#         # TODO: insert command to change the quarto state
+
+# lock_state = QtWidgets.QPushButton("Lock On")
+# lock_state.clicked.connect(on_button_pressed)
+
+# proxy = QtWidgets.QGraphicsProxyWidget()
+# proxy.setWidget(lock_state)
+# win.addItem(proxy)
+
+# win.nextRow()
+
+# def spinbox():
+#     print(param.value())
+
+# param_label = QLabel("Param")
+
+# param = QtWidgets.QDoubleSpinBox()
+# param.setDecimals(3)
+# param.setSingleStep(0.001) # TODO: change the increment size using the mouse position
+# param.editingFinished.connect(spinbox)
+
+# proxy1 = QtWidgets.QGraphicsProxyWidget()
+# proxy1.setWidget(param)
+# win.addItem(proxy1)
+
+
+# proxy2 = QtWidgets.QGraphicsProxyWidget()
+# proxy2.setWidget(param_label)
+# win.addItem(proxy2)
 
 if __name__ == '__main__':
     pg.exec()
