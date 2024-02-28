@@ -1,27 +1,26 @@
-import influxdb_client, os, time
-from influxdb_client import InfluxDBClient, Point, WritePrecision
-from influxdb_client.client.write_api import SYNCHRONOUS
-from onix.headers.ctc100 import CTC100
-
+import os
 import time
-from datetime import datetime
+import influxdb_client
 
-from onix.data_tools import save_persistent_data
+from influxdb_client import Point
+from influxdb_client.client.write_api import SYNCHRONOUS
 from onix.headers.pulse_tube import PulseTube
 
 pt = PulseTube()
 
-# token = os.environ.get("INFLUXDB_TOKEN")
+os.environ["INFLUXDB_TOKEN"] = "WHWaMDPDC8SwK0RW8VqoQofsqr5EHdAOO0OypfZYDVnlYKPl6VIq-LWBpg86o8FVGTW9VASzsaDzAlquttopVw=="
+token = os.environ.get("INFLUXDB_TOKEN")
+print(token)
 org = "onix"
 url = "http://onix-pc:8086"
 
 write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
 
-bucket="never_deleted"
+bucket="permanent_bucket"
 
 write_api = write_client.write_api(write_options=SYNCHRONOUS)
 
-while(True):
+while True:
     point = Point("pulse_tube")
     state = pt.is_on()
     point.field("state", state)
@@ -29,5 +28,4 @@ while(True):
     for kk in pt.variables:
         point.field(kk, pt.variables[kk][1])
     write_api.write(bucket=bucket, org="onix", record=point)
-    time.sleep(2)
-
+    time.sleep(60)

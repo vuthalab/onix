@@ -5,7 +5,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
 
 app = pg.mkQApp("Laser control")
-q = Quarto("/dev/ttyACM1")
+q = Quarto("/dev/ttyACM2")
 
 win = pg.GraphicsLayoutWidget(show=True, title="")
 win.resize(1000,600)
