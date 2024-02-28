@@ -35,7 +35,7 @@ class CTC100(USBTMCDevice):
     Date: June 23, 2023
     """
 
-    def __init__(self, ip_address,multiplexed=True):
+    def __init__(self, ip_address,multiplexed=False):
         """Connect to the the CTC100."""
         if multiplexed:
             super().__init__(ip_address, mode='multiplexed') # multiplexed connection. here 'ip_address' is actually a local port number.
