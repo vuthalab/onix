@@ -459,3 +459,4 @@ class Quarto:
 
     def close(self):
         self.device.close()
+

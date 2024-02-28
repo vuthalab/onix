@@ -370,22 +370,22 @@ void cmd_integral(qCommand& qC, Stream& S){
 void cmd_state(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
     int new_state = atoi(qC.current());
-    if (new_state > 2) {
-      new_state = state;
-    }
-    if (state == 0) {
-      integral = 0.0;
-      previous_error = -100.0;
-      output_scan_index = 0;
-      data_index = 0;
-      wait_lock_index = -1;
-      confirm_unlock_index = -1;
-      triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
-      triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
-    }
-    else {
-      triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
-      triggerWrite(LOCK_TRIGGER_OUTPUT, LOW);
+    if (new_state <= 2) {
+      state = new_state;
+      if (state == 0) {
+        integral = 0.0;
+        previous_error = -100.0;
+        output_scan_index = 0;
+        data_index = 0;
+        wait_lock_index = -1;
+        confirm_unlock_index = -1;
+        triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
+        triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
+      }
+      else {
+        triggerWrite(SCAN_TRIGGER_OUTPUT, LOW);
+        triggerWrite(LOCK_TRIGGER_OUTPUT, LOW);
+      }
     }
   }
   S.printf("state is %i\n", state);

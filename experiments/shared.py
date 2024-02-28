@@ -9,6 +9,8 @@ from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.units import Q_, ureg
 from onix.sequences.sequence import Sequence
+from onix.headers.wavemeter.wavemeter import WM
+
 
 try:
     m4i  # type: ignore
@@ -32,8 +34,18 @@ except Exception:
         print("dg is not defined with error:")
         print(traceback.format_exc())
 
+try:
+    wm # type: ignore
+    print("WM is already defined")
+except Exception:
+    try:
+        wm = WM()
+    except Exception as e:
+        wm = None
+        print("wm is not defined with error:")
+        print(traceback.format_exc())
+
 _shared_parameters = {
-    "wm_channel": 5,
     "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "ao": {
@@ -122,6 +134,15 @@ _shared_parameters = {
         "fall_delay": 2 * ureg.ms,
     }
 }
+
+def wavemeter_frequency():
+    try:
+        freq = wm.read_frequency(5)
+        if isinstance(freq, str):
+            return -1
+        return freq
+    except Exception:
+        return -1
 
 
 def update_parameters_from_shared(parameters: dict, shared_parameters=None):
@@ -235,6 +256,7 @@ def save_data(
     headers = {
         "params": parameters,
         "detunings": sequence.analysis_parameters["detect_detunings"],
+        "wavemeter": wavemeter_frequency(),
     }
 
     data_id = save_experiment_data(parameters["name"], data, headers)

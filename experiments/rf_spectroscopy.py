@@ -49,19 +49,25 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "ca"],
         "durations": 10 * ureg.ms,
-        "repeats": 20,
+        "repeats": 0,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "detect": {
         "detunings": np.array([0.0, 2.0]) * ureg.MHz, # np.linspace(-2, 2, 20) * ureg.MHz, #
-        "on_time": 5 * ureg.us,
-        "off_time": 2 * ureg.us,
+        "ao_amplitude": 1000,
+        "on_time": 3 * ureg.us,
+        "off_time": 0.6 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 10,
-            "rf": 10,
+            "antihole": 40,
+            "rf": 40,
         },
+    },
+    "digitizer": {
+        "sample_rate": 25e6,
+        "ch1_range": 2,
+        "ch2_range": 0.5,
     },
 }
 default_params = update_parameters_from_shared(default_params)
@@ -87,7 +93,7 @@ start_time = time.time()
 ## antihole test
 params = default_params.copy()
 first_data_id = None
-for kk in range(100):
+for kk in range(50):
     sequence = get_sequence(params)
     data = run_sequence(sequence, params)
     data_id = save_data(sequence, params, *data)

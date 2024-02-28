@@ -18,11 +18,11 @@ const uint8_t CONTROL_OUTPUT = 1;
 // Longer interval slow down the PID loop.
 uint16_t adc_interval = 2; 
 const uint16_t ADC_DELAY = 0;
-const adc_scale_t ADC_SCALE = BIPOLAR_10V;
+const adc_scale_t ADC_SCALE = BIPOLAR_5V;
 
-float p_gain = -0.3;
-float i_time = 0.25;  // us
-float d_time = 100.0;  // us
+float p_gain = -1;
+float i_time = 1;  // us
+float d_time = 20.0;  // us
 float V_reference = 0.0;
 bool use_voltage_reference = false;
 
@@ -38,7 +38,7 @@ float previous_error = -100.0;
 float error_offset = 4.2;
 
 // output voltage offset
-float output_offset = 10.0;
+float output_offset = 9.0;
 // output voltage limits
 float output_lower_limit = 0.0;
 float output_upper_limit = 10.0;
