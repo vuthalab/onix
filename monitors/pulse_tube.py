@@ -14,7 +14,7 @@ url = "http://onix-pc:8086"
 
 write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
 
-bucket="permanent_bucket"
+bucket="permanent"
 
 write_api = write_client.write_api(write_options=SYNCHRONOUS)
 
@@ -26,4 +26,4 @@ while True:
     for kk in pt.variables:
         point.field(kk, pt.variables[kk][1])
     write_api.write(bucket=bucket, org="onix", record=point)
-    time.sleep(60)
+    time.sleep(300)
