@@ -8,9 +8,7 @@ from onix.headers.pulse_tube import PulseTube
 
 pt = PulseTube()
 
-os.environ["INFLUXDB_TOKEN"] = "WHWaMDPDC8SwK0RW8VqoQofsqr5EHdAOO0OypfZYDVnlYKPl6VIq-LWBpg86o8FVGTW9VASzsaDzAlquttopVw=="
 token = os.environ.get("INFLUXDB_TOKEN")
-print(token)
 org = "onix"
 url = "http://onix-pc:8086"
 

@@ -49,19 +49,19 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "ca"],
         "durations": 10 * ureg.ms,
-        "repeats": 0,
+        "repeats": 20,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "detect": {
         "detunings": np.array([0.0, 2.0]) * ureg.MHz, # np.linspace(-2, 2, 20) * ureg.MHz, #
-        "ao_amplitude": 1000,
+        "ao_amplitude": 1700,
         "on_time": 3 * ureg.us,
         "off_time": 0.6 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 40,
-            "rf": 40,
+            "antihole": 11,
+            "rf": 11,
         },
     },
     "digitizer": {

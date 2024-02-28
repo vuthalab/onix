@@ -20,7 +20,7 @@ uint16_t adc_interval = 2;
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_5V;
 
-float p_gain = -1;
+float p_gain = -0.1;
 float i_time = 1;  // us
 float d_time = 20.0;  // us
 float V_reference = 0.0;
