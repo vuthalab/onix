@@ -22,9 +22,8 @@ c = CTC100("192.168.0.202")
 channels = c.channels
 
 high_freq_time = 10
-low_freq_time = 300
-time_start = time.time()
-
+low_freq_time = 280
+send_permanent = True
 while True:
     if send_permanent:
         time_start = time.time()
