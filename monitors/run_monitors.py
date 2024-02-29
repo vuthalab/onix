@@ -21,11 +21,13 @@ wm = WM()
 c = CTC100("192.168.0.202")
 channels = c.channels
 
-counter = 0
 high_freq_time = 10
 low_freq_time = 300
+time_start = time.time()
 
 while True:
+    if send_permanent:
+        time_start = time.time()
     try:
         point = Point("pulse_tube")
         state = pt.is_on()
@@ -33,7 +35,7 @@ while True:
         for kk in pt.variables:
             point.field(kk, pt.variables[kk][1])
         write_api.write(bucket=bucket_live, org="onix", record=point)
-        if counter == low_freq_time:
+        if send_permanent:
             write_api.write(bucket=bucket_permanent, org="onix", record=point)
     except:
         print("Pulse tube error.")
@@ -45,7 +47,7 @@ while True:
             freq = -1
         point.field("frequency", freq)
         write_api.write(bucket=bucket_live, org="onix", record=point)
-        if counter == low_freq_time:
+        if send_permanent:
             write_api.write(bucket=bucket_permanent, org="onix", record=point)
     except:
         print("Wavemeter error.")
@@ -56,12 +58,15 @@ while True:
             value = c.read(channel)
             point.field(channel, value)
         write_api.write(bucket=bucket_live, org="onix", record=point)
-        if counter == low_freq_time:
+        if send_permanent:
             write_api.write(bucket=bucket_permanent, org="onix", record=point)
     except:
         print("CTC100 error.")
 
-    if counter == low_freq_time:
-        counter = 0
-    counter += high_freq_time
+    time_end = time.time()
+    delta_time = time_end - time_start
+    send_permanent = False
+    if delta_time >= low_freq_time:
+        send_permanent = True
+
     time.sleep(high_freq_time)
