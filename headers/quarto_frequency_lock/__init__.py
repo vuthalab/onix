@@ -123,6 +123,11 @@ class Quarto:
         val = float(self._set_param("output_upper_limit", val))
         self.output_upper_limit = val
         return val
+    
+    def set_scan(self, val):
+        val = float(self._set_param("output_scan", val))
+        self.scan = val
+        return val
 
     def set_state(self, val):
         val = int(self._set_param("state", val))
@@ -136,18 +141,21 @@ class Quarto:
         val = int(self._get_param("limit_warnings"))
 
         if (val // 2**0) % 2 == 1:
-            print("Integral warning")
+            integral_warning = "Integral warning"
         elif (val // 2**1) % 2 == 1:
-            print("Integral out of bounds")
+            integral_warning = "Integral out of bounds"
         else:
-            print("Integrator good")
+            integral_warning = "Integrator good"
 
         if (val // 2**2) % 2 == 1:
-            print("Output warning")
+            output_warning = "Output warning"
         elif (val // 2**3) % 2 == 1:
-            print("Output out of bounds")
+            output_warning = "Output out of bounds"
         else:
-            print("Output good")
+            output_warning = "Output good"
+            
+        print(integral_warning, "\n", output_warning)
+        return integral_warning, output_warning
 
     def get_error_data(self, val = None):
         """

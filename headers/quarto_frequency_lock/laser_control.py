@@ -47,6 +47,12 @@ def update_p_cavity_error(data):
 win.nextRow()
 
 
+warning = QtWidgets.QPushButton()
+warning_proxy = QtWidgets.QGraphicsProxyWidget()
+warning_proxy.setWidget(warning)
+warning.setStyleSheet("color: white")
+win.addItem(warning_proxy, row = 5, col = 3)
+
 def update_all():
     data = q.get_all_data()
     # data = {
@@ -60,80 +66,74 @@ def update_all():
     update_p_transmission(data["transmission"])
     update_p_cavity_error(data["cavity_error"])
 
+    integral_warning, output_warning = q.output_limit_indicator()
+    
+    if integral_warning == "Integrator good" and output_warning == "Output good":
+        warning.setStyleSheet("background-color: green")
+        warning_text = "Warnings Good"
+    else: 
+        warning.setStyleSheet("background-color: red")
+        warning_text = integral_warning + "\n" + output_warning
+
+    warning.setText(warning_text)
+    
+
 timer = QtCore.QTimer()
 timer.timeout.connect(update_all)
 timer.start(50)
 
-# #Untested
-# def on_button_pressed():    
-#     if lock_state.text() == "Lock On":
-#         lock_state.setText("Lock Off")
-#         lock_state.setStyleSheet("background-color: Red; color: white;")
-#         #q.set_state(0)
-#     elif lock_state.text() == "Lock Off":
-#         lock_state.setText("Lock On")
-#         lock_state.setStyleSheet("background-color: green; color: white;")
-#         #q.set_state(1)
 
-# #initial_lock_state = q.get_state()
-# # if initial_lock_state == 1:
-# #     lock_state = QtWidgets.QPushButton("Lock On")
-# # elif initial_lock_state == 0:
-# #     lock_state = QtWidgets.QPushButton("Lock Off")
-# lock_state = QtWidgets.QPushButton("Lock On")
-# lock_state.clicked.connect(on_button_pressed)
-# lock_state_proxy = QtWidgets.QGraphicsProxyWidget()
-# lock_state_proxy.setWidget(lock_state)
-# win.addItem(lock_state_proxy, row = 5, col = 0)
+def on_button_pressed():    
+    if lock_state.text() == "Lock On":
+        lock_state.setText("Lock Off")
+        lock_state.setStyleSheet("background-color: Red; color: white;")
+        q.set_state(0)
+    elif lock_state.text() == "Lock Off":
+        lock_state.setText("Lock On")
+        lock_state.setStyleSheet("background-color: green; color: white;")
+        q.set_state(1)
 
-# #no negative numbers allowed on double spinboxes
-# def _error_offset():
-#     print(f"Error Offset = {error_offset.value()}")
-#     #q.set_error_offset(float(error_offset.value())) # TODO: check if float is necessary
+initial_lock_state = q.get_state()
+lock_state = QtWidgets.QPushButton()
+if initial_lock_state == 1:
+    lock_state.setText("Lock On")
+    lock_state.setStyleSheet("background-color: green; color: white;")
+elif initial_lock_state == 0:
+    lock_state.setText("Lock Off")
+    lock_state.setStyleSheet("background-color: Red; color: white;")
 
-# error_offset = QtWidgets.QDoubleSpinBox(prefix = "Error Offset: ")
-# error_offset.setDecimals(3) # the params we are setting are floats on the arduino, which can have a total of 6 digits. This level of resolution should suffice
-# error_offset.setSingleStep(0.001) # TODO: change the increment size using the mouse position
-# error_offset.editingFinished.connect(_error_offset)
-# error_offset_proxy = QtWidgets.QGraphicsProxyWidget()
-# error_offset_proxy.setWidget(error_offset)
-# win.addItem(error_offset_proxy, row = 5, col = 1)
+lock_state.clicked.connect(on_button_pressed)
+lock_state_proxy = QtWidgets.QGraphicsProxyWidget()
+lock_state_proxy.setWidget(lock_state)
+win.addItem(lock_state_proxy, row = 5, col = 0)
 
-# def _output_offset():
-#     print(f"Ouput Offset = {output_offset.value()}")
-#     #q.set_output_offset(float(output_offset.value())) # TODO: check if float is necessary
+def _offset():
+    print(f"Offset = {offset.value()}")
+    q.set_output_offset(float(offset.value())) # TODO: check if float is necessary
 
-# output_offset = QtWidgets.QDoubleSpinBox(prefix = "Ouput Offset: ")
-# output_offset.setDecimals(3) 
-# output_offset.setSingleStep(0.001)
-# output_offset.editingFinished.connect(_output_offset)
-# output_offset_proxy = QtWidgets.QGraphicsProxyWidget()
-# output_offset_proxy.setWidget(output_offset)
-# win.addItem(output_offset_proxy, row = 5, col = 2)
+offset = QtWidgets.QDoubleSpinBox(prefix = "Offset: ")
+offset.setDecimals(2) 
+offset.setSingleStep(0.01)
+offset.editingFinished.connect(_offset)
+offset.setMinimum(-10)
+offset.setMaximum(10) #TODO: set maximum
+offset_proxy = QtWidgets.QGraphicsProxyWidget()
+offset_proxy.setWidget(offset)
+win.addItem(offset_proxy, row = 5, col = 1)
 
-# def _laser_jump_offset():
-#     print(f"Laser Jump Offset = {laser_jump_offset.value()}")
-#     # TODO: add laser jump offset to headers
 
-# laser_jump_offset = QtWidgets.QDoubleSpinBox(prefix = "Laser Jump Offset: ")
-# laser_jump_offset.setDecimals(3) 
-# laser_jump_offset.setSingleStep(0.001) 
-# laser_jump_offset.editingFinished.connect(_laser_jump_offset)
-# laser_jump_offset_proxy = QtWidgets.QGraphicsProxyWidget()
-# laser_jump_offset_proxy.setWidget(laser_jump_offset)
-# win.addItem(laser_jump_offset_proxy, row = 5, col = 2)
+def _scan():
+    q.set_scan(float(scan.value()))
 
-# def _output_scan():
-#     print(f"Output Scan = {output_scan.value()}")
-#     # TODO: add output_scan to header
-
-# output_scan = QtWidgets.QDoubleSpinBox(prefix = "Output Scan: ")
-# output_scan.setDecimals(3) 
-# output_scan.setSingleStep(0.001) 
-# output_scan.editingFinished.connect(_output_scan)
-# output_scan_proxy = QtWidgets.QGraphicsProxyWidget()
-# output_scan_proxy.setWidget(output_scan)
-# win.addItem(output_scan_proxy, row = 5, col = 3)
+scan = QtWidgets.QDoubleSpinBox(prefix = "Scan: ")
+scan.setDecimals(2) 
+scan.setSingleStep(0.01) 
+scan.editingFinished.connect(_scan)
+scan.setMinimum(0)
+#scan.setMaximum() #TODO: set maximum
+scan_proxy = QtWidgets.QGraphicsProxyWidget()
+scan_proxy.setWidget(scan)
+win.addItem(scan_proxy, row = 5, col = 2)
 
 if __name__ == '__main__':
     pg.exec()
