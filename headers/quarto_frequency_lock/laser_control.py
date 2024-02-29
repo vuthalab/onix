@@ -73,7 +73,7 @@ def update_all():
         warning_text = "Warnings Good"
     else: 
         warning.setStyleSheet("background-color: red")
-        warning_text = integral_warning + "\n" + output_warning
+        warning_text = integral_warning + " " + output_warning
 
     warning.setText(warning_text)
     
@@ -84,14 +84,14 @@ timer.start(50)
 
 
 def on_button_pressed():    
-    if lock_state.text() == "Lock On":
+    if lock_state.text() == "Lock On" or lock_state.text() == "Autorelock On":
         lock_state.setText("Lock Off")
         lock_state.setStyleSheet("background-color: Red; color: white;")
         q.set_state(0)
     elif lock_state.text() == "Lock Off":
-        lock_state.setText("Lock On")
+        lock_state.setText("Autorelock On")
         lock_state.setStyleSheet("background-color: green; color: white;")
-        q.set_state(1)
+        q.set_state(2)
 
 initial_lock_state = q.get_state()
 lock_state = QtWidgets.QPushButton()
@@ -101,6 +101,9 @@ if initial_lock_state == 1:
 elif initial_lock_state == 0:
     lock_state.setText("Lock Off")
     lock_state.setStyleSheet("background-color: Red; color: white;")
+elif initial_lock_state == 2:
+    lock_state.setText("Autorelock On")
+    lock_state.setStyleSheet("background-color: green; color: white;")
 
 lock_state.clicked.connect(on_button_pressed)
 lock_state_proxy = QtWidgets.QGraphicsProxyWidget()
@@ -111,7 +114,9 @@ def _offset():
     print(f"Offset = {offset.value()}")
     q.set_output_offset(float(offset.value())) # TODO: check if float is necessary
 
+initial_offset = q.get_output_offset
 offset = QtWidgets.QDoubleSpinBox(prefix = "Offset: ")
+offset.setValue(initial_offset)
 offset.setDecimals(2) 
 offset.setSingleStep(0.01)
 offset.editingFinished.connect(_offset)
@@ -121,11 +126,12 @@ offset_proxy = QtWidgets.QGraphicsProxyWidget()
 offset_proxy.setWidget(offset)
 win.addItem(offset_proxy, row = 5, col = 1)
 
-
 def _scan():
     q.set_scan(float(scan.value()))
 
 scan = QtWidgets.QDoubleSpinBox(prefix = "Scan: ")
+initial_scan = q.get_scan()
+scan.setValue(initial_scan)
 scan.setDecimals(2) 
 scan.setSingleStep(0.01) 
 scan.editingFinished.connect(_scan)
