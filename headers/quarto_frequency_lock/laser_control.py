@@ -2,7 +2,7 @@ import numpy as np
 from onix.headers.quarto_frequency_lock import Quarto
 
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore
+from pyqtgraph.Qt import QtCore, QtWidgets
 from PyQt5.QtWidgets import *  
 
 app = pg.mkQApp("Laser control")
@@ -14,7 +14,7 @@ pg.setConfigOptions(antialias=True)
 
 LENGTH = 1000
 
-p_error = win.addPlot(title="error signal")
+p_error = win.addPlot(title="error signal", colspan = 4)
 p_error.setMouseEnabled(x=False)
 error = p_error.plot(pen='y')
 def update_p_error(data):
@@ -22,7 +22,7 @@ def update_p_error(data):
     error.setData(data)
 win.nextRow()
 
-p_output = win.addPlot(title="output signal")
+p_output = win.addPlot(title="output signal", colspan = 4)
 p_output.setMouseEnabled(x=False)
 output = p_output.plot(pen='y')
 def update_p_output(data):
@@ -30,7 +30,7 @@ def update_p_output(data):
     output.setData(data)
 win.nextRow()
 
-p_transmission = win.addPlot(title="transmission signal")
+p_transmission = win.addPlot(title="transmission signal", colspan = 4)
 p_transmission.setMouseEnabled(x=False)
 transmission = p_transmission.plot(pen='y')
 def update_p_transmission(data):
@@ -38,7 +38,7 @@ def update_p_transmission(data):
     transmission.setData(data)
 win.nextRow()
 
-p_cavity_error = win.addPlot(title="cavity error signal")
+p_cavity_error = win.addPlot(title="cavity error signal", colspan = 4)
 p_cavity_error.setMouseEnabled(x=False)
 cavity_error = p_cavity_error.plot(pen='y')
 def update_p_cavity_error(data):
@@ -64,44 +64,76 @@ timer = QtCore.QTimer()
 timer.timeout.connect(update_all)
 timer.start(50)
 
-# Untested
+# #Untested
 # def on_button_pressed():    
 #     if lock_state.text() == "Lock On":
 #         lock_state.setText("Lock Off")
 #         lock_state.setStyleSheet("background-color: Red; color: white;")
-#         # TODO: insert command to change the quarto state
+#         #q.set_state(0)
 #     elif lock_state.text() == "Lock Off":
 #         lock_state.setText("Lock On")
 #         lock_state.setStyleSheet("background-color: green; color: white;")
-#         # TODO: insert command to change the quarto state
+#         #q.set_state(1)
 
+# #initial_lock_state = q.get_state()
+# # if initial_lock_state == 1:
+# #     lock_state = QtWidgets.QPushButton("Lock On")
+# # elif initial_lock_state == 0:
+# #     lock_state = QtWidgets.QPushButton("Lock Off")
 # lock_state = QtWidgets.QPushButton("Lock On")
 # lock_state.clicked.connect(on_button_pressed)
+# lock_state_proxy = QtWidgets.QGraphicsProxyWidget()
+# lock_state_proxy.setWidget(lock_state)
+# win.addItem(lock_state_proxy, row = 5, col = 0)
 
-# proxy = QtWidgets.QGraphicsProxyWidget()
-# proxy.setWidget(lock_state)
-# win.addItem(proxy)
+# #no negative numbers allowed on double spinboxes
+# def _error_offset():
+#     print(f"Error Offset = {error_offset.value()}")
+#     #q.set_error_offset(float(error_offset.value())) # TODO: check if float is necessary
 
-# win.nextRow()
+# error_offset = QtWidgets.QDoubleSpinBox(prefix = "Error Offset: ")
+# error_offset.setDecimals(3) # the params we are setting are floats on the arduino, which can have a total of 6 digits. This level of resolution should suffice
+# error_offset.setSingleStep(0.001) # TODO: change the increment size using the mouse position
+# error_offset.editingFinished.connect(_error_offset)
+# error_offset_proxy = QtWidgets.QGraphicsProxyWidget()
+# error_offset_proxy.setWidget(error_offset)
+# win.addItem(error_offset_proxy, row = 5, col = 1)
 
-# def spinbox():
-#     print(param.value())
+# def _output_offset():
+#     print(f"Ouput Offset = {output_offset.value()}")
+#     #q.set_output_offset(float(output_offset.value())) # TODO: check if float is necessary
 
-# param_label = QLabel("Param")
+# output_offset = QtWidgets.QDoubleSpinBox(prefix = "Ouput Offset: ")
+# output_offset.setDecimals(3) 
+# output_offset.setSingleStep(0.001)
+# output_offset.editingFinished.connect(_output_offset)
+# output_offset_proxy = QtWidgets.QGraphicsProxyWidget()
+# output_offset_proxy.setWidget(output_offset)
+# win.addItem(output_offset_proxy, row = 5, col = 2)
 
-# param = QtWidgets.QDoubleSpinBox()
-# param.setDecimals(3)
-# param.setSingleStep(0.001) # TODO: change the increment size using the mouse position
-# param.editingFinished.connect(spinbox)
+# def _laser_jump_offset():
+#     print(f"Laser Jump Offset = {laser_jump_offset.value()}")
+#     # TODO: add laser jump offset to headers
 
-# proxy1 = QtWidgets.QGraphicsProxyWidget()
-# proxy1.setWidget(param)
-# win.addItem(proxy1)
+# laser_jump_offset = QtWidgets.QDoubleSpinBox(prefix = "Laser Jump Offset: ")
+# laser_jump_offset.setDecimals(3) 
+# laser_jump_offset.setSingleStep(0.001) 
+# laser_jump_offset.editingFinished.connect(_laser_jump_offset)
+# laser_jump_offset_proxy = QtWidgets.QGraphicsProxyWidget()
+# laser_jump_offset_proxy.setWidget(laser_jump_offset)
+# win.addItem(laser_jump_offset_proxy, row = 5, col = 2)
 
+# def _output_scan():
+#     print(f"Output Scan = {output_scan.value()}")
+#     # TODO: add output_scan to header
 
-# proxy2 = QtWidgets.QGraphicsProxyWidget()
-# proxy2.setWidget(param_label)
-# win.addItem(proxy2)
+# output_scan = QtWidgets.QDoubleSpinBox(prefix = "Output Scan: ")
+# output_scan.setDecimals(3) 
+# output_scan.setSingleStep(0.001) 
+# output_scan.editingFinished.connect(_output_scan)
+# output_scan_proxy = QtWidgets.QGraphicsProxyWidget()
+# output_scan_proxy.setWidget(output_scan)
+# win.addItem(output_scan_proxy, row = 5, col = 3)
 
 if __name__ == '__main__':
     pg.exec()
