@@ -1,12 +1,13 @@
-import numpy as np
 from onix.headers.quarto_frequency_lock import Quarto
-
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtWidgets
-from PyQt5.QtWidgets import *  
+import threading
+from PyQt5.QtWidgets import *
 
 app = pg.mkQApp("Laser control")
-q = Quarto("/dev/ttyACM2")
+q = Quarto("/dev/ttyACM0")
+
+device_lock = threading.Lock()
 
 win = pg.GraphicsLayoutWidget(show=True, title="")
 win.resize(1000,600)
@@ -14,7 +15,7 @@ pg.setConfigOptions(antialias=True)
 
 LENGTH = 1000
 
-p_error = win.addPlot(title="error signal", colspan = 4)
+p_error = win.addPlot(title="error signal", colspan = 3)
 p_error.setMouseEnabled(x=False)
 error = p_error.plot(pen='y')
 def update_p_error(data):
@@ -22,7 +23,7 @@ def update_p_error(data):
     error.setData(data)
 win.nextRow()
 
-p_output = win.addPlot(title="output signal", colspan = 4)
+p_output = win.addPlot(title="output signal", colspan = 3)
 p_output.setMouseEnabled(x=False)
 output = p_output.plot(pen='y')
 def update_p_output(data):
@@ -30,7 +31,7 @@ def update_p_output(data):
     output.setData(data)
 win.nextRow()
 
-p_transmission = win.addPlot(title="transmission signal", colspan = 4)
+p_transmission = win.addPlot(title="transmission signal", colspan = 3)
 p_transmission.setMouseEnabled(x=False)
 transmission = p_transmission.plot(pen='y')
 def update_p_transmission(data):
@@ -38,7 +39,7 @@ def update_p_transmission(data):
     transmission.setData(data)
 win.nextRow()
 
-p_cavity_error = win.addPlot(title="cavity error signal", colspan = 4)
+p_cavity_error = win.addPlot(title="cavity error signal", colspan = 3)
 p_cavity_error.setMouseEnabled(x=False)
 cavity_error = p_cavity_error.plot(pen='y')
 def update_p_cavity_error(data):
@@ -46,54 +47,36 @@ def update_p_cavity_error(data):
     cavity_error.setData(data)
 win.nextRow()
 
-
-warning = QtWidgets.QPushButton()
-warning_proxy = QtWidgets.QGraphicsProxyWidget()
-warning_proxy.setWidget(warning)
-warning.setStyleSheet("color: white")
-win.addItem(warning_proxy, row = 5, col = 3)
-
+plots = True
 def update_all():
-    data = q.get_all_data()
-    # data = {
-    #     "error": np.ones(1000), 
-    #     "output": np.ones(1000),
-    #     "transmission": np.ones(1000),
-    #     "cavity_error": np.ones(1000)
-    # }
-    update_p_error(data["error"])
-    update_p_output(data["output"])
-    update_p_transmission(data["transmission"])
-    update_p_cavity_error(data["cavity_error"])
-
-    integral_warning, output_warning = q.output_limit_indicator()
+    if plots == True:
+        with device_lock:
+            data = q.get_all_data()
+        update_p_error(data["error"])
+        update_p_output(data["output"])
+        update_p_transmission(data["transmission"])
+        update_p_cavity_error(data["cavity_error"])
+    else:
+        pass
     
-    if integral_warning == "Integrator good" and output_warning == "Output good":
-        warning.setStyleSheet("background-color: green")
-        warning_text = "Warnings Good"
-    else: 
-        warning.setStyleSheet("background-color: red")
-        warning_text = integral_warning + " " + output_warning
-
-    warning.setText(warning_text)
-    
-
 timer = QtCore.QTimer()
 timer.timeout.connect(update_all)
 timer.start(50)
-
 
 def on_button_pressed():    
     if lock_state.text() == "Lock On" or lock_state.text() == "Autorelock On":
         lock_state.setText("Lock Off")
         lock_state.setStyleSheet("background-color: Red; color: white;")
-        q.set_state(0)
+        with device_lock:
+            q.set_state(0)
     elif lock_state.text() == "Lock Off":
         lock_state.setText("Autorelock On")
         lock_state.setStyleSheet("background-color: green; color: white;")
-        q.set_state(2)
+        with device_lock:
+            q.set_state(2)
 
-initial_lock_state = q.get_state()
+with device_lock:
+    initial_lock_state = q.get_state()
 lock_state = QtWidgets.QPushButton()
 if initial_lock_state == 1:
     lock_state.setText("Lock On")
@@ -111,35 +94,96 @@ lock_state_proxy.setWidget(lock_state)
 win.addItem(lock_state_proxy, row = 5, col = 0)
 
 def _offset():
-    print(f"Offset = {offset.value()}")
-    q.set_output_offset(float(offset.value())) # TODO: check if float is necessary
+    with device_lock:
+        q.set_output_offset(offset.value()) 
 
-initial_offset = q.get_output_offset
+with device_lock:
+    initial_offset = q.get_output_offset()
 offset = QtWidgets.QDoubleSpinBox(prefix = "Offset: ")
 offset.setValue(initial_offset)
 offset.setDecimals(2) 
 offset.setSingleStep(0.01)
-offset.editingFinished.connect(_offset)
+offset.valueChanged.connect(_offset)
 offset.setMinimum(-10)
-offset.setMaximum(10) #TODO: set maximum
+offset.setMaximum(10)
 offset_proxy = QtWidgets.QGraphicsProxyWidget()
 offset_proxy.setWidget(offset)
 win.addItem(offset_proxy, row = 5, col = 1)
 
 def _scan():
-    q.set_scan(float(scan.value()))
+    with device_lock:
+        q.set_scan(scan.value())
 
 scan = QtWidgets.QDoubleSpinBox(prefix = "Scan: ")
-initial_scan = q.get_scan()
+with device_lock:
+    initial_scan = q.get_scan()
 scan.setValue(initial_scan)
 scan.setDecimals(2) 
 scan.setSingleStep(0.01) 
-scan.editingFinished.connect(_scan)
+scan.valueChanged.connect(_scan)
 scan.setMinimum(0)
-#scan.setMaximum() #TODO: set maximum
+scan.setMaximum(10)
 scan_proxy = QtWidgets.QGraphicsProxyWidget()
 scan_proxy.setWidget(scan)
 win.addItem(scan_proxy, row = 5, col = 2)
+win.nextRow()
+
+def update_warning():
+    with device_lock:
+        state = q.get_state()
+    if state == 0:
+        warning.setStyleSheet("background-color: white; color: black")
+        warning_text = "No Warnings"
+    else:
+        integral_warning, output_warning = q.output_limit_indicator()
+        warning_text = integral_warning + " " + output_warning
+        if "out" in integral_warning or "out" in output_warning:
+            warning.setStyleSheet("background-color: red; color: white")
+        elif "warning" in integral_warning or "warning" in output_warning:
+            warning.setStyleSheet("background-color: yellow; color: black")
+        else:
+            warning.setStyleSheet("background-color: green; color: white")
+    warning.setText(warning_text)
+
+warning = QtWidgets.QPushButton()
+warning_proxy = QtWidgets.QGraphicsProxyWidget()
+warning_proxy.setWidget(warning)
+update_warning()
+win.addItem(warning_proxy, row = 6, col = 0)
+
+warning_timer = QtCore.QTimer()
+warning_timer.timeout.connect(update_warning)
+warning_timer.start(5000)
+
+def stop_plots_pressed(): 
+    global plots
+    if plots == True:
+        plots = False
+        stop_plots.setText("Plots Off")
+    else:
+        plots = True
+        stop_plots.setText("Plots On")
+    
+stop_plots = QtWidgets.QPushButton("Plots On")
+stop_plots.clicked.connect(stop_plots_pressed)
+stop_plots_proxy = QtWidgets.QGraphicsProxyWidget()
+stop_plots_proxy.setWidget(stop_plots)
+win.addItem(stop_plots_proxy, row = 6, col = 1)
+
+def update_transmission():
+    with device_lock:
+        val = q.get_last_transmission_point()
+    last_transmission.setText(f"Transmission: {round(val,2)}")
+
+last_transmission = QtWidgets.QPushButton()
+last_transmission_proxy = QtWidgets.QGraphicsProxyWidget()
+last_transmission_proxy.setWidget(last_transmission)
+update_transmission()
+win.addItem(last_transmission_proxy, row = 6, col = 2)
+
+last_transmission_timer = QtCore.QTimer()
+last_transmission_timer.timeout.connect(update_transmission)
+last_transmission_timer.start(1000)
 
 if __name__ == '__main__':
     pg.exec()

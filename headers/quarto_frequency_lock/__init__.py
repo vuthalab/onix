@@ -14,24 +14,23 @@ class Quarto:
         self.device = serial.Serial(self.address,
                                     baudrate=115200,
                                     timeout=0.2)
-
-    def _get_param(self, param):
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
+        
+
+    def _get_param(self, param):
         out = param + '\n'
         self.device.write(out.encode('utf-8'))
-        response = self.device.readlines()
-        response = response[0].decode('utf-8').strip('\n').split(" ")[-1]
+        response = self.device.readline()
+        response = response.decode('utf-8').strip('\n').split(" ")[-1]
         return response
 
     def _set_param(self, param, val):
-        self.device.reset_input_buffer()
-        self.device.reset_output_buffer()
         out = param + " " + str(val) + '\n'
         self.state = val
         self.device.write(out.encode('utf-8'))
-        response = self.device.readlines()
-        response = response[0].decode('utf-8').strip('\n').split(" ")[-1]
+        response = self.device.readline()
+        response = response.decode('utf-8').strip('\n').split(" ")[-1]
         return response
 
     def get_p_gain(self):
@@ -82,6 +81,15 @@ class Quarto:
     def get_integral(self):
         val = float(self._get_param("integral"))
         self.integral = val
+        return val
+    
+    def get_scan(self):
+        val = float(self._get_param("output_scan"))
+        self.scan = val
+        return val
+    
+    def get_last_transmission_point(self):
+        val = float(self._get_param("last_transmission_point"))
         return val
 
     def set_p_gain(self, val):
@@ -154,7 +162,6 @@ class Quarto:
         else:
             output_warning = "Output good"
             
-        print(integral_warning, "\n", output_warning)
         return integral_warning, output_warning
 
     def get_error_data(self, val = None):

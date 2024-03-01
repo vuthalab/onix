@@ -462,6 +462,10 @@ void cmd_all_data(qCommand& qC, Stream& S){
   pause_data = false;
 }
 
+void cmd_last_transmission_point(qCommand& qC, Stream& S){
+  S.printf("Last transmission point is %f\n", transmission_data[data_index]);
+}
+
 void cmd_limit_warnings(qCommand& qC, Stream& S) {
   float output = output_data[data_index];
 
@@ -500,6 +504,7 @@ void setup(void) {
   qC.addCommand("all_data", cmd_all_data);
   qC.addCommand("limit_warnings", cmd_limit_warnings);
   qC.addCommand("integral", cmd_integral);
+  qC.addCommand("last_transmission_point", cmd_last_transmission_point);
   configureADC(ERROR_INPUT, ADC_INTERVAL, ADC_DELAY, ERROR_ADC_SCALE, error_adc_loop);
   configureADC(TRANSMISSION_INPUT, ADC_INTERVAL, ADC_DELAY, TRANSMISSION_ADC_SCALE, transmission_adc_loop);
   configureADC(CAVITY_ERROR_INPUT, ADC_INTERVAL, ADC_DELAY, CAVITY_ERROR_ADC_SCALE, cavity_error_adc_loop);
