@@ -497,6 +497,68 @@ class AWGMultiFunctions(AWGFunction):
     def max_amplitude(self):
         return np.max([function.max_amplitude for function in self._functions])
 
+class AWGDoubleSineTrain(AWGFunction):
+    def __init__(
+      self,
+      train1_frequencies,
+      train1_amplitude,
+      train1_on_time,
+      train1_off_time,
+      delay_between_trains,
+      train2_frequencies,
+      train2_amplitude,
+      train2_on_time,
+      train2_off_time,
+      phase_difference,      
+    ):
+        self._train1_frequencies = train1_frequencies.to("Hz").magnitude
+        self._train1_amplitude = train1_amplitude
+        self._train1_on_time = train1_on_time.to("s").magnitude
+        self._train1_off_time = train1_off_time.to("s").magnitude
+        self._delay_between_trains = delay_between_trains.to("s").magnitude
+        self._train2_frequencies = train2_frequencies.to("Hz").magnitude
+        self._train2_amplitude = train2_amplitude
+        self._train2_on_time = train2_on_time.to("s").magnitude
+        self._train2_off_time = train2_off_time.to("s").magnitude
+        self._phase_difference = phase_difference
+
+    def output(self, times):
+        def sine(times, frequency, amplitude, phase, start_time, end_time):
+            mask = np.heaviside(times - start_time, 1) - np.heaviside(times - end_time, 1)
+            return mask * amplitude * np.sin(2 * np.pi * frequency * times + phase)
+    
+        data = np.zeros(len(times))
+
+        start_time = 0
+        for frequency in self._train1_frequencies:
+            end_time = start_time + self._train1_on_time
+            data += sine(times, frequency, self._train1_amplitude, 0, start_time, end_time)
+            start_time = end_time + self._train1_off_time
+        start_time = start_time - self._train1_off_time + self._delay_between_trains
+
+        for frequency in self._train2_frequencies:
+            end_time = start_time + self._train2_on_time
+            data += sine(times, frequency, self._train2_amplitude, self._phase_difference, start_time, end_time)
+            start_time = end_time + self._train2_off_time
+        start_time = start_time - self._train2_off_time
+
+        return data
+
+    @property
+    def max_amplitude(self) -> float:
+        return np.max([self._train1_amplitude, self._train2_amplitude])
+
+    @property
+    def min_duration(self) -> Q_:
+        times = [
+            self._train1_on_time * len(self._train1_frequencies),
+            self._train1_off_time * (len(self._train1_frequencies) - 1),
+            self._delay_between_trains,
+            self._train2_on_time * len(self._train2_frequencies),
+            self._train2_off_time * (len(self._train2_frequencies) - 1),
+        ]
+        return np.sum(times) * ureg.s
+
 class TTLFunction:
     def output(self, times):
         raise NotImplementedError()
