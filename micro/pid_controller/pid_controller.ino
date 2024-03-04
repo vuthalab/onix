@@ -1,5 +1,6 @@
 // Quarto code for 1-channel PID feedback.
 // Blue LED is on when feedback is on.
+// Port 5 should be intensity stabilization
 
 #include "qCommand.h"
 #include <math.h>
@@ -22,14 +23,18 @@ const adc_scale_t ADC_SCALE = BIPOLAR_5V;
 
 float p_gain = -0.1;
 float i_time = 1;  // us
+float i2_time = 1; // us
 float d_time = 20.0;  // us
 float V_reference = 0.0;
 bool use_voltage_reference = false;
 
 // keeps track of the integral term
 float integral = 0.0;
+float first_integral = 0.0;
+float double_integral = 0.0;
 // limits the integral term magnitude so it does not blow up
-float integral_limit = 10.0;
+float integral_limit = 20.0; //10.0
+float double_integral_limit = 20.0; //10.0
 float current_error = 0.0;
 // last error signal for D gain.
 float previous_error = -100.0;
@@ -131,6 +136,24 @@ float new_integral(float integral, float integral_change) {
   return pending_integral;
 }
 
+float new_first_integral(float integral, float integral_change) {
+  // limit the integral term to be within the limit.
+  float pending_integral = integral + integral_change;
+  return pending_integral;
+}
+
+float new_double_integral(float double_integral, float double_integral_change) {
+  // limit the double integral term to be within the limit.
+  float pending_double_integral = double_integral + double_integral_change;
+  if (pending_double_integral > double_integral_limit) {
+    return double_integral_limit;
+  }
+  else if (pending_double_integral < -double_integral_limit) {
+    return -double_integral_limit;
+  }
+  return pending_double_integral;
+}
+
 void update_pid(void) {
   // takes ~1 us to finish. Safe to put it in the ADC loop with ~2 us interval.
   float output = output_offset;
@@ -159,13 +182,15 @@ void update_pid(void) {
     float error = current_error - error_offset;
     float proportional = p_gain * error;
     integral = new_integral(integral, p_gain * adc_interval / i_time * error);
+    first_integral = new_first_integral(first_integral, error);
+    double_integral = new_double_integral(double_integral, p_gain * adc_interval / i2_time * first_integral);
     float differential = 0.0;
     if (previous_error > -99.0) {  // not the first data point.
       differential = p_gain * d_time / adc_interval * (current_error - previous_error);
     }
     previous_error = error + error_offset;
 
-    output += proportional + integral + differential;
+    output += proportional + integral + double_integral + differential;
     if (output > output_upper_limit) {
       output = output_upper_limit;
     }
@@ -209,6 +234,13 @@ void cmd_i_time(qCommand& qC, Stream& S){
     i_time = atof(qC.current());
   }
   S.printf("i time is %f\n", i_time);
+}
+
+void cmd_i2_time(qCommand& qC, Stream& S){
+  if ( qC.next() != NULL) {
+    i2_time = atof(qC.current());
+  }
+  S.printf("i2 time is %f\n", i2_time);
 }
 
 void cmd_d_time(qCommand& qC, Stream& S){
@@ -264,6 +296,10 @@ void cmd_output_upper_limit(qCommand& qC, Stream& S){
 
 void cmd_integral(qCommand& qC, Stream& S){
   S.printf("integral term is %f\n", integral);
+}
+
+void cmd_double_integral(qCommand& qC, Stream& S){
+  S.printf("double integral term is %f\n", double_integral);
 }
 
 void cmd_pid_state(qCommand& qC, Stream& S){
@@ -368,6 +404,7 @@ void pid_pulse(void) {
 void setup(void) {
   qC.addCommand("p_gain", cmd_p_gain);
   qC.addCommand("i_time", cmd_i_time);
+  qC.addCommand("i2_time", cmd_i2_time);
   qC.addCommand("d_time", cmd_d_time);
   qC.addCommand("integral_limit", cmd_integral_limit);
   qC.addCommand("error_offset", cmd_error_offset);
@@ -380,6 +417,7 @@ void setup(void) {
   qC.addCommand("adc_interval", cmd_adc_interval);
   qC.addCommand("limit_warnings", cmd_limit_warnings);
   qC.addCommand("integral", cmd_integral);
+  qC.addCommand("double_integral", cmd_double_integral);
   qC.addCommand("v_ref", cmd_v_ref);
   configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
   configureADC(REFERENCE_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, reference_adc_loop);
