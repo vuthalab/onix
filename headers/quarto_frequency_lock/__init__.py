@@ -16,7 +16,7 @@ class Quarto:
                                     timeout=0.2)
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
-        
+
 
     def _get_param(self, param):
         out = param + '\n'
@@ -82,14 +82,18 @@ class Quarto:
         val = float(self._get_param("integral"))
         self.integral = val
         return val
-    
+
     def get_scan(self):
         val = float(self._get_param("output_scan"))
         self.scan = val
         return val
-    
+
     def get_last_transmission_point(self):
         val = float(self._get_param("last_transmission_point"))
+        return val
+
+    def get_last_output_point(self):
+        val = float(self._get_param("last_output_point"))
         return val
 
     def set_p_gain(self, val):
@@ -131,7 +135,7 @@ class Quarto:
         val = float(self._set_param("output_upper_limit", val))
         self.output_upper_limit = val
         return val
-    
+
     def set_scan(self, val):
         val = float(self._set_param("output_scan", val))
         self.scan = val
@@ -161,7 +165,7 @@ class Quarto:
             output_warning = "Output out of bounds"
         else:
             output_warning = "Output good"
-            
+
         return integral_warning, output_warning
 
     def get_error_data(self, val = None):

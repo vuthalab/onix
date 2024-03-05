@@ -3,6 +3,10 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtWidgets
 import threading
 from PyQt5.QtWidgets import *
+import os
+import influxdb_client
+from influxdb_client import Point
+from influxdb_client.client.write_api import SYNCHRONOUS
 
 app = pg.mkQApp("Laser control")
 q = Quarto("/dev/ttyACM3")
@@ -184,6 +188,32 @@ win.addItem(last_transmission_proxy, row = 6, col = 2)
 last_transmission_timer = QtCore.QTimer()
 last_transmission_timer.timeout.connect(update_transmission)
 last_transmission_timer.start(1000)
+
+
+## Monitor the integral and output using influx db
+token = os.environ.get("INFLUXDB_TOKEN")
+org = "onix"
+url = "http://onix-pc:8086"
+bucket_week = "week"
+
+write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
+write_api = write_client.write_api(write_options=SYNCHRONOUS)
+
+def record_data():
+    try:
+        point = Point("laser_controller")
+        with device_lock:
+            integral = q.get_integral()
+            output = q.get_last_output_point()
+        point.field("integral", integral)
+        point.field("output", output)
+        write_api.write(bucket=bucket_week, org="onix", record=point)
+    except:
+        print("Error recording integral and output to InfluxDB")
+
+influx_db_timer = QtCore.QTimer()
+influx_db_timer.timeout.connect(record_data)
+influx_db_timer.start(5000) #5 seconds
 
 if __name__ == '__main__':
     pg.exec()
