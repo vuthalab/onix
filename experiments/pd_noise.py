@@ -13,7 +13,7 @@ from onix.analysis.power_spectrum import PowerSpectrum, CCedPowerSpectrum
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.headers.digitizer import DigitizerVisa
 from onix.headers.awg.M4i6622 import M4i6622
-from onix.headers.quarto_intensity_control import Quarto
+#from onix.headers.quarto_intensity_control import Quarto
 
 
 try:
@@ -23,10 +23,10 @@ except Exception:
     m4i = M4i6622()
 
 ##
-try:
-    q
-except Exception:
-    q = Quarto("/dev/ttyACM2")
+# try:
+#     q
+# except Exception:
+#     q = Quarto("/dev/ttyACM2")
 
 params = {
     "digitizer_channel": 2,
@@ -35,7 +35,7 @@ params = {
     "ao": {
         "channel": 1,
         "frequency": 75e6, # Hz
-        "amplitude": 800
+        "amplitude": 2400
     },
 
     "detect": {
@@ -43,9 +43,9 @@ params = {
         "buffer": 20e-3 # s
     },
 
-    "device": "quarto",  # "quarto", "gage"
+    "device": "gage",  # "quarto", "gage"
     "use_sequence": True,
-    "chasm_burning": False,
+    "chasm_burning": True,
     "repeats": 5,
 }
 
@@ -92,8 +92,8 @@ if params["device"] == "gage":
         segment_size=segment_size,
         segment_count=segment_count,
     )
-    dg.set_channel_config(channel=1, range=5, high_impedance=False)
-    dg.set_channel_config(channel=2, range=5, high_impedance=False)
+    dg.set_channel_config(channel=1, range=2, high_impedance=False)
+    dg.set_channel_config(channel=2, range=2, high_impedance=False)
     if params["use_sequence"]:
         dg.set_trigger_source_edge()
     else:
@@ -146,25 +146,29 @@ print("data collection ended.")
 
 ##
 if params["device"] == "gage":
-    N_Vt = len(Vt)
+    N_Vt = len(Vt[0])
     time_resolution = 1 / sample_rate
-    spectrum0 = PowerSpectrum(N_Vt, time_resolution)
-    spectrum0.add_data(Vt)
-    spectrum1 = PowerSpectrum(N_Vt, time_resolution)
-    spectrum1.add_data(Vm)
+    spectrum0 = PowerSpectrum(N_Vt, time_resolution, max_points_per_decade=200)
+    for kk in Vt:
+        spectrum0.add_data(kk)
+    spectrum1 = PowerSpectrum(N_Vt, time_resolution, max_points_per_decade=200)
+    for kk in Vm:
+        spectrum1.add_data(kk)
 
     spectrum_cc = CCedPowerSpectrum(N_Vt, time_resolution)
-    spectrum_cc.add_data(Vt, Vm)
+    for kk in range(len(Vt)):
+        spectrum_cc.add_data(Vt[kk], Vm[kk])
 
     Vtavg = np.mean(Vt)
     Vmavg = np.mean(Vm)
     print(Vtavg, Vmavg)
 
 elif params["device"] == "quarto":
-    N_Vt = len(Vt)
+    N_Vt = len(Vt[0])
     time_resolution = 1 / sample_rate
-    spectrum0 = PowerSpectrum(N_Vt, time_resolution)
-    Vtavg = np.mean(Vt)
+    spectrum0 = PowerSpectrum(N_Vt, time_resolution, max_points_per_decade=200)
+    for kk in Vt:
+        spectrum0.add_data(kk)
     print(Vtavg)
 
 
@@ -173,9 +177,9 @@ plt.ylabel("Avg fractional noise spectrum $\\sqrt{\\mathrm{Hz}}^{-1}$")
 plt.xlabel("Frequency (Hz)")
 
 if params["device"] == "gage":
-    plt.loglog(spectrum0.f, spectrum0.relative_voltage_spectrum / Vtavg, label="channel 1", alpha=0.6)
-    plt.loglog(spectrum1.f, spectrum1.relative_voltage_spectrum / Vmavg, label="channel 2", alpha=0.6)
-    plt.loglog(spectrum_cc.f, np.sqrt(np.abs(spectrum_cc.relative_voltage_spectrum)) / np.sqrt(Vtavg * Vmavg), label="cross correlation", alpha=0.6)
+    plt.loglog(spectrum0.f, spectrum0.relative_voltage_spectrum, label="channel 1", alpha=0.6)
+    plt.loglog(spectrum1.f, spectrum1.relative_voltage_spectrum, label="channel 2", alpha=0.6)
+    #plt.loglog(spectrum_cc.f, np.sqrt(np.abs(spectrum_cc.relative_voltage_spectrum)), label="cross correlation", alpha=0.6)
 
 elif params["device"] == "quarto":
     plt.loglog(spectrum0.f, np.sqrt(spectrum0.W_V) / np.abs(Vtavg), label="channel 1", alpha=0.6)
@@ -201,17 +205,21 @@ elif params["device"] == "quarto":
         "V1_avg": Vtavg,
     }
 
-p_gain = q.get_p_gain()
-i_time = q.get_i_time()
-d_time = q.get_d_time()
-pid_state = q.get_pid_state()
 headers = {
     "params": params,
-    "pid_state": q.pid_state,
-    "p_gain": q.p_gain,
-    "i_time": q.i_time,
-    "d_time": q.d_time,
 }
+# p_gain = q.get_p_gain()
+# i_time = q.get_i_time()
+# d_time = q.get_d_time()
+# pid_state = q.get_pid_state()
+# headers.update(
+#     {
+#         "pid_state": q.pid_state,
+#         "p_gain": q.p_gain,
+#         "i_time": q.i_time,
+#         "d_time": q.d_time,
+#     }
+# }
 name = "PD Noise Spectra"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)

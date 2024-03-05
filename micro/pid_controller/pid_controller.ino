@@ -35,7 +35,7 @@ float current_error = 0.0;
 float previous_error = -100.0;
 
 // error signal offset before going into the PID loop
-float error_offset = 4.2;
+float error_offset = 3.8;
 
 // output voltage offset
 float output_offset = 9.0;

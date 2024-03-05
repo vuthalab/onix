@@ -5,7 +5,7 @@ import threading
 from PyQt5.QtWidgets import *
 
 app = pg.mkQApp("Laser control")
-q = Quarto("/dev/ttyACM0")
+q = Quarto("/dev/ttyACM3")
 
 device_lock = threading.Lock()
 
@@ -58,12 +58,12 @@ def update_all():
         update_p_cavity_error(data["cavity_error"])
     else:
         pass
-    
+
 timer = QtCore.QTimer()
 timer.timeout.connect(update_all)
 timer.start(50)
 
-def on_button_pressed():    
+def on_button_pressed():
     if lock_state.text() == "Lock On" or lock_state.text() == "Autorelock On":
         lock_state.setText("Lock Off")
         lock_state.setStyleSheet("background-color: Red; color: white;")
@@ -95,13 +95,13 @@ win.addItem(lock_state_proxy, row = 5, col = 0)
 
 def _offset():
     with device_lock:
-        q.set_output_offset(offset.value()) 
+        q.set_output_offset(offset.value())
 
 with device_lock:
     initial_offset = q.get_output_offset()
 offset = QtWidgets.QDoubleSpinBox(prefix = "Offset: ")
 offset.setValue(initial_offset)
-offset.setDecimals(2) 
+offset.setDecimals(2)
 offset.setSingleStep(0.01)
 offset.valueChanged.connect(_offset)
 offset.setMinimum(-10)
@@ -118,8 +118,8 @@ scan = QtWidgets.QDoubleSpinBox(prefix = "Scan: ")
 with device_lock:
     initial_scan = q.get_scan()
 scan.setValue(initial_scan)
-scan.setDecimals(2) 
-scan.setSingleStep(0.01) 
+scan.setDecimals(2)
+scan.setSingleStep(0.01)
 scan.valueChanged.connect(_scan)
 scan.setMinimum(0)
 scan.setMaximum(10)
@@ -155,7 +155,7 @@ warning_timer = QtCore.QTimer()
 warning_timer.timeout.connect(update_warning)
 warning_timer.start(5000)
 
-def stop_plots_pressed(): 
+def stop_plots_pressed():
     global plots
     if plots == True:
         plots = False
@@ -163,7 +163,7 @@ def stop_plots_pressed():
     else:
         plots = True
         stop_plots.setText("Plots On")
-    
+
 stop_plots = QtWidgets.QPushButton("Plots On")
 stop_plots.clicked.connect(stop_plots_pressed)
 stop_plots_proxy = QtWidgets.QGraphicsProxyWidget()

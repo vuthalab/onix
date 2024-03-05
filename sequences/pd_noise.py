@@ -38,7 +38,7 @@ class pdNoiseMeasurement(Sequence):
             measurement = AWGSinePulse(self._ao_parameters["frequency"], self._ao_parameters['amplitude'])
             segment.add_awg_function(self._ao_parameters["channel"], measurement)
 
-            TTL = TTLPulses([[1e-3, 2e-3]])
+            TTL = TTLPulses([[self._detect_parameters["buffer"] - 2e-3, self._detect_parameters["buffer"] - 1e-3]])
             segment.add_ttl_function(self._digitizer_channel, TTL)
 
             TTL = TTLOn()
@@ -53,7 +53,7 @@ class pdNoiseMeasurement(Sequence):
             measurement = AWGSinePulse(self._ao_parameters["frequency"], self._ao_parameters['amplitude'])
             segment.add_awg_function(self._ao_parameters["channel"], measurement)
 
-            TTL = TTLPulses([[1e-3, 2e-3]])
+            TTL = TTLPulses([[self._detect_parameters["buffer"] - 2e-3, self._detect_parameters["buffer"] - 1e-3]])
             segment.add_ttl_function(self._digitizer_channel, TTL)
 
             TTL = TTLOn()

@@ -2,10 +2,13 @@ import numpy as np
 
 class PowerSpectrum:
     """
-    Calculates the power spectrum of the laser.
+    Calculates the power spectrum of a voltage signal.
+
     Args:
         num_of_samples: int, number of samples per trace
         time_resolution: float, error signal time resolution in s.
+        max_points_per_decade: int or None. If int, it averages points if the points are denser than
+            the set value.
 
     Properties:
         f: np.array, frequency axis for Fourier-transformed data.
@@ -16,14 +19,47 @@ class PowerSpectrum:
         power_spectrum: ndarray, power noise spectrum
         relative_power_spectrum: ndarray, power noise spectrum divided by average voltage squared
     """
-    def __init__(self, num_of_samples: int, time_resolution: float):
+    def __init__(self, num_of_samples: int, time_resolution: float, max_points_per_decade: int = None):
         self._num_of_samples = num_of_samples
         self._time_resolution = time_resolution
+        self._max_points_per_decade = max_points_per_decade
         self._duration = time_resolution * self._num_of_samples
-        self.frequencies = self._calculate_frequencies()
+        self._frequencies = self._calculate_frequencies()
         self._error_signal_avgs = []
         self._power_spectrums = []
         self._last_updated_index = -1
+        self._get_bin_start()
+
+    def _get_bin_start(self):
+        if self._max_points_per_decade is not None:
+            log10_max = np.log10(max(self._frequencies) * 1.0001)
+            log10_min = np.log10(min(self._frequencies))
+            bin_edge_num = int((log10_max - log10_min) * self._max_points_per_decade) + 1
+            self._bin_edges = np.logspace(log10_min, log10_max, bin_edge_num)
+            self._digitized = np.digitize(self._frequencies, self._bin_edges)
+
+            old_number = None
+            self._frequency_start_bin_index = None
+            for kk, number in enumerate(self._digitized):
+                if number == old_number:
+                    self._frequency_start_bin_index = kk - 1
+                    break
+                old_number = number
+        else:
+            self._frequency_start_bin_index = None
+
+    def _get_binned_variable(self, variable):
+        if self._max_points_per_decade is None or self._frequency_start_bin_index is None:
+            return variable
+        else:
+            first_part = variable[:self._frequency_start_bin_index]
+            second_part = [[] for kk in self._bin_edges]
+            for kk in range(self._frequency_start_bin_index, len(variable)):
+                digitized_kk = self._digitized[kk]
+                second_part[digitized_kk].append(variable[kk])
+            second_part = [kk for kk in second_part if len(kk) > 0]
+            second_part = [np.average(kk) for kk in second_part]
+            return np.append(first_part, second_part)
 
     def add_data(self, error_signal):
         self._power_spectrums.append(self._voltages_to_power_spectrum(error_signal))
@@ -58,7 +94,7 @@ class PowerSpectrum:
 
     @property
     def f(self):
-        return self.frequencies
+        return self._get_binned_variable(self._frequencies)
 
     @property
     def num_of_averages(self):
@@ -67,22 +103,22 @@ class PowerSpectrum:
     @property
     def error_signal_average(self):
         return np.average(self._error_signal_avgs)
-
-    @property
-    def voltage_spectrum(self):
-        return np.sqrt(np.mean(self._power_spectrums, axis=0))
-    
-    @property
-    def relative_voltage_spectrum(self):
-        return self.voltage_spectrum / np.abs(self.error_signal_average)
     
     @property
     def power_spectrum(self):
-        return np.mean(self._power_spectrums, axis=0)
+        return self._get_binned_variable(np.mean(self._power_spectrums, axis=0))
     
     @property
     def relative_power_spectrum(self):
         return self.power_spectrum / self.error_signal_average ** 2
+
+    @property
+    def voltage_spectrum(self):
+        return np.sqrt(self.power_spectrum)
+    
+    @property
+    def relative_voltage_spectrum(self):
+        return self.voltage_spectrum / np.abs(self.error_signal_average)
 
 
 class CCedPowerSpectrum:
