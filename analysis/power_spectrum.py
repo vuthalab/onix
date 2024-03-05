@@ -122,6 +122,9 @@ class PowerSpectrum:
 
 
 class CCedPowerSpectrum:
+    # 1. make cced power spectrum use max_points_per_decade
+    # 2. cc'd power spectrum should give both individual power spectrum and cross correlation
+    # 3? should cced power spectrum be a subclass of power spectrum to reduce code duplication? / should some shared functions be put in the module level.
     def __init__(self, num_of_samples: int, time_resolution: float):
         self._num_of_samples = num_of_samples
         self._time_resolution = time_resolution
