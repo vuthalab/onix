@@ -1,15 +1,13 @@
-// Quarto code for 1-channel PID feedback.
+// Quarto code for 1-channel PID feedback for laser intensity stabilization.
 // Blue LED is on when feedback is on.
 
 #include "qCommand.h"
 #include <math.h>
 qCommand qC;
 
-// error signal input port
-const uint8_t ERROR_INPUT = 1;
-const uint8_t REFERENCE_INPUT = 2;
-// trigger input port for enabling PID.
-const uint8_t PID_PULSE_TRIGGER = 2;
+// laser diode voltage input port
+const uint8_t PRIMARY_LD_INPUT = 1;
+const uint8_t MONITOR_LD_INPUT = 2;
 // control signal output port
 const uint8_t CONTROL_OUTPUT = 1;
 
@@ -23,25 +21,23 @@ const adc_scale_t ADC_SCALE = BIPOLAR_5V;
 float p_gain = -0.1;
 float i_time = 1;  // us
 float d_time = 20.0;  // us
-float V_reference = 0.0;
-bool use_voltage_reference = false;
 
 // keeps track of the integral term
 float integral = 0.0;
 // limits the integral term magnitude so it does not blow up
 float integral_limit = 10.0;
-float current_error = 0.0;
+float current_ld_reading = 0.0;
 // last error signal for D gain.
-float previous_error = -100.0;
+float previous_ld_reading = -100.0;
 
 // error signal offset before going into the PID loop
-float error_offset = 3.8;
+float primary_ld_setpoint = 3.8;
 
 // output voltage offset
 float output_offset = 9.0;
 // output voltage limits
 float output_lower_limit = 0.0;
-float output_upper_limit = 10.0;
+float output_upper_limit = 9.0;
 
 float acceptable_output_range = output_upper_limit - output_lower_limit;
 float output_lower_warning = output_lower_limit + 0.1 * acceptable_output_range;
@@ -54,68 +50,62 @@ float integral_upper_warning = integral_limit - 0.1 * acceptable_integral_range;
 // PID state
 // 0: off
 // 1: continuous feedback on
-// 2: pulsed feedback on (controlled by trigger)
 int pid_state = 0;
-bool pid_trigger_high = false;
 
 // Data saved in Quarto for computer readout
-const int MAX_DATA_LENGTH = 50000;
-float last_reference = 1.0;
+const int MAX_DATA_LENGTH = 30000;
 int data_length = MAX_DATA_LENGTH;
-float error_data[MAX_DATA_LENGTH];
-int error_index = 0;
-bool pause_error_data = false;
+float primary_ld_data[MAX_DATA_LENGTH];
+float monitor_ld_data[MAX_DATA_LENGTH];
+int ld_index = 0;
+bool pause_ld_data = false;
 float output_data[MAX_DATA_LENGTH];
 int output_index = 0;
 bool pause_output_data = false;
 
 
-void adc_loop(void) {
-  switch (ERROR_INPUT) {
+void primary_ld_loop(void) {
+  switch (PRIMARY_LD_INPUT) {
     case 1:
-      current_error = readADC1_from_ISR();
+      current_ld_reading = readADC1_from_ISR();
       break;
     case 2:
-      current_error = readADC2_from_ISR();
+      current_ld_reading = readADC2_from_ISR();
       break;
     case 3:
-      current_error = readADC3_from_ISR();
+      current_ld_reading = readADC3_from_ISR();
       break;
     case 4:
-      current_error = readADC4_from_ISR();
+      current_ld_reading = readADC4_from_ISR();
       break;
-  }
-  if (!pause_error_data) {
-    if (use_voltage_reference) {
-      error_data[error_index] = current_error / last_reference * V_reference;
-    }
-    else {
-      error_data[error_index] = current_error;
-    }
-    if (error_index < data_length - 1) {
-      error_index++;
-    }
-    else {
-      error_index = 0;
-    }
   }
   update_pid();  // this function must be fast compared to the ADC sample interval.
 }
 
-void reference_adc_loop(void) {
-  switch (REFERENCE_INPUT) {
+void monitor_ld_loop(void) {
+  float monitor_ld_reading;
+  switch (MONITOR_LD_INPUT) {
     case 1:
-      last_reference = readADC1_from_ISR();
+      monitor_ld_reading = readADC1_from_ISR();
       break;
     case 2:
-      last_reference = readADC2_from_ISR();
+      monitor_ld_reading = readADC2_from_ISR();
       break;
     case 3:
-      last_reference = readADC3_from_ISR();
+      monitor_ld_reading = readADC3_from_ISR();
       break;
     case 4:
-      last_reference = readADC4_from_ISR();
+      monitor_ld_reading = readADC4_from_ISR();
       break;
+  }
+  if (!pause_ld_data) {
+    monitor_ld_reading[ld_index] = monitor_ld_reading;
+    if (ld_index < data_length - 1) {
+      ld_index++;
+    }
+    else {
+      ld_index = 0;
+    }
   }
 }
 
@@ -137,33 +127,22 @@ void update_pid(void) {
   bool feedback_on = false;
   switch (pid_state) {
     case 0:  // feedback off
-      integral = 0.0;
-      previous_error = -100.0;
       break;
     case 1:  // continuous feedback
       feedback_on = true;
-      break;
-    case 2:  // pulsed feedback
-      if (!pid_trigger_high) {
-        output = 0.0;
-        previous_error = -100.0;
-      }
-      else {
-        feedback_on = true;
-      }
       break;
     default:
       break;
   }
   if (feedback_on) {
-    float error = current_error - error_offset;
+    float error = current_ld_reading - primary_ld_setpoint;
     float proportional = p_gain * error;
     integral = new_integral(integral, p_gain * adc_interval / i_time * error);
     float differential = 0.0;
-    if (previous_error > -99.0) {  // not the first data point.
-      differential = p_gain * d_time / adc_interval * (current_error - previous_error);
+    if (previous_ld_reading > -99.0) {  // not the first data point.
+      differential = p_gain * d_time / adc_interval * (current_ld_reading - previous_ld_reading);
     }
-    previous_error = error + error_offset;
+    previous_ld_reading = error + primary_ld_setpoint;
 
     output += proportional + integral + differential;
     if (output > output_upper_limit) {
@@ -188,11 +167,11 @@ void update_pid(void) {
 
 void cmd_adc_interval(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
-    adc_interval = atoi(qC.current()); // string to uint16_t?
-    disableADC(ERROR_INPUT);
-    disableADC(REFERENCE_INPUT);
-    configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
-    configureADC(REFERENCE_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, reference_adc_loop);
+    adc_interval = atoi(qC.current());
+    disableADC(PRIMARY_LD_INPUT);
+    disableADC(MONITOR_LD_INPUT);
+    configureADC(PRIMARY_LD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, primary_ld_loop);
+    configureADC(MONITOR_LD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, monitor_ld_loop);
   }
   S.printf("adc interval is %u\n", (unsigned int)adc_interval);
 }
@@ -228,11 +207,11 @@ void cmd_integral_limit(qCommand& qC, Stream& S){
   integral_upper_warning = integral - 0.1 * acceptable_integral_range;
 }
 
-void cmd_error_offset(qCommand& qC, Stream& S){
+void cmd_ld_setpoint(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
-    error_offset = atof(qC.current());
+    primary_ld_setpoint = atof(qC.current());
   }
-  S.printf("error offset is %f\n", error_offset);
+  S.printf("ld setpoint is %f\n", primary_ld_setpoint);
 }
 
 void cmd_output_offset(qCommand& qC, Stream& S){
@@ -255,11 +234,11 @@ void cmd_output_lower_limit(qCommand& qC, Stream& S){
 void cmd_output_upper_limit(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
     output_upper_limit = atof(qC.current());
+  }
+  S.printf("output upper limit is %f\n", output_upper_limit);
   acceptable_output_range = output_upper_limit - output_lower_limit;
   output_lower_warning = output_lower_limit + 0.1 * acceptable_output_range;
   output_upper_warning = output_upper_limit - 0.1 * acceptable_output_range;
-  }
-  S.printf("output upper limit is %f\n", output_upper_limit);
 }
 
 void cmd_integral(qCommand& qC, Stream& S){
@@ -277,7 +256,7 @@ void cmd_pid_state(qCommand& qC, Stream& S){
     setLEDBlue(false);
   }
   integral = 0.0;
-  previous_error = -100.0;
+  previous_ld_reading = -100.0;
   S.printf("pid state is %i\n", pid_state);
 }
 
@@ -308,14 +287,35 @@ void serial_print_data(Stream& S, float array[], int next_index, int length) {
   }
 }
 
-void cmd_error_data(qCommand& qC, Stream& S){
-  pause_error_data = true; // pause data taking during process
+void cmd_primary_ld_data(qCommand& qC, Stream& S){
+  pause_ld_data = true; // pause data taking during process
   int get_data_length = MAX_DATA_LENGTH;
   if ( qC.next() != NULL) {
     get_data_length = atoi(qC.current());
   }
-  serial_print_data(S, error_data, error_index, get_data_length);
-  pause_error_data = false;
+  serial_print_data(S, primary_ld_data, ld_index, get_data_length);
+  pause_ld_data = false;
+}
+
+void cmd_monitor_ld_data(qCommand& qC, Stream& S){
+  pause_ld_data = true; // pause data taking during process
+  int get_data_length = MAX_DATA_LENGTH;
+  if ( qC.next() != NULL) {
+    get_data_length = atoi(qC.current());
+  }
+  serial_print_data(S, monitor_ld_data, ld_index, get_data_length);
+  pause_ld_data = false;
+}
+
+void cmd_both_ld_data(qCommand& qC, Stream& S){
+  pause_ld_data = true; // pause data taking during process
+  int get_data_length = MAX_DATA_LENGTH;
+  if ( qC.next() != NULL) {
+    get_data_length = atoi(qC.current());
+  }
+  serial_print_data(S, primary_ld_data, ld_index, get_data_length);
+  serial_print_data(S, monitor_ld_data, ld_index, get_data_length);
+  pause_ld_data = false;
 }
 
 void cmd_output_data(qCommand& qC, Stream& S){
@@ -348,44 +348,25 @@ void cmd_limit_warnings(qCommand& qC, Stream& S) {
   S.println(indicator);
 }
 
-void cmd_v_ref(qCommand& qC, Stream& S) {
-  if ( qC.next() != NULL) {
-    V_reference = atof(qC.current());
-    use_voltage_reference = (V_reference > 0.0);
-  }
-  S.printf("voltage reference is %f\n", V_reference);
-}
-
-
-void pid_pulse(void) {
-  bool state = triggerRead(PID_PULSE_TRIGGER);
-  pid_trigger_high = state;
-  if (pid_state == 2) {
-    setLEDBlue(state);
-  }
-}
-
 void setup(void) {
   qC.addCommand("p_gain", cmd_p_gain);
   qC.addCommand("i_time", cmd_i_time);
   qC.addCommand("d_time", cmd_d_time);
   qC.addCommand("integral_limit", cmd_integral_limit);
-  qC.addCommand("error_offset", cmd_error_offset);
+  qC.addCommand("ld_setpoint", cmd_ld_setpoint);
   qC.addCommand("output_offset", cmd_output_offset);
   qC.addCommand("output_lower_limit", cmd_output_lower_limit);
   qC.addCommand("output_upper_limit", cmd_output_upper_limit);
   qC.addCommand("pid_state", cmd_pid_state);
-  qC.addCommand("error_data", cmd_error_data);
+  qC.addCommand("primary_ld_data", cmd_primary_ld_data);
+  qC.addCommand("monitor_ld_data", cmd_monitor_ld_data);
+  qC.addCommand("both_ld_data", cmd_both_ld_data);
   qC.addCommand("output_data", cmd_output_data);
   qC.addCommand("adc_interval", cmd_adc_interval);
   qC.addCommand("limit_warnings", cmd_limit_warnings);
   qC.addCommand("integral", cmd_integral);
-  qC.addCommand("v_ref", cmd_v_ref);
-  configureADC(ERROR_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, adc_loop);
-  configureADC(REFERENCE_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, reference_adc_loop);
-  triggerMode(PID_PULSE_TRIGGER, INPUT);
-  pid_pulse();
-  enableInterruptTrigger(PID_PULSE_TRIGGER, BOTH_EDGES, pid_pulse);
+  configureADC(PRIMARY_LD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, primary_ld_loop);
+  configureADC(MONITOR_LD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, monitor_ld_loop);
 }
 
 void loop(){
