@@ -1,10 +1,9 @@
-import time
 from typing import Union
 from simple_pyspin import Camera
 import numpy as np
 from onix.analysis.fitter import Fitter
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 import numpy as np
 
@@ -30,10 +29,6 @@ def Gaussian2D(xy, amplitude, xo, yo, sigmax, sigmay, bg):
     z = bg + amplitude * np.exp( - ((x-xo) ** 2) / (2 * sigmax ** 2) -((y-yo) ** 2) / (2 * sigmay ** 2))
     return z.ravel()
 
-x = np.arange(1440//4)
-y = np.arange(1080//4)
-
-x, y = np.meshgrid(x, y)
 
 class FLIRCamera:
     def __init__(self, camera_index: Union[int, str] = 0):
@@ -47,6 +42,7 @@ class FLIRCamera:
         self.camera.ExposureAuto = "Off"
         self.camera.ExposureMode = "Timed"
         self.camera.ExposureTime = 29
+        self.pixel_size = 3.45e-6
 
         self.camera.init()
         self.height = self.camera.SensorHeight
@@ -77,62 +73,16 @@ class FLIRCamera:
     def get_exposure(self):
         return self.camera.ExposureTime
         
-    def set_exposure(self,exposure):
+    def set_exposure(self, exposure):
         """Sets camera exposure from 29 to 30000000 us"""
         self.camera.ExposureTime = exposure
         
     def get_gain(self):
         return self.camera.Gain
         
-    def set_gain(self,gain):
+    def set_gain(self, gain):
         """Sets camera gain from 0 to 30."""
         self.camera.Gain = gain
-
-    def beam_waist(self):
-        fig, ax = plt.subplots()
-        img_arr = self.get_img_array()
-        img_arr = img_arr.reshape(len(img_arr)//4, 4, len(img_arr[0])//4, 4).sum(3).sum(1)
-        img_arr = img_arr/16
-        im = ax.imshow(img_arr, animated = True)
-        fitter = Fitter(Gaussian2D)
-        fitter.set_absolute_sigma(False)
-        
-        def worker(frame):
-            img_arr = self.get_img_array()
-            img_arr = img_arr.reshape(len(img_arr)//4, 4, len(img_arr[0])//4, 4).sum(3).sum(1)
-            img_arr = img_arr/16
-            fitter.set_data((x, y), img_arr.ravel())
-            i,j = np.unravel_index(img_arr.argmax(), img_arr.shape)
-            fitter.set_p0({"amplitude": np.max(img_arr) - np.min(img_arr), 
-                        "xo": j, 
-                        "yo": i, 
-                        "sigmax": 50, 
-                        "sigmay": 50, 
-                        "bg": np.mean(img_arr)})
-            
-            start = time.time()
-            try:
-                fitter.fit(maxfev = 200)
-                sigmax_fit = fitter.results["sigmax"]
-                end = time.time()
-                print(f"sigma = {sigmax_fit} \t 1/e^2 radius = {4*3.45e-3*2*sigmax_fit} mm \t time: {end - start}") 
-                
-            except RuntimeError:
-                end = time.time()
-                print(f"Fitting failed time: {end  -start}")
-
-            
-            im.set_array(img_arr)
-            return im,
-
-        ani = animation.FuncAnimation(
-            fig=fig,
-            func=worker,
-            init_func = lambda: None,
-            cache_frame_data = False,
-            interval = 500,
-        )
-        plt.show()
 
     def close(self):
         self.camera.stop()
@@ -158,6 +108,10 @@ class CameraView(QtWidgets.QWidget):
         scale.anchor((1, 1), (1, 1), offset=(-20, -20))
         self._running = False
         self._fit = False
+        
+        self.label = QtWidgets.QLabel("No fit")
+        self.label.setFont(QtGui.QFont('Arial', 80)) 
+        layout.addWidget(self.label)
 
         self.setLayout(layout)
 
@@ -167,9 +121,12 @@ class CameraView(QtWidgets.QWidget):
 
     def stop(self):
         self._running = True
+        self.label.setText("No fit")
 
     def set_fit_state(self, state):
         self._fit = state
+        if not self._fit:
+            self.label.setText("No fit")
 
     def update_loop(self, auto_range=False, auto_levels=False):
         image = np.transpose(self._camera.get_image())
@@ -177,19 +134,30 @@ class CameraView(QtWidgets.QWidget):
         if self._fit:
             bin_size = 4
             image = image.reshape(len(image)//bin_size, bin_size, len(image[0])//bin_size, bin_size).sum(3).sum(1)
-            fitter = Fitter(Gaussian2D)
-            fitter.set_absolute_sigma(False)
-            fitter.set_data((x, y), image.ravel())
-            i,j = np.unravel_index(image.argmax(), image.shape)
-            fitter.set_p0({"amplitude": np.max(image) - np.min(image), 
-                        "xo": j, 
-                        "yo": i, 
-                        "sigmax": 50, 
-                        "sigmay": 50, 
-                        "bg": np.mean(image)})
-            fitter.fit(maxfev = 200)
-            sigmax_fit = fitter.results["sigmax"]
-            print(f"sigma = {sigmax_fit} \t 1/e^2 radius = {bin_size*3.45e-3*2*sigmax_fit} mm") 
+            try:
+                x = np.arange(1080 // bin_size)
+                y = np.arange(1440 // bin_size)
+                x, y = np.meshgrid(x, y)
+
+                fitter = Fitter(Gaussian2D)
+                fitter.set_absolute_sigma(False)
+                fitter.set_data((x, y), image.ravel())
+                i, j = np.unravel_index(image.argmax(), image.shape)
+                fitter.set_p0({"amplitude": np.max(image) - np.min(image), 
+                            "xo": j, 
+                            "yo": i, 
+                            "sigmax": 100 / bin_size, 
+                            "sigmay": 100 / bin_size, 
+                            "bg": np.mean(image)})
+                fitter.fit(maxfev = 200)
+                sigmax_fit = fitter.results["sigmax"]
+                one_over_e2_fit = sigmax_fit * bin_size * self.pixel_size * 2
+                fit_label = f"1/e^2 radius = {one_over_e2_fit:.3f} mm"
+
+                self.label.setText(fit_label)
+            except Exception:
+                self.label.setText("Fitting failed")
+
         if self._running:
             QtCore.QTimer.singleShot(1, self.update_loop)
 
