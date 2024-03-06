@@ -140,7 +140,7 @@ class FLIRCamera:
 
 
 class CameraView(QtWidgets.QWidget):
-    # TODO: fitting, ROI
+    # TODO: fitting, ROI, center_select, plot, overexposure, exposure and gain change, auto exposure.
     def __init__(self, camera: FLIRCamera, parent = None):        
         super().__init__(parent)
         self._camera = camera
@@ -157,6 +157,7 @@ class CameraView(QtWidgets.QWidget):
         scale.setParentItem(viewbox)
         scale.anchor((1, 1), (1, 1), offset=(-20, -20))
         self._running = False
+        self._fit = False
 
         self.setLayout(layout)
 
@@ -167,9 +168,28 @@ class CameraView(QtWidgets.QWidget):
     def stop(self):
         self._running = True
 
+    def set_fit_state(self, state):
+        self._fit = state
+
     def update_loop(self, auto_range=False, auto_levels=False):
         image = np.transpose(self._camera.get_image())
         self.image.setImage(image, autoRange=auto_range, autoLevels=auto_levels)
+        if self._fit:
+            bin_size = 4
+            image = image.reshape(len(image)//bin_size, bin_size, len(image[0])//bin_size, bin_size).sum(3).sum(1)
+            fitter = Fitter(Gaussian2D)
+            fitter.set_absolute_sigma(False)
+            fitter.set_data((x, y), image.ravel())
+            i,j = np.unravel_index(image.argmax(), image.shape)
+            fitter.set_p0({"amplitude": np.max(image) - np.min(image), 
+                        "xo": j, 
+                        "yo": i, 
+                        "sigmax": 50, 
+                        "sigmay": 50, 
+                        "bg": np.mean(image)})
+            fitter.fit(maxfev = 200)
+            sigmax_fit = fitter.results["sigmax"]
+            print(f"sigma = {sigmax_fit} \t 1/e^2 radius = {bin_size*3.45e-3*2*sigmax_fit} mm") 
         if self._running:
             QtCore.QTimer.singleShot(1, self.update_loop)
 
@@ -183,5 +203,6 @@ if __name__=="__main__":
     widget = CameraView(cam)
     widget.show()
     widget.start(auto_levels=True)
+    widget.set_fit_state(True)
 
     app.exec()
