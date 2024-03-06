@@ -15,8 +15,8 @@ class Quarto:
                                     baudrate=115200,
                                     timeout=0.2)
 
-        sample_time_us = float(self._get_param("adc_interval")) 
-        self.sample_time = sample_time_us * 1e-6
+        self.sample_time_us = float(self._get_param("adc_interval")) 
+        self.sample_time = self.sample_time_us * 1e-6
         self.sample_rate = 1/self.sample_time
         self.backgrounds = {}
         
@@ -223,12 +223,12 @@ class Quarto:
         plt.show()
 
     # TODO: check if there is a cleaner way that doesn't require this function
-    def _calculate_spectrum(self, averages = 10):
+    def _calculate_spectrum(self, averages = 10, max_points_per_decade: int = 200):
         """
         averages: int
         Calculates the averaged voltage and power spectrums, both the absolute and relative.
         """
-        noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time)
+        noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time, max_points_per_decade)
         for i in range(averages):
             noise.add_data(self.get_error_data())
             time.sleep(0.2)
@@ -325,8 +325,9 @@ class Quarto:
             Updates frames when animating error data
             """
             data = self.get_error_data()
-            self.line.set_data(t, data)
-            self.axe.set_ylim(min(data)-0.001,max(data)+0.001) 
+            line.set_data(t, data)
+            ax.set_xlim(0,DEFAULT_GET_DATA_LENGTH)
+            ax.set_ylim(min(data)-0.001,max(data)+0.001) 
 
         ani = animation.FuncAnimation(
             fig=fig,
@@ -353,8 +354,8 @@ class Quarto:
             Updates frames when animating output data
             """
             data = self.get_output_data()
-            self.line.set_data(t, data)
-            self.axe.set_ylim(min(data)-0.001,max(data)+0.001) 
+            line.set_data(t, data)
+            ax.set_ylim(min(data)-0.001,max(data)+0.001) 
 
         ani = animation.FuncAnimation(
             fig=fig,
@@ -369,7 +370,7 @@ class Quarto:
     def _aniamted_spectrum(self, spectrum_type, averages, background_subtraction = False, background = None):
         fig, ax = plt.subplots()
         self._spectrum_plot_details(ax, spectrum_type, background_subtraction)
-        noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time)
+        noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time, max_points_per_decade=200)
         line, = ax.plot([], [])
 
         def worker(frame):
@@ -383,22 +384,23 @@ class Quarto:
             if background_subtraction == False:
                 if spectrum_type == "voltage spectrum":
                     line.set_data(noise.f, noise.voltage_spectrum)
-                    ax.set_ylim(min(noise.voltage_spectrum), max(noise.voltage_spectrum))
+                    #ax.set_ylim(min(noise.voltage_spectrum), max(noise.voltage_spectrum))
                 elif spectrum_type == "relative voltage spectrum":
                     line.set_data(noise.f, noise.relative_voltage_spectrum)
-                    ax.set_ylim(min(noise.relative_voltage_spectrum), max(noise.relative_voltage_spectrum))
+                    #ax.set_ylim(min(noise.relative_voltage_spectrum), max(noise.relative_voltage_spectrum))
                 elif spectrum_type == "power spectrum":
                     line.set_data(noise.f, noise.power_spectrum)
-                    ax.set_ylim(min(noise.power_spectrum), max(noise.power_spectrum))
+                    #ax.set_ylim(min(noise.power_spectrum), max(noise.power_spectrum))
                 elif spectrum_type == "relative power spectrum":
                     line.set_data(noise.f, noise.relative_power_spectrum)
-                    ax.set_ylim(min(noise.relative_power_spectrum), max(noise.relative_power_spectrum))
+                    #ax.set_ylim(min(noise.relative_power_spectrum), max(noise.relative_power_spectrum))
             elif background_subtraction == True:
                     background_subtracted_spectrum = [noise.power_spectrum[i] - self.backgrounds[background][i] for i in len(self.power_spectrum)]
                     line.set_data(noise.f, background_subtracted_spectrum)
-                    ax.set_ylim(min(background_subtracted_spectrum), max(background_subtracted_spectrum))
+                    #ax.set_ylim(min(background_subtracted_spectrum), max(background_subtracted_spectrum))
 
             ax.set_xlim(min(noise.f), max(noise.f))
+            ax.set_ylim(5e-8, 8e-5)
 
         ani = animation.FuncAnimation(
             fig=fig,
