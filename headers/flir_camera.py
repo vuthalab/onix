@@ -1,20 +1,14 @@
 import time
+from typing import Union
 from simple_pyspin import Camera
 import numpy as np
-from PIL import Image, ImageTk
-import matplotlib.pyplot as plt
-import tkinter as tk
-import cv2
 from onix.analysis.fitter import Fitter
-from matplotlib import animation
-from matplotlib.patches import Circle
 
-#from PyQt5 import QtWidgets
-#import pyqtgraph as pg
-#import numpy as np
-"""
-Compatible with a hardware trigger on Line 3 (green = ground; brown = signal)
-"""
+from PyQt5 import QtWidgets, QtCore
+import pyqtgraph as pg
+import numpy as np
+
+imvOCTTopLeft = None
 
 # Camera model: FFY-U3-16S2M-CS
 
@@ -42,197 +36,56 @@ y = np.arange(1080//4)
 x, y = np.meshgrid(x, y)
 
 class FLIRCamera:
-    def __init__(self):
-                
-        
-        
-        self.camera = Camera()
-        
-        self.camera.AcquisitionFrameRateEnable = True
-        #self.camera.AcquisitionFrameRate = 60 # Frame rate (FPS)
-        self.camera.AcquisitionFrameRate = 400 # Frame rate (FPS)
-        self.camera.PixelFormat = 'Mono16' # 16 bit images
-        #self.camera.PixelFormat = 'Mono8'
-        
+    def __init__(self, camera_index: Union[int, str] = 0):
+        self.camera = Camera(camera_index)
+
+        self.camera.AcquisitionFrameRateAuto = "On"
+        self.camera.PixelFormat = "Mono16"
+        self.camera.TriggerSource = "Software"
+        self.camera.GainAuto = "Off"
+        self.camera.Gain = 0
+        self.camera.ExposureAuto = "Off"
+        self.camera.ExposureMode = "Timed"
+        self.camera.ExposureTime = 29
+
         self.camera.init()
-
-
-        # *** NOTES ***
-        # The trigger must be disabled in order to configure whether the source is software or hardware.
-
-        self.camera.TriggerMode = 'Off'
-        #self.camera.TriggerSelector = 'AcquisitionStart'
-        self.camera.TriggerSelector = 'FrameStart'
-        self.camera.TriggerSource = 'Software'
-        #self.camera.TriggerSource = 'Line3'
-        #self.camera.TriggerActivation = 'LevelHigh'
-        #self.camera.TriggerActivation = 'RisingEdge'
-        self.camera.TriggerMode = 'On'
-
-        
-        self.camera.LineSelector = 'Line2'
-        self.camera.LineMode = 'Output'
-        self.camera.LineSource = 'ExposureActive'
-        
-        
-        self.camera.GainAuto = 'Off'
-        self.camera.Gain = 0 # Set gain (1-10)
-        
-        
-        self.camera.ExposureAuto = 'Off'
-        #self.camera.ExposureMode = 'TriggerWidth'
-        self.camera.ExposureMode = 'Timed'
-        #self.camera.AcquisitionMode = 'SingleFrame'
-        #self.camera.AcquisitionMode = 'Continuous'
-        self.camera.ExposureTime = 1000 # Microseconds (1 ms)
-    
-        
         self.height = self.camera.SensorHeight
         self.width = self.camera.SensorWidth
-        
-
         self.camera.start()
-        self.camera.cam.AcquisitionStart()
         
-        #self.reset_aoi()
-        
-        print("Connected to %s %s"%(self.camera.DeviceVendorName,self.camera.DeviceModelName))
+        print("Connected to %s %s"%(self.camera.DeviceVendorName, self.camera.DeviceModelName))
         self.status()
         
     def status(self):
-        #print("Exposure time: %.0f us"%self.camera.ExposureTime)
+        print("Exposure time: %.0f us"%self.camera.ExposureTime)
         print("Gain: %.0f"%self.camera.Gain)
         print("AOI: \n Offset X: %.0f \t Offset Y: %.0f \n Width: %.0f \t Height: %.0f"%(self.camera.OffsetY,self.camera.OffsetX,self.camera.Width,self.camera.Height))
         print("ADC bit depth: %s"%self.camera.AdcBitDepth)
         print("Actual frame rate: %.3f"%(self.camera.AcquisitionResultingFrameRate))
-        
-        
-    def get_img_array(self):
-        if self.camera.TriggerSource == 'Software':
+
+    def get_image(self):
+        if self.camera.TriggerSource == "Software":
             self.camera.TriggerSoftware()
         img = self.camera.get_array()
         return img
-        
-    def select_aoi(self):
-        self.reset_aoi()
+
+    def open_live_display(self, auto_range: bool = False, auto_levels: bool = False):
         img_arr = self.get_img_array()
-        
-        r = cv2.selectROI("Select ROI - Press Enter",img_arr,showCrosshair=True,fromCenter=False)
-        
-        cv2.destroyAllWindows()
-        self.set_aoi(r)
-        
-        
-        return r
-        
-    def select_aoi_v2(self,img_arr):
-        r = cv2.selectROI("Select ROI - Press Enter", img_arr,showCrosshair=True,fromCenter=False)
-        
-        cv2.destroyAllWindows()
-        self.set_aoi(r)
-        
-        return r 
-        
-    def reset_aoi(self):
-        self.camera.stop()
-        self.camera.OffsetX = 0
-        self.camera.OffsetY = 0
-        self.camera.Width = self.camera.WidthMax
-        self.camera.Height = self.camera.HeightMax
-        self.camera.start()
-        
-    def set_aoi(self,aoi):
-        self.camera.stop()
-        self.camera.Width = 4*round(aoi[2]/4)
-        self.camera.Height = 4*round(aoi[3]/4)
-        self.camera.OffsetX = 4*round(aoi[0]/4)
-        self.camera.OffsetY = 4*round(aoi[1]/4)
-        self.camera.start()
-            
-    def snapshot(self):
-        img_arr = self.get_img_array()
-
-        plt.imshow(img_arr)
-        plt.colorbar()
-
-        plt.show()
-        
-    def refresh_live_display(self):
-        img_arr = self.get_img_array()
-        pil_img = (Image.fromarray(img_arr)).resize((int(self.width/2),int(self.height/2)))
-        tk_img = ImageTk.PhotoImage(pil_img)
-        
-        self.img_box.configure(image=tk_img)
-        self.img_box.image = tk_img
-        
-        self.root.after(500,self.refresh_live_display)
-
-    # def open_live_display_pyqtgraph(self):
-    #     app = QtWidgets.QApplication([])
-
-    #     imvOCTTopLeft = pg.ImageView(view=pg.PlotItem())
-
-    #     imvOCTTopLeft.view.getAxis('left').setScale(0.6)
-    #     imvOCTTopLeft.view.getAxis('bottom').setScale(0.4)
-    #     scale = pg.ScaleBar(size=10,suffix = "px")
-    #     viewbox = imvOCTTopLeft.view
-    #     if not isinstance(viewbox, pg.ViewBox): viewbox = viewbox.getViewBox()
-    #     scale.setParentItem(viewbox)
-    #     scale.anchor((1, 1), (1, 1), offset=(-20, -20))
-    #     imvOCTTopLeft.show()
-
-    #     app.exec()
-
-    #     while True:
-    #         img_arr = self.get_img_array()
-    #         imvOCTTopLeft.setImage(img_arr)
-
-    def open_live_display(self):
-        self.root = tk.Tk()
-        self.root.title("FLIR Camera")
-        
-        self.img_box = tk.Label()
-        self.img_box.pack()
-        
-        
-        img_arr = self.get_img_array()
-        pil_img = (Image.fromarray(img_arr)).resize((int(self.width/2),int(self.height/2)))
-        tk_img = ImageTk.PhotoImage(pil_img)
-        
-        self.img_box.configure(image=tk_img)
-        
-        self.root.after(50,self.refresh_live_display)
-        self.root.mainloop()
-        
-    def open_live_display(self):
-        self.root = tk.Tk()
-        self.root.title("FLIR Camera")
-        
-        self.img_box = tk.Label()
-        self.img_box.pack()
-        
-        
-        img_arr = self.get_img_array()
-        pil_img = (Image.fromarray(img_arr)).resize((int(self.width/2),int(self.height/2)))
-        tk_img = ImageTk.PhotoImage(pil_img)
-        
-        self.img_box.configure(image=tk_img)
-        
-        self.root.after(50,self.refresh_live_display)
-        self.root.mainloop()
+        imvOCTTopLeft.setImage(img_arr, autoRange=auto_range, autoLevels=auto_levels)
+        QtCore.QTimer.singleShot(1, self.open_live_display)
         
     def get_exposure(self):
         return self.camera.ExposureTime
         
     def set_exposure(self,exposure):
-        """ set camera expcam.osure in us """
+        """Sets camera exposure from 29 to 30000000 us"""
         self.camera.ExposureTime = exposure
         
     def get_gain(self):
         return self.camera.Gain
         
     def set_gain(self,gain):
-        """ set camera gain 0 - 30 """
+        """Sets camera gain from 0 to 30."""
         self.camera.Gain = gain
 
     def beam_waist(self):
@@ -262,7 +115,7 @@ class FLIRCamera:
                 fitter.fit(maxfev = 200)
                 sigmax_fit = fitter.results["sigmax"]
                 end = time.time()
-                print(f'sigma = {sigmax_fit} \t 1/e^2 radius = {4*3.45e-3*2*sigmax_fit} mm \t time: {end - start}') 
+                print(f"sigma = {sigmax_fit} \t 1/e^2 radius = {4*3.45e-3*2*sigmax_fit} mm \t time: {end - start}") 
                 
             except RuntimeError:
                 end = time.time()
@@ -285,6 +138,50 @@ class FLIRCamera:
         self.camera.stop()
         self.camera.close()
 
-if __name__=='__main__':
+
+class CameraView(QtWidgets.QWidget):
+    # TODO: fitting, ROI
+    def __init__(self, camera: FLIRCamera, parent = None):        
+        super().__init__(parent)
+        self._camera = camera
+        self.setWindowTitle("FLIR camera")
+        layout = QtWidgets.QGridLayout()
+
+        self.image = pg.ImageView(view=pg.PlotItem())
+        layout.addWidget(self.image, 0, 0)
+
+        viewbox = self.image.view
+        if not isinstance(viewbox, pg.ViewBox):
+            viewbox = viewbox.getViewBox()
+        scale = pg.ScaleBar(size=10, suffix = "px")
+        scale.setParentItem(viewbox)
+        scale.anchor((1, 1), (1, 1), offset=(-20, -20))
+        self._running = False
+
+        self.setLayout(layout)
+
+    def start(self, auto_range=False, auto_levels=False):
+        self._running = True
+        self.update_loop(auto_range, auto_levels)
+
+    def stop(self):
+        self._running = True
+
+    def update_loop(self, auto_range=False, auto_levels=False):
+        image = np.transpose(self._camera.get_image())
+        self.image.setImage(image, autoRange=auto_range, autoLevels=auto_levels)
+        if self._running:
+            QtCore.QTimer.singleShot(1, self.update_loop)
+
+
+if __name__=="__main__":
+    app = QtWidgets.QApplication([])
     cam = FLIRCamera()
-    
+    cam.set_gain(0)
+    cam.set_exposure(40)
+
+    widget = CameraView(cam)
+    widget.show()
+    widget.start(auto_levels=True)
+
+    app.exec()

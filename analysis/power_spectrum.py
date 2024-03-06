@@ -148,7 +148,7 @@ class CCedPowerSpectrum:
 
     def update_data(self, error_signal_1, error_signal_2):
         index_to_update = self._last_updated_index + 1
-        if index_to_update == len(self._error_signal_avgs):
+        if index_to_update == len(self._error_signal_1_avgs):
             index_to_update = 0
         self._power_spectrums[index_to_update] = self._voltages_to_power_spectrum(error_signal_1, error_signal_2)
         self._error_signal_1_power_spectrum[index_to_update] = self.single_voltage_to_power_spectrum(error_signal_1)
@@ -203,22 +203,22 @@ class CCedPowerSpectrum:
     @property
     def error_signal_2_average(self):
         return np.average(self._error_signal_2_avgs)
-
-    @property
-    def cc_voltage_spectrum(self):
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.sqrt(np.mean(self._power_spectrums, axis=0)))
-    
-    @property
-    def cc_relative_voltage_spectrum(self):
-        return self.cc_voltage_spectrum / np.sqrt(self.error_signal_1_average * self.error_signal_2_average)
     
     @property
     def cc_power_spectrum(self):
-        return np.mean(self._power_spectrums, axis=0)
+        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._power_spectrums, axis=0))
+
+    @property
+    def cc_voltage_spectrum(self):
+        return np.sqrt(self.cc_power_spectrum)
     
     @property
     def cc_relative_power_spectrum(self):
         return self.cc_power_spectrum / (self.error_signal_1_average * self.error_signal_2_average)
+    
+    @property
+    def cc_relative_voltage_spectrum(self):
+        return np.sqrt(self.cc_relative_power_spectrum)
    
     @property
     def signal_1_power_spectrum(self):
@@ -226,23 +226,23 @@ class CCedPowerSpectrum:
     
     @property
     def signal_1_relative_power_spectrum(self):
-        return self.signal_1_power_spectrum / self._error_signal_1_avgs ** 2
+        return self.signal_1_power_spectrum / self.error_signal_1_average ** 2
 
     @property
     def signal_1_voltage_spectrum(self):
-        return np.sqrt(self._error_signal_1_power_spectrum)
+        return np.sqrt(self.signal_1_power_spectrum)
     
     @property
     def signal_1_relative_voltage_spectrum(self):
-        return self.signal_1_voltage_spectrum / np.abs(self._error_signal_1_avgs)
-
+        return np.sqrt(self.signal_1_relative_power_spectrum)
+   
     @property
     def signal_2_power_spectrum(self):
         return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._error_signal_2_power_spectrum, axis=0))
     
     @property
     def signal_2_relative_power_spectrum(self):
-        return self.signal_2_power_spectrum / self._error_signal_2_avgs ** 2
+        return self.signal_2_power_spectrum / self.error_signal_2_average ** 2
 
     @property
     def signal_2_voltage_spectrum(self):
@@ -250,5 +250,5 @@ class CCedPowerSpectrum:
     
     @property
     def signal_2_relative_voltage_spectrum(self):
-        return self.signal_2_voltage_spectrum / np.abs(self._error_signal_2_avgs)
+        return np.sqrt(self.signal_2_relative_power_spectrum)
 

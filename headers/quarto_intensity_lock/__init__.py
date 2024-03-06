@@ -3,21 +3,21 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
-from onix.analysis.power_spectrum import PowerSpectrum
+from onix.analysis.power_spectrum import PowerSpectrum, CCedPowerSpectrum
 
 
-DEFAULT_GET_DATA_LENGTH = 50000
+DEFAULT_GET_DATA_LENGTH = 30000
 
 class Quarto:
     def __init__(self, location='/dev/ttyACM1'):
         self.address = location
-        self.device = serial.Serial(self.address,
-                                    baudrate=115200,
-                                    timeout=0.2)
-
-        self.sample_time_us = float(self._get_param("adc_interval")) 
-        self.sample_time = self.sample_time_us * 1e-6
-        self.sample_rate = 1/self.sample_time
+        self.device = serial.Serial(
+            self.address,
+            baudrate=115200,
+            timeout=0.2
+        )
+        sample_time_us = float(self._get_param("adc_interval")) 
+        self.sample_time = sample_time_us * 1e-6
         self.backgrounds = {}
         
     def _get_param(self, param):
@@ -59,9 +59,9 @@ class Quarto:
         self.integral_limit = val
         return val
 
-    def get_error_offset(self):
-        val = float(self._get_param("error_offset"))
-        self.error_offset = val
+    def get_pd_setpoint(self):
+        val = float(self._get_param("pd_setpoint"))
+        self.pd_setpoint = val
         return val
 
     def get_output_offset(self):
@@ -109,9 +109,9 @@ class Quarto:
         self.integral_limit = val
         return val
 
-    def set_error_offset(self, val):
-        val = float(self._set_param("error_offset", val))
-        self.error_offset = val
+    def set_pd_setpoint(self, val):
+        val = float(self._set_param("pd_setpoint", val))
+        self.pd_setpoint = val
         return val
 
     def set_output_offset(self, val):
@@ -154,26 +154,67 @@ class Quarto:
         else:
             print("Output good")
         
-    def get_error_data(self, val = None):
-        """
-        Returns list of error data
-        """
+    def get_primary_pd_data(self, val = None):
         if val is None:
             val = DEFAULT_GET_DATA_LENGTH
-        self.error_data = []
+        self.primary_pd_data = []
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
-        out = "error_data " + str(val) + "\n"
+        out = "primary_pd_data " + str(val) + "\n"
         self.device.write(out.encode('utf-8'))
         for i in range(val): 
             try:
-                self.error_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
+                self.primary_pd_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
             except ValueError as e:
                 print(i)
                 raise e
-        self.error_data = np.asarray(self.error_data)
+        self.primary_pd_data = np.asarray(self.primary_pd_data)
 
-        return self.error_data
+        return self.primary_pd_data
+        
+    def get_monitor_pd_data(self, val = None):
+        if val is None:
+            val = DEFAULT_GET_DATA_LENGTH
+        self.monitor_pd_data = []
+        self.device.reset_input_buffer()
+        self.device.reset_output_buffer()
+        out = "monitor_pd_data " + str(val) + "\n"
+        self.device.write(out.encode('utf-8'))
+        for i in range(val): 
+            try:
+                self.monitor_pd_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
+            except ValueError as e:
+                print(i)
+                raise e
+        self.monitor_pd_data = np.asarray(self.monitor_pd_data)
+
+        return self.monitor_pd_data
+        
+    def get_both_pd_data(self, val = None):
+        if val is None:
+            val = DEFAULT_GET_DATA_LENGTH
+        self.primary_pd_data = []
+        self.monitor_pd_data = []
+        self.device.reset_input_buffer()
+        self.device.reset_output_buffer()
+        out = "both_pd_data " + str(val) + "\n"
+        self.device.write(out.encode('utf-8'))
+        for i in range(val): 
+            try:
+                self.primary_pd_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
+            except ValueError as e:
+                print(i)
+                raise e
+        self.primary_pd_data = np.asarray(self.primary_pd_data)
+        for i in range(val): 
+            try:
+                self.monitor_pd_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
+            except ValueError as e:
+                print(i)
+                raise e
+        self.monitor_pd_data = np.asarray(self.monitor_pd_data)
+
+        return (self.primary_pd_data, self.monitor_pd_data)
     
     def get_output_data(self, val = None):
         """
@@ -196,7 +237,7 @@ class Quarto:
 
         return self.output_data
 
-    def plot_error_data(self):
+    def plot_error_data(self):  # TODO: update this.
         """
         Plots one trace of error data
         """
@@ -367,7 +408,7 @@ class Quarto:
         )
         plt.show()
 
-    def _aniamted_spectrum(self, spectrum_type, averages, background_subtraction = False, background = None):
+    def _animated_spectrum(self, spectrum_type, averages, background_subtraction = False, background = None):
         fig, ax = plt.subplots()
         self._spectrum_plot_details(ax, spectrum_type, background_subtraction)
         noise = PowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time, max_points_per_decade=200)
@@ -413,16 +454,73 @@ class Quarto:
         plt.show()
 
     def animate_voltage_spectrum(self, averages=10):
-        self._aniamted_spectrum("voltage spectrum", averages)
+        self._animated_spectrum("voltage spectrum", averages)
         
     def animate_relative_voltage_spectrum(self, averages=10):
-        self._aniamted_spectrum("relative voltage spectrum", averages)
+        self._animated_spectrum("relative voltage spectrum", averages)
 
     def animate_power_spectrum(self, averages=10):
-        self._aniamted_spectrum("power spectrum", averages)
+        self._animated_spectrum("power spectrum", averages)
         
-    def animate_relative_power_spectrum(self, averages=10):
-        self._aniamted_spectrum("relative power spectrum", averages)
+    def animate_relative_power_spectrum(self, averages=10):  # TODO: reduce code duplication.
+        self._animated_spectrum("relative power spectrum", averages)
+
+    def animate_cross_correlated_spectrum(self, averages=10):
+        fig, ax = plt.subplots()
+        self._spectrum_plot_details(ax, "relative voltage spectrum", False)
+        noise = CCedPowerSpectrum(DEFAULT_GET_DATA_LENGTH, self.sample_time, max_points_per_decade=200)
+        line_primary, = ax.plot([], [], label="primary")
+        line_monitor, = ax.plot([], [], label="monitor")
+        line_cc, = ax.plot([], [], label="cross-correlation")
+        line_bg_primary, = ax.plot(noise.f, [2e-7 for kk in noise.f], ls="--", label="noise bg primary", color="C0")
+        line_bg_monitor, = ax.plot(noise.f, [2e-7 for kk in noise.f], ls="--", label="noise bg monitor", color="C1")
+        legend = ax.legend()
+
+        def worker(frame):
+            primary_data, monitor_data = self.get_both_pd_data()
+            if frame < averages:
+                noise.add_data(primary_data, monitor_data)
+            else:
+                noise.update_data(primary_data, monitor_data)
+
+            legend.get_texts()[0].set_text(f"primary: {noise.error_signal_1_average:.3f} V")
+            legend.get_texts()[1].set_text(f"monitor: {noise.error_signal_2_average:.3f} V")
+
+            line_bg_primary.set_data(noise.f, [2e-7 / noise.error_signal_1_average for kk in noise.f])
+            line_bg_monitor.set_data(noise.f, [2e-7 / noise.error_signal_2_average for kk in noise.f])
+
+            min_number = np.inf
+            max_number = -np.inf
+            v1_spectrum = noise.signal_1_relative_voltage_spectrum
+            line_primary.set_data(noise.f, v1_spectrum)
+            if min_number > np.min(v1_spectrum):
+                min_number = np.min(v1_spectrum)
+            if max_number < np.max(v1_spectrum):
+                max_number = np.max(v1_spectrum)
+            v2_spectrum = noise.signal_2_relative_voltage_spectrum
+            line_monitor.set_data(noise.f, v2_spectrum)
+            if min_number > np.min(v2_spectrum):
+                min_number = np.min(v2_spectrum)
+            if max_number < np.max(v2_spectrum):
+                max_number = np.max(v2_spectrum)
+            cc_spectrum = noise.cc_relative_voltage_spectrum
+            line_cc.set_data(noise.f, cc_spectrum)
+            if min_number > np.min(cc_spectrum):
+                min_number = np.min(cc_spectrum)
+            if max_number < np.max(cc_spectrum):
+                max_number = np.max(cc_spectrum)
+            ax.set_ylim(min_number, max_number)
+
+        ani = animation.FuncAnimation(
+            fig=fig,
+            func=worker,
+            init_func = lambda: None,
+            interval = 100, # TODO: interval is time between frames in ms. Find the appropriate value
+            cache_frame_data = False,
+            blit=False # TODO: blitting should make the animation faster. Verify this is true
+        )
+        plt.show()
+
 
     def new_background(self, name, averages = 10):
         """
@@ -457,7 +555,7 @@ class Quarto:
         plt.show()
 
     def animate_background_subtracted_spectrum(self, background, averages = 10):
-        self._aniamted_spectrum("power spectrum", averages, background_subtraction = True, background = background)
+        self._animated_spectrum("power spectrum", averages, background_subtraction = True, background = background)
 
     def close(self):
         self.device.close()
