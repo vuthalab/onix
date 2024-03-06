@@ -125,7 +125,6 @@ class PowerSpectrum:
 
 
 class CCedPowerSpectrum:
-    # 2. cc'd power spectrum should give both individual power spectrum and cross correlation
     def __init__(self, num_of_samples: int, time_resolution: float, max_points_per_decade: int = None):
         self._num_of_samples = num_of_samples
         self._time_resolution = time_resolution
@@ -205,22 +204,21 @@ class CCedPowerSpectrum:
     def error_signal_2_average(self):
         return np.average(self._error_signal_2_avgs)
 
-    # copy all of the below for each individual voltage signal too
     @property
-    def voltage_spectrum(self):
+    def cc_voltage_spectrum(self):
         return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.sqrt(np.mean(self._power_spectrums, axis=0)))
     
     @property
-    def relative_voltage_spectrum(self):
-        return self.voltage_spectrum / np.sqrt(self.error_signal_1_average * self.error_signal_2_average)
+    def cc_relative_voltage_spectrum(self):
+        return self.cc_voltage_spectrum / np.sqrt(self.error_signal_1_average * self.error_signal_2_average)
     
     @property
-    def power_spectrum(self):
+    def cc_power_spectrum(self):
         return np.mean(self._power_spectrums, axis=0)
     
     @property
-    def relative_power_spectrum(self):
-        return self.power_spectrum / (self.error_signal_1_average * self.error_signal_2_average)
+    def cc_relative_power_spectrum(self):
+        return self.cc_power_spectrum / (self.error_signal_1_average * self.error_signal_2_average)
    
     @property
     def signal_1_power_spectrum(self):
@@ -232,11 +230,11 @@ class CCedPowerSpectrum:
 
     @property
     def signal_1_voltage_spectrum(self):
-        return np.sqrt(self.power_spectrum)
+        return np.sqrt(self._error_signal_1_power_spectrum)
     
     @property
     def signal_1_relative_voltage_spectrum(self):
-        return self.voltage_spectrum / np.abs(self._error_signal_1_avgs)
+        return self.signal_1_voltage_spectrum / np.abs(self._error_signal_1_avgs)
 
     @property
     def signal_2_power_spectrum(self):
@@ -248,9 +246,9 @@ class CCedPowerSpectrum:
 
     @property
     def signal_2_voltage_spectrum(self):
-        return np.sqrt(self.power_spectrum)
+        return np.sqrt(self.signal_2_voltage_spectrum)
     
     @property
     def signal_2_relative_voltage_spectrum(self):
-        return self.voltage_spectrum / np.abs(self._error_signal_2_avgs)
+        return self.signal_1_voltage_spectrum / np.abs(self._error_signal_2_avgs)
 
