@@ -6,8 +6,8 @@
 qCommand qC;
 
 // laser diode voltage input port
-const uint8_t PRIMARY_LD_INPUT = 1;
-const uint8_t MONITOR_LD_INPUT = 2;
+const uint8_t PRIMARY_PD_INPUT = 1;
+const uint8_t MONITOR_PD_INPUT = 2;
 // control signal output port
 const uint8_t CONTROL_OUTPUT = 1;
 
@@ -26,12 +26,12 @@ float d_time = 20.0;  // us
 float integral = 0.0;
 // limits the integral term magnitude so it does not blow up
 float integral_limit = 10.0;
-float current_ld_reading = 0.0;
+float current_pd_reading = 0.0;
 // last error signal for D gain.
-float previous_ld_reading = -100.0;
+float previous_pd_reading = -100.0;
 
 // error signal offset before going into the PID loop
-float primary_ld_setpoint = 3.8;
+float primary_pd_setpoint = 3.8;
 
 // output voltage offset
 float output_offset = 9.0;
@@ -55,56 +55,59 @@ int pid_state = 0;
 // Data saved in Quarto for computer readout
 const int MAX_DATA_LENGTH = 30000;
 int data_length = MAX_DATA_LENGTH;
-float primary_ld_data[MAX_DATA_LENGTH];
-float monitor_ld_data[MAX_DATA_LENGTH];
-int ld_index = 0;
-bool pause_ld_data = false;
+float primary_pd_data[MAX_DATA_LENGTH];
+float monitor_pd_data[MAX_DATA_LENGTH];
+int pd_index = 0;
+bool pause_pd_data = false;
 float output_data[MAX_DATA_LENGTH];
 int output_index = 0;
 bool pause_output_data = false;
 
 
-void primary_ld_loop(void) {
-  switch (PRIMARY_LD_INPUT) {
+void primary_pd_loop(void) {
+  switch (PRIMARY_PD_INPUT) {
     case 1:
-      current_ld_reading = readADC1_from_ISR();
+      current_pd_reading = readADC1_from_ISR();
       break;
     case 2:
-      current_ld_reading = readADC2_from_ISR();
+      current_pd_reading = readADC2_from_ISR();
       break;
     case 3:
-      current_ld_reading = readADC3_from_ISR();
+      current_pd_reading = readADC3_from_ISR();
       break;
     case 4:
-      current_ld_reading = readADC4_from_ISR();
+      current_pd_reading = readADC4_from_ISR();
       break;
+  }
+  if (!pause_pd_data) {
+    primary_pd_data[pd_index] = current_pd_reading;
   }
   update_pid();  // this function must be fast compared to the ADC sample interval.
 }
 
-void monitor_ld_loop(void) {
-  float monitor_ld_reading;
-  switch (MONITOR_LD_INPUT) {
+void monitor_pd_loop(void) {
+  float monitor_pd_reading;
+  switch (MONITOR_PD_INPUT) {
     case 1:
-      monitor_ld_reading = readADC1_from_ISR();
+      monitor_pd_reading = readADC1_from_ISR();
       break;
     case 2:
-      monitor_ld_reading = readADC2_from_ISR();
+      monitor_pd_reading = readADC2_from_ISR();
       break;
     case 3:
-      monitor_ld_reading = readADC3_from_ISR();
+      monitor_pd_reading = readADC3_from_ISR();
       break;
     case 4:
-      monitor_ld_reading = readADC4_from_ISR();
+      monitor_pd_reading = readADC4_from_ISR();
       break;
   }
-  if (!pause_ld_data) {
-    monitor_ld_reading[ld_index] = monitor_ld_reading;
-    if (ld_index < data_length - 1) {
-      ld_index++;
+  if (!pause_pd_data) {
+    monitor_pd_data[pd_index] = monitor_pd_reading;
+    if (pd_index < data_length - 1) {
+      pd_index++;
     }
     else {
-      ld_index = 0;
+      pd_index = 0;
     }
   }
 }
@@ -135,14 +138,14 @@ void update_pid(void) {
       break;
   }
   if (feedback_on) {
-    float error = current_ld_reading - primary_ld_setpoint;
+    float error = current_pd_reading - primary_pd_setpoint;
     float proportional = p_gain * error;
     integral = new_integral(integral, p_gain * adc_interval / i_time * error);
     float differential = 0.0;
-    if (previous_ld_reading > -99.0) {  // not the first data point.
-      differential = p_gain * d_time / adc_interval * (current_ld_reading - previous_ld_reading);
+    if (previous_pd_reading > -99.0) {  // not the first data point.
+      differential = p_gain * d_time / adc_interval * (current_pd_reading - previous_pd_reading);
     }
-    previous_ld_reading = error + primary_ld_setpoint;
+    previous_pd_reading = error + primary_pd_setpoint;
 
     output += proportional + integral + differential;
     if (output > output_upper_limit) {
@@ -168,10 +171,10 @@ void update_pid(void) {
 void cmd_adc_interval(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
     adc_interval = atoi(qC.current());
-    disableADC(PRIMARY_LD_INPUT);
-    disableADC(MONITOR_LD_INPUT);
-    configureADC(PRIMARY_LD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, primary_ld_loop);
-    configureADC(MONITOR_LD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, monitor_ld_loop);
+    disableADC(PRIMARY_PD_INPUT);
+    disableADC(MONITOR_PD_INPUT);
+    configureADC(PRIMARY_PD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, primary_pd_loop);
+    configureADC(MONITOR_PD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, monitor_pd_loop);
   }
   S.printf("adc interval is %u\n", (unsigned int)adc_interval);
 }
@@ -207,11 +210,11 @@ void cmd_integral_limit(qCommand& qC, Stream& S){
   integral_upper_warning = integral - 0.1 * acceptable_integral_range;
 }
 
-void cmd_ld_setpoint(qCommand& qC, Stream& S){
+void cmd_pd_setpoint(qCommand& qC, Stream& S){
   if ( qC.next() != NULL) {
-    primary_ld_setpoint = atof(qC.current());
+    primary_pd_setpoint = atof(qC.current());
   }
-  S.printf("ld setpoint is %f\n", primary_ld_setpoint);
+  S.printf("pd setpoint is %f\n", primary_pd_setpoint);
 }
 
 void cmd_output_offset(qCommand& qC, Stream& S){
@@ -256,7 +259,7 @@ void cmd_pid_state(qCommand& qC, Stream& S){
     setLEDBlue(false);
   }
   integral = 0.0;
-  previous_ld_reading = -100.0;
+  previous_pd_reading = -100.0;
   S.printf("pid state is %i\n", pid_state);
 }
 
@@ -287,35 +290,35 @@ void serial_print_data(Stream& S, float array[], int next_index, int length) {
   }
 }
 
-void cmd_primary_ld_data(qCommand& qC, Stream& S){
-  pause_ld_data = true; // pause data taking during process
+void cmd_primary_pd_data(qCommand& qC, Stream& S){
+  pause_pd_data = true; // pause data taking during process
   int get_data_length = MAX_DATA_LENGTH;
   if ( qC.next() != NULL) {
     get_data_length = atoi(qC.current());
   }
-  serial_print_data(S, primary_ld_data, ld_index, get_data_length);
-  pause_ld_data = false;
+  serial_print_data(S, primary_pd_data, pd_index, get_data_length);
+  pause_pd_data = false;
 }
 
-void cmd_monitor_ld_data(qCommand& qC, Stream& S){
-  pause_ld_data = true; // pause data taking during process
+void cmd_monitor_pd_data(qCommand& qC, Stream& S){
+  pause_pd_data = true; // pause data taking during process
   int get_data_length = MAX_DATA_LENGTH;
   if ( qC.next() != NULL) {
     get_data_length = atoi(qC.current());
   }
-  serial_print_data(S, monitor_ld_data, ld_index, get_data_length);
-  pause_ld_data = false;
+  serial_print_data(S, monitor_pd_data, pd_index, get_data_length);
+  pause_pd_data = false;
 }
 
-void cmd_both_ld_data(qCommand& qC, Stream& S){
-  pause_ld_data = true; // pause data taking during process
+void cmd_both_pd_data(qCommand& qC, Stream& S){
+  pause_pd_data = true; // pause data taking during process
   int get_data_length = MAX_DATA_LENGTH;
   if ( qC.next() != NULL) {
     get_data_length = atoi(qC.current());
   }
-  serial_print_data(S, primary_ld_data, ld_index, get_data_length);
-  serial_print_data(S, monitor_ld_data, ld_index, get_data_length);
-  pause_ld_data = false;
+  serial_print_data(S, primary_pd_data, pd_index, get_data_length);
+  serial_print_data(S, monitor_pd_data, pd_index, get_data_length);
+  pause_pd_data = false;
 }
 
 void cmd_output_data(qCommand& qC, Stream& S){
@@ -333,7 +336,7 @@ void cmd_limit_warnings(qCommand& qC, Stream& S) {
 
   int indicator = 0;
   if ((output >= output_upper_limit) || (output <= output_lower_limit)) {
-      indicator |= (1 << 3); // change the appropriate bit, performs indicator = indicator | 1<<3 which should place a 1 in the 4th bit of indicator
+      indicator |= (1 << 3); // change the appropriate bit, performs indicator = indicator | 1<<3 which shoupd place a 1 in the 4th bit of indicator
     }
   else if ((output < output_lower_warning) || (output > output_upper_warning)) {
     indicator |= (1 << 2);
@@ -353,20 +356,20 @@ void setup(void) {
   qC.addCommand("i_time", cmd_i_time);
   qC.addCommand("d_time", cmd_d_time);
   qC.addCommand("integral_limit", cmd_integral_limit);
-  qC.addCommand("ld_setpoint", cmd_ld_setpoint);
+  qC.addCommand("pd_setpoint", cmd_pd_setpoint);
   qC.addCommand("output_offset", cmd_output_offset);
   qC.addCommand("output_lower_limit", cmd_output_lower_limit);
   qC.addCommand("output_upper_limit", cmd_output_upper_limit);
   qC.addCommand("pid_state", cmd_pid_state);
-  qC.addCommand("primary_ld_data", cmd_primary_ld_data);
-  qC.addCommand("monitor_ld_data", cmd_monitor_ld_data);
-  qC.addCommand("both_ld_data", cmd_both_ld_data);
+  qC.addCommand("primary_pd_data", cmd_primary_pd_data);
+  qC.addCommand("monitor_pd_data", cmd_monitor_pd_data);
+  qC.addCommand("both_pd_data", cmd_both_pd_data);
   qC.addCommand("output_data", cmd_output_data);
   qC.addCommand("adc_interval", cmd_adc_interval);
   qC.addCommand("limit_warnings", cmd_limit_warnings);
   qC.addCommand("integral", cmd_integral);
-  configureADC(PRIMARY_LD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, primary_ld_loop);
-  configureADC(MONITOR_LD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, monitor_ld_loop);
+  configureADC(PRIMARY_PD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, primary_pd_loop);
+  configureADC(MONITOR_PD_INPUT, adc_interval, ADC_DELAY, ADC_SCALE, monitor_pd_loop);
 }
 
 void loop(){
