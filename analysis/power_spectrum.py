@@ -246,9 +246,9 @@ class CCedPowerSpectrum:
 
     @property
     def signal_2_voltage_spectrum(self):
-        return np.sqrt(self.signal_2_voltage_spectrum)
+        return np.sqrt(self.signal_2_power_spectrum)
     
     @property
     def signal_2_relative_voltage_spectrum(self):
-        return self.signal_1_voltage_spectrum / np.abs(self._error_signal_2_avgs)
+        return self.signal_2_voltage_spectrum / np.abs(self._error_signal_2_avgs)
 
