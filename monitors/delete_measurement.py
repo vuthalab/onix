@@ -20,6 +20,7 @@ api = client.write_api(write_options=SYNCHRONOUS)
 
 delete_api = client.delete_api()
 
-# TO DELETE MEASUREMENT
-# delete_api.delete('1970-01-01T00:00:00Z', '2025-04-27T00:00:00Z', '_measurement="Laser Controller"', bucket="", org="onix")
+# TO DELETE A MEASUREMENT
+# CONFIRM ALL INPUT PARAMETERS BEFORE RUNNING THE FOLLOWING LINE
+# delete_api.delete('1970-01-01T00:00:00Z', '2025-04-27T00:00:00Z', '_measurement=""', bucket="", org="")
 
