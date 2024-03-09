@@ -90,7 +90,7 @@ class FLIRCamera:
 
 
 class CameraView(QtWidgets.QWidget):
-    # TODO: fitting, ROI, center_select, plot, overexposure, exposure and gain change, auto exposure.
+    # TODO: ROI, center_select, fit contour plot, overexposure, exposure and gain change, auto exposure.
     def __init__(self, camera: FLIRCamera, parent = None):        
         super().__init__(parent)
         self._camera = camera
@@ -143,6 +143,7 @@ class CameraView(QtWidgets.QWidget):
                 fitter.set_absolute_sigma(False)
                 fitter.set_data((x, y), image.ravel())
                 i, j = np.unravel_index(image.argmax(), image.shape)
+                print(j * 4, i * 4)
                 fitter.set_p0({"amplitude": np.max(image) - np.min(image), 
                             "xo": j, 
                             "yo": i, 
@@ -151,8 +152,8 @@ class CameraView(QtWidgets.QWidget):
                             "bg": np.mean(image)})
                 fitter.fit(maxfev = 200)
                 sigmax_fit = fitter.results["sigmax"]
-                one_over_e2_fit = sigmax_fit * bin_size * self.pixel_size * 2
-                fit_label = f"1/e^2 radius = {one_over_e2_fit:.3f} mm"
+                one_over_e2_fit = sigmax_fit * bin_size * self._camera.pixel_size * 2 * 1e3
+                fit_label = f"1/e^2 radius = {abs(one_over_e2_fit):.3f} mm"
 
                 self.label.setText(fit_label)
             except Exception:
