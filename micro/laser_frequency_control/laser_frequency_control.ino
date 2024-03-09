@@ -57,7 +57,7 @@ float error_offset = 5.468;
 // keeps track of the integral term
 float integral = 0.0;
 // limits the integral term magnitude so it does not blow up
-float integral_limit = 2.0;
+float integral_limit = 10.0;
 float current_error = 0.0;
 // last error signal for D gain.
 float previous_error = -100.0;
@@ -75,9 +75,8 @@ float acceptable_output_range = output_upper_limit - output_lower_limit;
 float output_lower_warning = output_lower_limit + 0.1 * acceptable_output_range;
 float output_upper_warning = output_upper_limit - 0.1 * acceptable_output_range;
 
-float acceptable_integral_range = 2 * integral_limit;
-float integral_lower_warning = -integral_limit + 0.1 * acceptable_integral_range;
-float integral_upper_warning = integral_limit - 0.1 * acceptable_integral_range;
+float integral_lower_warning = -0.9 * integral_limit;
+float integral_upper_warning = 0.9 * integral_limit;
 
 int state = 0;
 
@@ -302,9 +301,8 @@ void cmd_integral_limit(qCommand& qC, Stream& S){
     integral_limit = atof(qC.current());
   }
   S.printf("integral limit is %f\n", integral_limit);
-  acceptable_integral_range = 2 * integral_limit;
-  integral_lower_warning = -integral + 0.1 * acceptable_integral_range;
-  integral_upper_warning = integral - 0.1 * acceptable_integral_range;
+  integral_lower_warning = -0.9 * integral_limit;
+  integral_upper_warning = 0.9 * integral_limit;
 }
 
 void cmd_error_offset(qCommand& qC, Stream& S){
