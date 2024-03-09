@@ -275,6 +275,21 @@ void serial_print_data(Stream& S, float array[], int next_index, int length) {
   if (first_index < 0) {
     first_index += MAX_DATA_LENGTH;
   }
+  
+  int num_bytes = 4 * length;
+  int start_byte = 4 * first_index;
+  int bytes_to_end = 4 * (MAX_DATA_LENGTH - first_index);
+
+  if (first_index > last_index) {
+    S.write((byte*)array + start_byte, bytes_to_end);
+    //S.write(*array + start_byte, bytes_to_end);
+    S.write((byte*)array, num_bytes - bytes_to_end);
+  }
+  else {
+    S.write((byte*)array + start_byte, num_bytes);
+  }
+
+  /*
   if (first_index > last_index) {
     for (int i = first_index; i < MAX_DATA_LENGTH; i++) {
       S.printf("%f\n", array[i]);
@@ -287,7 +302,8 @@ void serial_print_data(Stream& S, float array[], int next_index, int length) {
     for (int i = first_index; i <= last_index; i++) {
       S.printf("%f\n", array[i]);
     }
-  }
+  }  
+  */
 }
 
 void cmd_primary_pd_data(qCommand& qC, Stream& S){

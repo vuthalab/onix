@@ -33,7 +33,7 @@ def _get_binned_variable(_max_points_per_decade, _frequency_start_bin_index, _bi
         second_part = [np.average(kk) for kk in second_part]
         return np.append(first_part, second_part)
     
-    
+# TODO: scipy.welch will be faster than np.fft
 class PowerSpectrum:
     """
     Calculates the power spectrum of a voltage signal.

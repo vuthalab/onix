@@ -1,12 +1,14 @@
 import serial
 import time
 import numpy as np
+import struct
 import matplotlib.pyplot as plt
 from matplotlib import animation
 from onix.analysis.power_spectrum import PowerSpectrum, CCedPowerSpectrum
 
 
 DEFAULT_GET_DATA_LENGTH = 30000
+BYTES_PER_FLOAT = 4 
 
 class Quarto:
     def __init__(self, location='/dev/ttyACM1'):
@@ -19,24 +21,22 @@ class Quarto:
         sample_time_us = float(self._get_param("adc_interval")) 
         self.sample_time = sample_time_us * 1e-6
         self.backgrounds = {}
-        
-    def _get_param(self, param):
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
+        
+    def _get_param(self, param):
         out = param + '\n'
         self.device.write(out.encode('utf-8'))
-        response = self.device.readlines()
-        response = response[0].decode('utf-8').strip('\n').split(" ")[-1]
+        response = self.device.readline()
+        response = response.decode('utf-8').strip('\n').split(" ")[-1]
         return response
 
     def _set_param(self, param, val):
-        self.device.reset_input_buffer()
-        self.device.reset_output_buffer()
         out = param + " " + str(val) + '\n'
         self.state = val
         self.device.write(out.encode('utf-8'))
-        response = self.device.readlines()
-        response = response[0].decode('utf-8').strip('\n').split(" ")[-1]
+        response = self.device.readline()
+        response = response.decode('utf-8').strip('\n').split(" ")[-1]
         return response
     
     def get_p_gain(self):
@@ -156,63 +156,46 @@ class Quarto:
         
     def get_primary_pd_data(self, val = None):
         if val is None:
-            val = DEFAULT_GET_DATA_LENGTH
-        self.primary_pd_data = []
+                val = DEFAULT_GET_DATA_LENGTH
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
         out = "primary_pd_data " + str(val) + "\n"
         self.device.write(out.encode('utf-8'))
-        for i in range(val): 
-            try:
-                self.primary_pd_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
-            except ValueError as e:
-                print(i)
-                raise e
-        self.primary_pd_data = np.asarray(self.primary_pd_data)
-
+        byte_data = self.device.read(DEFAULT_GET_DATA_LENGTH * BYTES_PER_FLOAT)
+        num_points = str(DEFAULT_GET_DATA_LENGTH) + "f"
+        data = struct.unpack(num_points, byte_data)
+        self.primary_pd_data= np.asarray(data)
         return self.primary_pd_data
         
     def get_monitor_pd_data(self, val = None):
         if val is None:
             val = DEFAULT_GET_DATA_LENGTH
-        self.monitor_pd_data = []
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
         out = "monitor_pd_data " + str(val) + "\n"
         self.device.write(out.encode('utf-8'))
-        for i in range(val): 
-            try:
-                self.monitor_pd_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
-            except ValueError as e:
-                print(i)
-                raise e
-        self.monitor_pd_data = np.asarray(self.monitor_pd_data)
-
+        byte_data = self.device.read(DEFAULT_GET_DATA_LENGTH * BYTES_PER_FLOAT)
+        num_points = str(DEFAULT_GET_DATA_LENGTH) + "f"
+        data = struct.unpack(num_points, byte_data)
+        self.monitor_pd_data = np.asarray(data)
         return self.monitor_pd_data
         
     def get_both_pd_data(self, val = None):
         if val is None:
             val = DEFAULT_GET_DATA_LENGTH
-        self.primary_pd_data = []
-        self.monitor_pd_data = []
+        all_data = []
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
         out = "both_pd_data " + str(val) + "\n"
         self.device.write(out.encode('utf-8'))
-        for i in range(val): 
-            try:
-                self.primary_pd_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
-            except ValueError as e:
-                print(i)
-                raise e
-        self.primary_pd_data = np.asarray(self.primary_pd_data)
-        for i in range(val): 
-            try:
-                self.monitor_pd_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
-            except ValueError as e:
-                print(i)
-                raise e
-        self.monitor_pd_data = np.asarray(self.monitor_pd_data)
+        byte_data = self.device.read(2 * DEFAULT_GET_DATA_LENGTH * BYTES_PER_FLOAT)
+        num_points = str(2 * DEFAULT_GET_DATA_LENGTH) + "f"
+        data = struct.unpack(num_points, byte_data)
+        all_data = np.asarray(data)
+        half = int(len(all_data) / 2)
+
+        self.primary_pd_data = all_data[0:half]
+        self.monitor_pd_data = all_data[half:]
 
         return (self.primary_pd_data, self.monitor_pd_data)
     
