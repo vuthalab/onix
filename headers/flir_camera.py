@@ -43,6 +43,7 @@ class FLIRCamera:
         self.camera.ExposureMode = "Timed"
         self.camera.ExposureTime = 29
         self.pixel_size = 3.45e-6
+        self.pixel_max_brightness = 255  # the camera is 10-bit, but the output is somehow only 8-bit.
 
         self.camera.init()
         self.height = self.camera.SensorHeight
@@ -90,7 +91,7 @@ class FLIRCamera:
 
 
 class CameraView(QtWidgets.QWidget):
-    # TODO: ROI, center_select, fit contour plot, overexposure, exposure and gain change, auto exposure.
+    # TODO: ROI, center_select, fit contour plot, exposure and gain change, auto exposure.
     def __init__(self, camera: FLIRCamera, parent = None):        
         super().__init__(parent)
         self._camera = camera
@@ -129,35 +130,44 @@ class CameraView(QtWidgets.QWidget):
             self.label.setText("No fit")
 
     def update_loop(self, auto_range=False, auto_levels=False):
-        image = np.transpose(self._camera.get_image())
-        self.image.setImage(image, autoRange=auto_range, autoLevels=auto_levels)
+        image_raw = np.transpose(self._camera.get_image())
+        self.image.setImage(image_raw, autoRange=auto_range, autoLevels=auto_levels)
         if self._fit:
             bin_size = 4
-            image = image.reshape(len(image)//bin_size, bin_size, len(image[0])//bin_size, bin_size).sum(3).sum(1)
+            image = image_raw.reshape(
+                len(image_raw) // bin_size,
+                bin_size,
+                len(image_raw[0]) // bin_size,
+                bin_size
+            ).sum(3).sum(1)
+            x = np.arange(1080 // bin_size)
+            y = np.arange(1440 // bin_size)
+            x, y = np.meshgrid(x, y)
+
+            fitter = Fitter(Gaussian2D)
+            fitter.set_absolute_sigma(False)
+            fitter.set_data((x, y), image.ravel())
+            j, i = np.unravel_index(image.argmax(), image.shape)
+            fitter.set_p0(
+                {
+                    "amplitude": np.max(image) - np.min(image),
+                    "xo": i,
+                    "yo": j,
+                    "sigmax": 100 / bin_size,
+                    "sigmay": 100 / bin_size,
+                    "bg": np.mean(image)
+                }
+            )
             try:
-                x = np.arange(1080 // bin_size)
-                y = np.arange(1440 // bin_size)
-                x, y = np.meshgrid(x, y)
-
-                fitter = Fitter(Gaussian2D)
-                fitter.set_absolute_sigma(False)
-                fitter.set_data((x, y), image.ravel())
-                i, j = np.unravel_index(image.argmax(), image.shape)
-                print(j * 4, i * 4)
-                fitter.set_p0({"amplitude": np.max(image) - np.min(image), 
-                            "xo": j, 
-                            "yo": i, 
-                            "sigmax": 100 / bin_size, 
-                            "sigmay": 100 / bin_size, 
-                            "bg": np.mean(image)})
-                fitter.fit(maxfev = 200)
+                fitter.fit(maxfev=200)
                 sigmax_fit = fitter.results["sigmax"]
-                one_over_e2_fit = sigmax_fit * bin_size * self._camera.pixel_size * 2 * 1e3
-                fit_label = f"1/e^2 radius = {abs(one_over_e2_fit):.3f} mm"
-
-                self.label.setText(fit_label)
+                one_over_e2_fit = sigmax_fit * bin_size * self._camera.pixel_size * 2
+                fit_label = f"1/e<sup>2</sup> radius = {abs(one_over_e2_fit * 1e3):.3f} mm"
             except Exception:
-                self.label.setText("Fitting failed")
+                fit_label = "Fitting failed"
+            if np.max(image_raw) == self._camera.pixel_max_brightness:
+                fit_label += ", over-exposed"
+            self.label.setText(fit_label)
 
         if self._running:
             QtCore.QTimer.singleShot(1, self.update_loop)
@@ -167,7 +177,7 @@ if __name__=="__main__":
     app = QtWidgets.QApplication([])
     cam = FLIRCamera()
     cam.set_gain(0)
-    cam.set_exposure(40)
+    cam.set_exposure(80)
 
     widget = CameraView(cam)
     widget.show()
