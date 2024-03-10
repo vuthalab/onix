@@ -22,7 +22,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 20,
+    "sequence_repeats_per_transfer": 5,
     "data_transfer_repeats": 1,
     "eos": {
         "ac": {
@@ -46,22 +46,30 @@ default_params = {
         "detuning": 0 * ureg.kHz,
         "duration": 0.5 * ureg.ms,
     },
+    "chasm": {
+        "transitions": ["bb"], #, "rf_both"
+        "scan": 3 * ureg.MHz,
+        "durations": 10 * ureg.ms,
+        "repeats": 50,
+        "detunings": 0 * ureg.MHz,
+        "ao_amplitude": 2000,
+    },
     "antihole": {
         "transitions": ["ac", "ca"],
-        "durations": 10 * ureg.ms,
-        "repeats": 20,
+        "durations": [5 * ureg.ms, 5 * ureg.ms],
+        "repeats": 10,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "detect": {
-        "detunings": np.array([0.0, 2.0]) * ureg.MHz, # np.linspace(-2, 2, 20) * ureg.MHz, #
-        "ao_amplitude": 1700,
-        "on_time": 3 * ureg.us,
-        "off_time": 0.6 * ureg.us,
+        "detunings": np.linspace(-2, 2, 20) * ureg.MHz, # np.array([0, 1.0]) * ureg.MHz, # np.linspace(-2, 2, 20) * ureg.MHz, #
+        "ao_amplitude": 2400,
+        "on_time": 5 * ureg.us,
+        "off_time": 2 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 11,
-            "rf": 11,
+            "antihole": 8,
+            "rf": 8,
         },
     },
     "digitizer": {
@@ -93,7 +101,7 @@ start_time = time.time()
 ## antihole test
 params = default_params.copy()
 first_data_id = None
-for kk in range(50):
+for kk in range(1):
     sequence = get_sequence(params)
     data = run_sequence(sequence, params)
     data_id = save_data(sequence, params, *data)

@@ -46,7 +46,7 @@ params = {
     "device": "gage",  # "quarto", "gage"
     "use_sequence": True,
     "chasm_burning": True,
-    "repeats": 5,
+    "repeats": 20,
 }
 
 ## Sequence Setup
@@ -92,8 +92,8 @@ if params["device"] == "gage":
         segment_size=segment_size,
         segment_count=segment_count,
     )
-    dg.set_channel_config(channel=1, range=2, high_impedance=False)
-    dg.set_channel_config(channel=2, range=2, high_impedance=False)
+    dg.set_channel_config(channel=1, range=5, high_impedance=False)
+    dg.set_channel_config(channel=2, range=5, high_impedance=False)
     if params["use_sequence"]:
         dg.set_trigger_source_edge()
     else:
@@ -179,7 +179,7 @@ plt.xlabel("Frequency (Hz)")
 if params["device"] == "gage":
     plt.loglog(spectrum0.f, spectrum0.relative_voltage_spectrum, label="channel 1", alpha=0.6)
     plt.loglog(spectrum1.f, spectrum1.relative_voltage_spectrum, label="channel 2", alpha=0.6)
-    #plt.loglog(spectrum_cc.f, np.sqrt(np.abs(spectrum_cc.relative_voltage_spectrum)), label="cross correlation", alpha=0.6)
+    plt.loglog(spectrum_cc.f, np.abs(spectrum_cc.relative_voltage_spectrum), label="cross correlation", alpha=0.6)
 
 elif params["device"] == "quarto":
     plt.loglog(spectrum0.f, np.sqrt(spectrum0.W_V) / np.abs(Vtavg), label="channel 1", alpha=0.6)

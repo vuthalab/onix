@@ -23,15 +23,15 @@ def get_sequence(params):
 default_params = {
     "name": "AH Lifetime",
     "detect": {
-        "detunings": np.array([0.0, 2.0]) * ureg.MHz, # np.linspace(-2, 2, 20) * ureg.MHz, #
+        "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
         "ao_amplitude": 1700,
         "on_time": 3 * ureg.us,
         "off_time": 0.6 * ureg.us,
         "delta_detect_time": 0 * ureg.s,
         "cycles": {
             "chasm": 0,
-            "antihole": 10,
-            "antihole_delay": 10,
+            "antihole": 16,
+            "antihole_delay": 16,
             "rf": 0,
         },
     },
@@ -54,7 +54,8 @@ start_time = time.time()
 params = default_params.copy()
 first_data_id = None
 
-delta_detect_times = np.logspace(-3, 3.7, num = 100) * ureg.s
+delta_detect_times = np.logspace(-3, 4, num = 50) * ureg.s
+#delta_detect_times = [3600 * ureg.s]
 for delta_detect_time in delta_detect_times:
     params["detect"]["delta_detect_time"] = delta_detect_time
 

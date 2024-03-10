@@ -11,13 +11,12 @@ from onix.units import ureg
 
 class AHLifetime(SharedSequence):
     def __init__(self, parameters: dict[str, Any]):
-        super().__init__(parameters, shutter_off_after_antihole=False)
+        super().__init__(parameters, shutter_off_after_antihole=True)
         self._define_long_break()
 
     def _define_long_break(self):
         self.long_break_time = 20 * ureg.ms
-        segment = Segment("shutter_long_break", self.long_break_time)
-        segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
+        segment = Segment("long_break", self.long_break_time)
         self.add_segment(segment)
 
     def get_antihole_sequence(self):
@@ -25,8 +24,9 @@ class AHLifetime(SharedSequence):
 
         delta_detect_time = self._detect_parameters["delta_detect_time"]
         delta_detect_time_cycles = int(delta_detect_time / self.long_break_time)
-        segment_steps.append(("shutter_long_break", delta_detect_time_cycles))
+        segment_steps.append(("long_break", delta_detect_time_cycles))
 
+        segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["antihole_delay"]
         segment_steps.append(("detect", detect_cycles))
         self.analysis_parameters["detect_groups"].append(("antihole_delay", detect_cycles))
