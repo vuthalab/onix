@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import *
 import numpy as np
 from onix.analysis.power_spectrum import CCedPowerSpectrum
 import sys
-import time
 app = pg.mkQApp("Intensity control")
 q = Quarto("/dev/ttyACM5")
 
@@ -27,10 +26,11 @@ relative_voltage_spectrum.addLegend(offset = (50,0))
 relative_voltage_spectrum.setLabel("left", text = "Relative power noise density Hz<sup>-1</sup>")
 relative_voltage_spectrum.setLabel("bottom", text = "Frequency [Hz]")
 signal_1 = relative_voltage_spectrum.plot(pen='y', name = "Signal 1")
+#signal_1_index = relative_voltage_spectrum.legend.get_item(signal_1)
 signal_2 = relative_voltage_spectrum.plot(pen='r', name = "Signal 2")
 cc = relative_voltage_spectrum.plot(pen='g', name = "Cross Correlated")
 background = relative_voltage_spectrum.plot(pen='w', name = "Background")
-background.setData(np.ones(int(np.ceil(max(noise.f))))*2e-7)
+background.setData(np.ones(int(np.ceil(max(noise.f))))*2e-7)  # TODO: not correct.
 
 plots = True
 frame = 0
@@ -41,7 +41,7 @@ def update_relative_voltage_spectrum():
     if plots == True:
         with device_lock:
             primary_data, monitor_data = q.get_both_pd_data()
-        if frame < averages:
+        if frame < averages:  # TODO: what if the averages is changed lower?
             noise.add_data(primary_data, monitor_data)
         else:
             noise.update_data(primary_data, monitor_data)
@@ -50,7 +50,7 @@ def update_relative_voltage_spectrum():
         v2_spectrum = noise.signal_2_relative_voltage_spectrum
         signal_2.setData(noise.f, v2_spectrum)
         cc_spectrum = noise.cc_relative_voltage_spectrum
-        cc.setData(noise.f, np.abs(cc_spectrum)) # TODO: forced to plot abs of this, as we cannot graph complex things. Why would this be complex at all?
+        cc.setData(noise.f, np.real(cc_spectrum)) # TODO: forced to plot abs of this, as we cannot graph complex things. Why would this be complex at all?
         try:
             frame += 1
         except Exception: 
@@ -98,11 +98,11 @@ def _set_p():
 with device_lock:
     initial_p = q.get_p_gain()
 p_gain = QtWidgets.QDoubleSpinBox(prefix = "P: ")
-p_gain.setValue(initial_p)
-p_gain.setDecimals(2)
-p_gain.setSingleStep(0.01)
 p_gain.setMinimum(-np.inf)
 p_gain.setMaximum(np.inf)
+p_gain.setValue(initial_p)
+p_gain.setDecimals(4)
+p_gain.setSingleStep(0.001)
 p_gain.valueChanged.connect(_set_p)
 p_gain_proxy = QtWidgets.QGraphicsProxyWidget()
 p_gain_proxy.setWidget(p_gain)
@@ -115,9 +115,10 @@ def _set_i():
 with device_lock:
     initial_i = q.get_i_time()
 i_time = QtWidgets.QDoubleSpinBox(prefix = "I: ")
+i_time.setSuffix("us")
 i_time.setValue(initial_i)
-i_time.setDecimals(2)
-i_time.setSingleStep(0.01)
+i_time.setDecimals(1)
+i_time.setSingleStep(1)
 i_time.valueChanged.connect(_set_i)
 i_time_proxy = QtWidgets.QGraphicsProxyWidget()
 i_time_proxy.setWidget(i_time)
@@ -130,9 +131,10 @@ def _set_d():
 with device_lock:
     initial_d = q.get_d_time()
 d_time = QtWidgets.QDoubleSpinBox(prefix = "D: ")
+d_time.setSuffix("us")
 d_time.setValue(initial_d)
-d_time.setDecimals(2)
-d_time.setSingleStep(0.01)
+d_time.setDecimals(1)
+d_time.setSingleStep(1)
 d_time.valueChanged.connect(_set_d)
 d_time_proxy = QtWidgets.QGraphicsProxyWidget()
 d_time_proxy.setWidget(d_time)
