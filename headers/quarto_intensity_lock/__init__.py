@@ -39,6 +39,11 @@ class Quarto:
         response = response.decode('utf-8').strip('\n').split(" ")[-1]
         return response
     
+    def get_sample_time(self):
+        val = int(self._get_param("adc_interval"))*1e-6
+        self.sample_time = val
+        return val
+    
     def get_p_gain(self):
         val = float(self._get_param("p_gain"))    
         self.p_gain = val
@@ -87,6 +92,11 @@ class Quarto:
     def get_integral(self):
         val = float(self._get_param("integral"))
         self.integral = val
+        return val
+    
+    def set_sample_time(self, val):
+        val = float(self._set_param("adc_interval", val*1e6))
+        self.sample_time = val * 1e-6
         return val
 
     def set_p_gain(self, val):
