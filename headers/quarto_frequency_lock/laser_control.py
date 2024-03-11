@@ -216,10 +216,11 @@ def _toggle_rms_error():
 def update_rms_err():
     if track_rms_err == True:
         with device_lock:
-            err_data = q.get_error_data()
-        err_squared = [i**2 for i in err_data]
-        rms_err = sum(err_squared) / np.sqrt(len(err_squared))
-        rms_err.setText(f"RMS Error: {round_sig(rms_err,3)} V")
+            err_data = q.get_all_data()["cavity_error"]
+        err_squared = np.power(err_data, 2)
+        print(err_squared)
+        value = np.sqrt(sum(err_squared) / len(err_squared))
+        rms_err.setText(f"RMS Error: {round_sig(value,3)} V")
     else: 
         pass
 
