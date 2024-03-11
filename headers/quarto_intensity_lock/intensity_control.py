@@ -194,7 +194,7 @@ def _set_sample_time():
         q.set_sample_time(d_time.value())
 
 with device_lock:
-    initial_sample_time = q.sample_time()*1e6
+    initial_sample_time = q.sample_time*1e6
     #initial_sample_time= 2
 
 set_sample_time = QtWidgets.QDoubleSpinBox(prefix = "Sample Time: ")
