@@ -5,10 +5,14 @@ import threading
 from PyQt5.QtWidgets import *
 import numpy as np
 from onix.analysis.power_spectrum import CCedPowerSpectrum
-#import sys
-#import random
+import random
+
 app = pg.mkQApp("Intensity control")
 q = Quarto("/dev/ttyACM5")
+
+
+def round_sig(x, sig=2):
+    return round(x, sig-int(np.floor(np.log10(abs(x))))-1)
 
 device_lock = threading.Lock()
 
@@ -18,6 +22,9 @@ pg.setConfigOptions(antialias=True)
 
 DEFAULT_GET_DATA_LENGTH = 30000
 
+primary_bg_pen = pg.mkPen(color = 'y', style=QtCore.Qt.DotLine)
+monitor_bg_pen = pg.mkPen(color = 'r', style=QtCore.Qt.DotLine)
+
 noise = CCedPowerSpectrum(DEFAULT_GET_DATA_LENGTH, q.sample_time, max_points_per_decade=200)
 #noise = CCedPowerSpectrum(DEFAULT_GET_DATA_LENGTH, 2e-6, max_points_per_decade=200)
 relative_voltage_spectrum = win.addPlot(title="Relative Voltage Spectrum", colspan = 7)
@@ -26,10 +33,13 @@ relative_voltage_spectrum.setLogMode(x = True,y = True)
 relative_voltage_spectrum.addLegend(offset = (50,0))
 relative_voltage_spectrum.setLabel("left", text = "Relative power noise density Hz<sup>-1</sup>")
 relative_voltage_spectrum.setLabel("bottom", text = "Frequency [Hz]")
+
 primary_signal = relative_voltage_spectrum.plot(pen='y', name = "Primary")
-primary_bg = relative_voltage_spectrum.plot(pen='w', name = "Primary Background")
+primary_bg = relative_voltage_spectrum.plot(pen=primary_bg_pen, name = "Primary Background", )
+
 monitor_signal = relative_voltage_spectrum.plot(pen='r', name = "Monitor")
-monitor_bg = relative_voltage_spectrum.plot(pen='w', name = "Monitor Background")
+monitor_bg = relative_voltage_spectrum.plot(pen=monitor_bg_pen, name = "Monitor Background", alpha = 0.01)
+
 cc = relative_voltage_spectrum.plot(pen='g', name = "Cross Correlated")
 
 plots = True
@@ -38,7 +48,7 @@ averages = 1
 
 def update_relative_voltage_spectrum():
     global frame
-    print(frame)
+    #print(frame)
     if plots == True:
         with device_lock:
             primary_data, monitor_data = q.get_both_pd_data()
@@ -60,16 +70,16 @@ def update_relative_voltage_spectrum():
         cc_spectrum = noise.cc_relative_voltage_spectrum
         cc.setData(noise.f, np.real(cc_spectrum)) 
 
-        primary_background = [1e-7 / noise.error_signal_1_average for kk in noise.f]
-        monitor_background = [1e-7 / noise.error_signal_2_average for kk in noise.f]
+        primary_background = np.ones(int(max(noise.f))) * 1e-7 / noise.error_signal_1_average # TODO: change for log space
+        monitor_background = np.ones(int(max(noise.f))) * 1e-7 / noise.error_signal_2_average
         primary_bg.setData(primary_background) 
         monitor_bg.setData(monitor_background)  
 
         relative_voltage_spectrum.legend.removeItem(primary_signal)
-        relative_voltage_spectrum.legend.addItem(primary_signal, f"Primary: {noise.error_signal_1_average}")
+        relative_voltage_spectrum.legend.addItem(primary_signal, f"Primary: {round_sig(noise.error_signal_1_average, 3)} V")
 
         relative_voltage_spectrum.legend.removeItem(monitor_signal)
-        relative_voltage_spectrum.legend.addItem(monitor_signal, f"Monitor: {noise.error_signal_2_average}")
+        relative_voltage_spectrum.legend.addItem(monitor_signal, f"Monitor: {round_sig(noise.error_signal_2_average, 3)} V")
         
         frame += 1 # TODO: what if this number gets too big
       
@@ -135,7 +145,7 @@ with device_lock:
     initial_i = q.get_i_time()
     #initial_i = 2
 i_time = QtWidgets.QDoubleSpinBox(prefix = "I: ")
-i_time.setSuffix("us")
+i_time.setSuffix(" us")
 i_time.setValue(initial_i)
 i_time.setDecimals(1)
 i_time.setSingleStep(1)
@@ -152,7 +162,7 @@ with device_lock:
     initial_d = q.get_d_time()
     #initial_d = 3
 d_time = QtWidgets.QDoubleSpinBox(prefix = "D: ")
-d_time.setSuffix("us")
+d_time.setSuffix(" us")
 d_time.setValue(initial_d)
 d_time.setDecimals(1)
 d_time.setSingleStep(1)
@@ -174,13 +184,16 @@ stop_plots = QtWidgets.QPushButton("Plots On")
 stop_plots.clicked.connect(stop_plots_pressed)
 stop_plots_proxy = QtWidgets.QGraphicsProxyWidget()
 stop_plots_proxy.setWidget(stop_plots)
-win.addItem(stop_plots_proxy, row = 2, col = 4)
+win.addItem(stop_plots_proxy, row = 2, col = 6)
 
 def _change_averages():
     global averages
     global frame
+    global noise
     averages = averages_button.value()
     frame = 0
+    noise = CCedPowerSpectrum(DEFAULT_GET_DATA_LENGTH, q.sample_time, max_points_per_decade=200)
+    #noise = CCedPowerSpectrum(DEFAULT_GET_DATA_LENGTH, 2e-6, max_points_per_decade=200)
 
 averages_button = QtWidgets.QSpinBox(prefix = "Averages: ")
 averages_button.setValue(averages)
@@ -189,23 +202,27 @@ averages_button_proxy = QtWidgets.QGraphicsProxyWidget()
 averages_button_proxy.setWidget(averages_button)
 win.addItem(averages_button_proxy, row = 2, col = 5)
 
-def _set_sample_time():
+def _set_setpoint():
     with device_lock:
-        q.set_sample_time(d_time.value())
+        q.set_setpoint(set_setpoint.value())
 
 with device_lock:
+<<<<<<< Updated upstream
     initial_sample_time = q.sample_time*1e6
     #initial_sample_time= 2
+=======
+    initial_setpoint = q.get_setpoint()
+    #initial_setpoint= 2
+>>>>>>> Stashed changes
 
-set_sample_time = QtWidgets.QDoubleSpinBox(prefix = "Sample Time: ")
-set_sample_time.setSuffix("us")
-set_sample_time.setValue(initial_sample_time)
-set_sample_time.setDecimals(0)
-set_sample_time.setSingleStep(1)
-set_sample_time.valueChanged.connect(_set_sample_time)
+set_setpoint = QtWidgets.QDoubleSpinBox(prefix = "Setpoint: ", suffix = " V")
+set_setpoint.setValue(initial_setpoint)
+set_setpoint.setDecimals(2)
+set_setpoint.setSingleStep(0.01)
+set_setpoint.valueChanged.connect(_set_setpoint)
 set_sample_time_proxy = QtWidgets.QGraphicsProxyWidget()
-set_sample_time_proxy.setWidget(set_sample_time)
-win.addItem(set_sample_time_proxy, row = 2, col = 6)
+set_sample_time_proxy.setWidget(set_setpoint)
+win.addItem(set_sample_time_proxy, row = 2, col = 4)
 
 if __name__ == '__main__':
     pg.exec()
