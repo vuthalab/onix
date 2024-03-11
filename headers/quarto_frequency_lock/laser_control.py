@@ -10,7 +10,7 @@ from influxdb_client import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 app = pg.mkQApp("Laser control")
-#q = Quarto("/dev/ttyACM3")
+q = Quarto("/dev/ttyACM3")
 device_lock = threading.Lock()
 
 win = pg.GraphicsLayoutWidget(show=True, title="")
