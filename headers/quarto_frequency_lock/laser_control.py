@@ -10,7 +10,7 @@ from influxdb_client import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 app = pg.mkQApp("Laser control")
-q = Quarto("/dev/ttyACM3")
+#q = Quarto("/dev/ttyACM3")
 device_lock = threading.Lock()
 
 win = pg.GraphicsLayoutWidget(show=True, title="")
@@ -83,6 +83,7 @@ def on_button_pressed():
 
 with device_lock:
     initial_lock_state = q.get_state()
+    
 lock_state = QtWidgets.QPushButton()
 if initial_lock_state == 1:
     lock_state.setText("Lock On")
@@ -106,6 +107,7 @@ def _offset():
 
 with device_lock:
     initial_offset = q.get_output_offset()
+
 offset = QtWidgets.QDoubleSpinBox(prefix = "Offset: ", suffix = " V")
 offset.setValue(initial_offset)
 offset.setDecimals(2)
@@ -125,6 +127,7 @@ def _scan():
 scan = QtWidgets.QDoubleSpinBox(prefix = "Scan: ", suffix = " V")
 with device_lock:
     initial_scan = q.get_scan()
+
 scan.setValue(initial_scan)
 scan.setDecimals(2)
 scan.setSingleStep(0.01)
@@ -214,11 +217,10 @@ def _toggle_rms_error():
         rms_err.setText("RMS Error: --")
 
 def update_rms_err():
-    if track_rms_err == True:
+    if plots == True:
         with device_lock:
             err_data = q.get_all_data()["cavity_error"]
         err_squared = np.power(err_data, 2)
-        print(err_squared)
         value = np.sqrt(sum(err_squared) / len(err_squared))
         rms_err.setText(f"RMS Error: {round_sig(value,3)} V")
     else: 
@@ -230,6 +232,10 @@ rms_err_proxy.setWidget(rms_err)
 stop_plots.clicked.connect(_toggle_rms_error)
 update_rms_err()
 win.addItem(rms_err_proxy, row = 6, col = 3)
+
+rms_err_timer = QtCore.QTimer()
+rms_err_timer.timeout.connect(update_rms_err)
+rms_err_timer.start(250)
 
 ## Monitor the integral and output using influx db
 token = os.environ.get("INFLUXDB_TOKEN")
