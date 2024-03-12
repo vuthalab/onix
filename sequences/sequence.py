@@ -640,8 +640,9 @@ class AWGSimultaneousDoubleSineTrain(AWGFunction):
       amplitude2: float,
       comb_detuning: Union[float, Q_],
       phase_difference: float,
-      on_time: Union[float, Q_],
-      off_time: Union[float, Q_],
+      on_time1: Union[float, Q_],
+      on_time2: Union[float, Q_],
+      delay: Union[float, Q_],
     ):
         super().__init__()
 
@@ -649,13 +650,17 @@ class AWGSimultaneousDoubleSineTrain(AWGFunction):
         self._amplitude2 = amplitude2
         self._phase_difference = phase_difference
 
-        if isinstance(on_time, numbers.Number):
-            on_time = on_time * ureg.s
-        self._on_time: Q_ = on_time
+        if isinstance(on_time1, numbers.Number):
+            on_time1 = on_time1 * ureg.s
+        self._on_time1: Q_ = on_time1
+        
+        if isinstance(on_time2, numbers.Number):
+            on_time2 = on_time2 * ureg.s
+        self._on_time2: Q_ = on_time2
 
-        if isinstance(off_time, numbers.Number):
-            off_time = off_time * ureg.s
-        self._off_time: Q_ = off_time
+        if isinstance(delay, numbers.Number):
+            delay = delay * ureg.s
+        self._delay: Q_ = delay
 
         if isinstance(frequencies, numbers.Number):
             frequencies = frequencies * ureg.Hz
@@ -693,11 +698,16 @@ class AWGSimultaneousDoubleSineTrain(AWGFunction):
         def sine(times, frequency, amplitude, phase, start_time, end_time):
             mask = np.heaviside(times - start_time, 1) - np.heaviside(times - end_time, 1)
             return mask * amplitude * np.sin(2 * np.pi * frequency * times + phase)
+        
         data = np.zeros(len(times))
+
         for frequency in self._frequencies:
-            data += sine(times, frequency, self._amplitude1, 0, 0, self._on_time)
+            data += sine(times, frequency, self._amplitude1, 0, 0, self._on_time1)
+
+        time = self._on_time1 + self._delay
+
         for frequency in self._frequencies:
-            data += sine(times, frequency + self._comb_detuning, self._amplitude2, self._phase_difference, self._on_time + self._off_time, 2*self._on_time + self._off_time)
+            data += sine(times, frequency + self._comb_detuning, self._amplitude2, self._phase_difference, time, time + self._on_time2)
 
         return data
 
@@ -707,7 +717,7 @@ class AWGSimultaneousDoubleSineTrain(AWGFunction):
 
     @property
     def min_duration(self) -> Q_:
-        return 2 * (self._on_time + self._off_time) * ureg.s
+        return self._on_time1 + self._on_time2 + self._delay
 
 class TTLFunction:
     def output(self, times):
