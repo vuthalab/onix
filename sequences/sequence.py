@@ -500,27 +500,100 @@ class AWGMultiFunctions(AWGFunction):
 class AWGDoubleSineTrain(AWGFunction):
     def __init__(
       self,
-      train1_frequencies,
-      train1_amplitude,
-      train1_on_time,
-      train1_off_time,
-      delay_between_trains,
-      train2_frequencies,
-      train2_amplitude,
-      train2_on_time,
-      train2_off_time,
-      phase_difference,      
+      train1_frequencies: Union[float, List[float], Q_, List[Q_]],
+      train1_amplitudes: float,
+      train1_on_time: Union[float, Q_],
+      train1_off_time: Union[float, Q_],
+      delay_between_trains: Union[float, Q_],
+      train2_frequencies: Union[float, List[float], Q_, List[Q_]],
+      train2_amplitudes: float,
+      train2_on_time: Union[float, Q_],
+      train2_off_time: Union[float, Q_],
+      phase_difference: float,
     ):
-        self._train1_frequencies = train1_frequencies.to("Hz").magnitude
-        self._train1_amplitude = train1_amplitude
-        self._train1_on_time = train1_on_time.to("s").magnitude
-        self._train1_off_time = train1_off_time.to("s").magnitude
-        self._delay_between_trains = delay_between_trains.to("s").magnitude
-        self._train2_frequencies = train2_frequencies.to("Hz").magnitude
-        self._train2_amplitude = train2_amplitude
-        self._train2_on_time = train2_on_time.to("s").magnitude
-        self._train2_off_time = train2_off_time.to("s").magnitude
+        super().__init__()
+
+        self._train1_amplitudes = train1_amplitudes
+        if isinstance(train1_on_time, numbers.Number):
+            train1_on_time = train1_on_time * ureg.s
+        self._train1_on_time: Q_ = train1_on_time
+        if isinstance(train1_off_time, numbers.Number):
+            train1_off_time = train1_off_time * ureg.s
+        self._train1_off_time: Q_ = train1_off_time
+        if isinstance(train1_frequencies, numbers.Number):
+            train1_frequencies = train1_frequencies * ureg.Hz
+        elif not isinstance(train1_frequencies, Q_):
+            for kk in range(len(train1_frequencies)):
+                if isinstance(train1_frequencies[kk], numbers.Number):
+                    train1_frequencies[kk] = train1_frequencies[kk] * ureg.Hz
+            train1_frequencies = Q_.from_list(train1_frequencies, "Hz")
+        self._train1_frequencies: Q_ = train1_frequencies
+
+        if isinstance(delay_between_trains, numbers.Number):
+            delay_between_trains = delay_between_trains * ureg.s
+            
+        self._train2_amplitudes = train2_amplitudes
+        if isinstance(train2_on_time, numbers.Number):
+            train2_on_time = train2_on_time * ureg.s
+        self._delay_between_trains = delay_between_trains
+
+        self._train2_on_time: Q_ = train2_on_time
+        if isinstance(train2_off_time, numbers.Number):
+            train2_off_time = train2_off_time * ureg.s
+        self._train2_off_time: Q_ = train2_off_time
+        if isinstance(train2_frequencies, numbers.Number):
+            train2_frequencies = train2_frequencies * ureg.Hz
+        elif not isinstance(train2_frequencies, Q_):
+            for kk in range(len(train2_frequencies)):
+                if isinstance(train2_frequencies[kk], numbers.Number):
+                    train2_frequencies[kk] = train2_frequencies[kk] * ureg.Hz
+            train2_frequencies = Q_.from_list(train2_frequencies, "Hz")
+        self._train2_frequencies: Q_ = train2_frequencies
+
         self._phase_difference = phase_difference
+        
+        self._unify_lists()
+
+    def _unify_lists(self):
+        """Makes sure that frequencies, amplitudes, and phases are lists of the same length."""
+        length1 = None
+        try:
+            self._train1_frequencies[0]
+            is_list_train1_freq = True
+            length1 = len(self._train1_frequencies)
+        except Exception:
+            is_list_train1_freq = False
+
+        length2 = None
+        try:
+            self._train2_frequencies[0]
+            is_list_train2_freq = True
+            length2 = len(self._train2_frequencies)
+        except Exception:
+            is_list_train2_freq = False
+        
+        if length1 is None:
+            raise ValueError(
+                "First train frequencies not a list"
+            )
+        
+        if length2 is None:
+            raise ValueError(
+                "Second train frequencies not a list"
+            )
+        
+        if length1 != length2:
+            raise ValueError(
+                "First and second train frequenceies have unequal dimensions"
+            )
+        
+        if not is_list_train1_freq:
+            frequency_value = self._train1_frequencies.to("Hz").magnitude
+            self._train1_frequencies = np.repeat(frequency_value, length1) * ureg.Hz
+        if not is_list_train2_freq:
+            frequency_value = self._train2_frequencies.to("Hz").magnitude
+            self._train2_frequencies = np.repeat(frequency_value, length2) * ureg.Hz
+
 
     def output(self, times):
         def sine(times, frequency, amplitude, phase, start_time, end_time):

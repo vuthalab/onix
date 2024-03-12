@@ -20,7 +20,7 @@ class RFCombSatAbsSpectroscopy(SharedSequence):
         rf_channel = get_channel_from_name(self._rf_parameters["name"])
         lower_state = self._rf_parameters["transition"][0]
         upper_state = self._rf_parameters["transition"][1]
-        self._rf_parameters["offset"]
+        offset = self._rf_parameters["offset"]
         center_frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + offset
 
         pump_detunings = self._rf_parameters["pump_detunings"]
@@ -45,7 +45,7 @@ class RFCombSatAbsSpectroscopy(SharedSequence):
                 pump_time,
                 delay_time,
                 delay_time,
-                [probe_freq], # fix this
+                probe_freq,
                 probe_amplitude,
                 probe_time,
                 0,
