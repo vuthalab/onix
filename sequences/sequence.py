@@ -501,19 +501,19 @@ class AWGDoubleSineTrain(AWGFunction):
     def __init__(
       self,
       train1_frequencies: Union[float, List[float], Q_, List[Q_]],
-      train1_amplitudes: float,
+      train1_amplitude: float,
       train1_on_time: Union[float, Q_],
       train1_off_time: Union[float, Q_],
       delay_between_trains: Union[float, Q_],
       train2_frequencies: Union[float, List[float], Q_, List[Q_]],
-      train2_amplitudes: float,
+      train2_amplitude: float,
       train2_on_time: Union[float, Q_],
       train2_off_time: Union[float, Q_],
       phase_difference: float,
     ):
         super().__init__()
 
-        self._train1_amplitudes = train1_amplitudes
+        self._train1_amplitude = train1_amplitude
         if isinstance(train1_on_time, numbers.Number):
             train1_on_time = train1_on_time * ureg.s
         self._train1_on_time: Q_ = train1_on_time
@@ -532,7 +532,7 @@ class AWGDoubleSineTrain(AWGFunction):
         if isinstance(delay_between_trains, numbers.Number):
             delay_between_trains = delay_between_trains * ureg.s
             
-        self._train2_amplitudes = train2_amplitudes
+        self._train2_amplitude = train2_amplitude
         if isinstance(train2_on_time, numbers.Number):
             train2_on_time = train2_on_time * ureg.s
         self._delay_between_trains = delay_between_trains
@@ -631,6 +631,83 @@ class AWGDoubleSineTrain(AWGFunction):
             self._train2_off_time * (len(self._train2_frequencies) - 1),
         ]
         return np.sum(times) * ureg.s
+
+class AWGSimultaneousDoubleSineTrain(AWGFunction):
+    def __init__(
+      self,
+      frequencies: Union[float, List[float], Q_, List[Q_]],
+      amplitude1: float,
+      amplitude2: float,
+      comb_detuning: Union[float, Q_],
+      phase_difference: float,
+      on_time: Union[float, Q_],
+      off_time: Union[float, Q_],
+    ):
+        super().__init__()
+
+        self._amplitude1 = amplitude1
+        self._amplitude2 = amplitude2
+        self._phase_difference = phase_difference
+
+        if isinstance(on_time, numbers.Number):
+            on_time = on_time * ureg.s
+        self._on_time: Q_ = on_time
+
+        if isinstance(off_time, numbers.Number):
+            off_time = off_time * ureg.s
+        self._off_time: Q_ = off_time
+
+        if isinstance(frequencies, numbers.Number):
+            frequencies = frequencies * ureg.Hz
+        elif not isinstance(frequencies, Q_):
+            for kk in range(len(frequencies)):
+                if isinstance(frequencies[kk], numbers.Number):
+                    frequencies[kk] = frequencies[kk] * ureg.Hz
+            frequencies = Q_.from_list(frequencies, "Hz")
+        self._frequencies: Q_ = frequencies
+
+        if isinstance(comb_detuning, numbers.Number):
+            comb_detuning = comb_detuning * ureg.Hz
+        self._comb_detuning: Q_ = comb_detuning
+
+        self._unify_lists()
+
+    def _unify_lists(self):
+        """Makes sure that frequencies, amplitudes, and phases are lists of the same length."""
+        length = None
+        try:
+            self._frequencies[0]
+            is_list_freq = True
+            length = len(self._frequencies)
+        except Exception:
+            is_list_freq = False
+        if length is None:
+            raise ValueError(
+                "Frequencies not a list"
+            )
+        if not is_list_freq:
+            frequency_value = self._frequencies.to("Hz").magnitude
+            self._frequencies = np.repeat(frequency_value, length) * ureg.Hz
+
+    def output(self, times):
+        def sine(times, frequency, amplitude, phase, start_time, end_time):
+            mask = np.heaviside(times - start_time, 1) - np.heaviside(times - end_time, 1)
+            return mask * amplitude * np.sin(2 * np.pi * frequency * times + phase)
+        data = np.zeros(len(times))
+        for frequency in self._frequencies:
+            data += sine(times, frequency, self._amplitude1, 0, 0, self._on_time)
+        for frequency in self._frequencies:
+            data += sine(times, frequency + self._comb_detuning, self._amplitude2, self._phase_difference, self._on_time + self._off_time, 2*self._on_time + self._off_time)
+
+        return data
+
+    @property
+    def max_amplitude(self) -> float:
+        return np.max([self._amplitude1, self._amplitude2])
+
+    @property
+    def min_duration(self) -> Q_:
+        return 2 * (self._on_time + self._off_time) * ureg.s
 
 class TTLFunction:
     def output(self, times):
