@@ -2,7 +2,7 @@ from typing import Any
 
 from onix.models.hyperfine import energies
 from onix.sequences.sequence import (
-    AWGDoubleSineTrain,
+    AWGSimultaneousDoubleSineTrain,
     Segment,
     TTLOn,
 )
@@ -11,7 +11,7 @@ from onix.units import ureg
 from onix.awg_maps import get_channel_from_name
 
 
-class RFCombSatAbsSpectroscopy(SharedSequence):
+class RFSimultaneousCombSatAbsSpectroscopy(SharedSequence):
     def __init__(self, parameters: dict[str, Any]):
         super().__init__(parameters, shutter_off_after_antihole=False)
         self._define_rf()
@@ -28,8 +28,7 @@ class RFCombSatAbsSpectroscopy(SharedSequence):
         pump_time = self._rf_parameters["pump_time"]
         pump_amplitude = self._rf_parameters["pump_amplitude"]
 
-        probe_detuning = self._rf_parameters["probe_detuning"]
-        probe_freq = center_frequency + probe_detuning
+        pump_probe_detuning = self._rf_parameters["pump_probe_detuning"]
         probe_time = self._rf_parameters["probe_time"]
         probe_amplitude = self._rf_parameters["probe_amplitude"]
         probe_phase = self._rf_parameters["probe_phase"]
@@ -39,17 +38,15 @@ class RFCombSatAbsSpectroscopy(SharedSequence):
         segment = Segment("rf") # TODO: include duration here
         segment.add_awg_function(
             rf_channel, 
-            AWGDoubleSineTrain(
+            AWGSimultaneousDoubleSineTrain(
                 pump_freqs,
                 pump_amplitude,
-                pump_time,
-                delay_time,
-                delay_time,
-                probe_freq,
                 probe_amplitude,
-                probe_time,
-                0,
+                pump_probe_detuning,
                 probe_phase,
+                pump_time,
+                probe_time,
+                delay_time,
             ),
         )
         if not self._shutter_off_after_antihole:

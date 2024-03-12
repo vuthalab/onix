@@ -11,7 +11,7 @@ from onix.units import ureg
 from onix.awg_maps import get_channel_from_name
 
 
-class RFCombSatAbsSpectroscopy(SharedSequence):
+class RFDoubleCombSatAbsSpectroscopy(SharedSequence):
     def __init__(self, parameters: dict[str, Any]):
         super().__init__(parameters, shutter_off_after_antihole=False)
         self._define_rf()
@@ -28,7 +28,7 @@ class RFCombSatAbsSpectroscopy(SharedSequence):
         pump_time = self._rf_parameters["pump_time"]
         pump_amplitude = self._rf_parameters["pump_amplitude"]
 
-        probe_detuning = self._rf_parameters["probe_detuning"]
+        probe_detuning = self._rf_parameters["probe_detunings"]
         probe_freq = center_frequency + probe_detuning
         probe_time = self._rf_parameters["probe_time"]
         probe_amplitude = self._rf_parameters["probe_amplitude"]
