@@ -1,5 +1,7 @@
 import os
 import time
+import traceback
+from datetime import datetime
 import influxdb_client
 from influxdb_client import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -25,19 +27,23 @@ high_freq_time = 10
 low_freq_time = 280
 send_permanent = True
 while True:
+    time_str = datetime.now().strftime("%H:%M:%S")
+
     if send_permanent:
         time_start = time.time()
     try:
         point = Point("pulse_tube")
         state = pt.is_on()
         point.field("state", state)
+        pt.status(silent=True)
         for kk in pt.variables:
             point.field(kk, pt.variables[kk][1])
         write_api.write(bucket=bucket_live, org="onix", record=point)
         if send_permanent:
             write_api.write(bucket=bucket_permanent, org="onix", record=point)
     except:
-        print("Pulse tube error.")
+        print(time_str + ": Pulse tube error.")
+        print(traceback.format_exc())
 
     try:
         point = Point("wavemeter")
@@ -49,7 +55,8 @@ while True:
         if send_permanent:
             write_api.write(bucket=bucket_permanent, org="onix", record=point)
     except:
-        print("Wavemeter error.")
+        print(time_str + ": Wavemeter error.")
+        print(traceback.format_exc())
 
     try:
         point = Point("temperatures")
@@ -60,7 +67,8 @@ while True:
         if send_permanent:
             write_api.write(bucket=bucket_permanent, org="onix", record=point)
     except:
-        print("CTC100 error.")
+        print(time_str + ": CTC100 error.")
+        print(traceback.format_exc())
 
     time_end = time.time()
     delta_time = time_end - time_start
