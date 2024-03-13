@@ -4,12 +4,16 @@ import time
 from onix.data_tools import save_experiment_data
 
 from onix.headers.wavemeter.wavemeter import WM
-from onix.headers.quarto import Quarto
+from onix.headers.quarto_frequency_lock import Quarto
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 import matplotlib.pyplot as plt
 from onix.headers.awg.M4i6622 import M4i6622
+from onix.analysis.laser_linewidth import LaserLinewidth
 m4i = M4i6622()
 
+
+discriminator_slope = 1
+laser = LaserLinewidth(1000, 2e-6, discriminator_slope, None)
 
 wavemeter = WM()
 
@@ -23,18 +27,21 @@ def wavemeter_frequency():
 params = {
     "wm_channel": 5,
     "n_avg" : 10,
-    "source": "gage",  # "quatro", "agilent"
+    "source": "quarto"
 }
 
 ## Get error signal data
 V_errs = []
 N_avgs = params["n_avg"]
 if params["source"] == "quatro":
-    qu = Quarto()
-    resolution = 2e-6
+    q = Quarto()
+    resolution = 2e-6 #quantization noise is 1e-7
     for i in range(N_avgs):
-        V_errs.append(qu.get_errdata())
+        err_data = q.get_all_data["error"]
+        V_errs.append(err_data)
+        laser.add_data(err_data)
         time.sleep(1)
+    print("Laser Linewidth is {laser.linewidth} Hz")
 
 def trigger():
     m4i.set_ttl_output(0, True)
@@ -93,3 +100,5 @@ headers = {
 name = "Laserlock Error"
 data_id = save_experiment_data(name, data, headers)
 print(data_id)
+
+
