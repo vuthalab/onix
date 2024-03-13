@@ -209,6 +209,27 @@ class Quarto:
         self.output_data = np.asarray(self.output_data)
 
         return self.output_data
+    
+    def get_cavity_error_data(self, val = None):
+        """
+        Returns list of output data
+        """
+        if val is None:
+            val = DEFAULT_GET_DATA_LENGTH
+        self.cavity_error_data = []
+        self.device.reset_input_buffer()
+        self.device.reset_output_buffer()
+        out = "cavity_error_data"  + str(val) + "\n"
+        self.device.write(out.encode('utf-8'))
+        for i in range(val):
+            try:
+                self.cavity_error_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
+            except ValueError as e:
+                print(i)
+                raise e
+        self.cavity_error_data = np.asarray(self.cavity_error_data)
+
+        return self.cavity_error_data
 
     def get_all_data(self):
         length = 1000
