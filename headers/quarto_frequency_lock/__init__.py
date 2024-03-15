@@ -271,7 +271,26 @@ class Quarto:
             "transmission": transmission_data,
             "cavity_error": cavity_error_data,
         }
-
+    
+    def get_dc_offset(self):
+        val = float(self._get_param("dc_offset"))
+        self.dc_offset = val
+        return val    
+    
+    def set_dc_offset(self, val):
+        val = float(self._set_param("dc_offset", val))
+        self.dc_offset = val
+        return val
+    
+    def get_unlock_counter(self):
+        val = float(self._get_param("unlock_counter"))
+        self.unlock_counter = val
+        return val    
+    
+    def set_unlock_counter(self, val):
+        val = float(self._set_param("unlock_counter", val))
+        self.unlock_counter = val
+        return val
 
     def close(self):
         self.device.close()

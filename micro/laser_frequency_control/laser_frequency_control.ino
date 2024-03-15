@@ -34,6 +34,8 @@ const uint8_t LASER_JUMP_OUTPUT = 2;
 const uint8_t SCAN_TRIGGER_OUTPUT = 1;
 // lock engage signal TTL output port
 const uint8_t LOCK_TRIGGER_OUTPUT = 2;
+// dc offset signal output port
+const uint8_t DC_OFFSET_OUTPUT = 3;
 
 // interval in us for ADC data reading
 const uint16_t ADC_INTERVAL = 10;  // related to the scan time in state 0.
@@ -57,10 +59,13 @@ float error_offset = 5.468;
 // keeps track of the integral term
 float integral = 0.0;
 // limits the integral term magnitude so it does not blow up
-float integral_limit = 10.0;
+float integral_limit = 1.0;
 float current_error = 0.0;
 // last error signal for D gain.
 float previous_error = -100.0;
+
+// output dc offset
+float dc_offset = 0.0;
 
 // output voltage offset
 float output_offset = 5.0;
@@ -98,6 +103,8 @@ float transmission_data[MAX_DATA_LENGTH];
 int data_index = 0;
 bool pause_data = false;
 
+// unlock counter
+int unlock_counter = 0;
 
 void error_adc_loop(void) {
   switch (ERROR_INPUT) {
@@ -240,6 +247,7 @@ void update_pid(bool local_pause_data) {
       output = output_offset + last_good_integral;
       confirm_unlock_index = -1;
       triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
+      unlock_counter += 1;
     }
     else if (wait_lock_index >= 0) {
       feedback_on = false;
@@ -371,6 +379,7 @@ void cmd_state(qCommand& qC, Stream& S){
     if (new_state <= 2) {
       state = new_state;
       if (state == 0) {
+        unlock_counter += 1;
         integral = 0.0;
         previous_error = -100.0;
         output_scan_index = 0;
@@ -498,6 +507,21 @@ void cmd_limit_warnings(qCommand& qC, Stream& S) {
   S.println(indicator);
 }
 
+void cmd_dc_offset(qCommand& qC, Stream& S) {
+  if ( qC.next() != NULL) {
+    dc_offset = atof(qC.current());
+    writeDAC(DC_OFFSET_OUTPUT, dc_offset);
+  }
+  S.printf("dc offset is %f\n", dc_offset);
+}
+
+void cmd_unlock_counter(qCommand& qC, Stream& S) {
+  // if ( qC.next() != NULL) {
+  //   unlock_counter = atof(qC.current());
+  // }
+  S.printf("dc offset is %i\n", unlock_counter);
+}
+
 void setup(void) {
   qC.addCommand("p_gain", cmd_p_gain);
   qC.addCommand("i_time", cmd_i_time);
@@ -519,6 +543,8 @@ void setup(void) {
   qC.addCommand("integral", cmd_integral);
   qC.addCommand("last_transmission_point", cmd_last_transmission_point);
   qC.addCommand("last_output_point", cmd_last_output_point);
+  qC.addCommand("dc_offset", cmd_dc_offset);
+  qC.addCommand("unlock_counter", cmd_unlock_counter);
   configureADC(ERROR_INPUT, ADC_INTERVAL, ADC_DELAY, ERROR_ADC_SCALE, error_adc_loop);
   configureADC(TRANSMISSION_INPUT, ADC_INTERVAL, ADC_DELAY, TRANSMISSION_ADC_SCALE, transmission_adc_loop);
   configureADC(CAVITY_ERROR_INPUT, ADC_INTERVAL, ADC_DELAY, CAVITY_ERROR_ADC_SCALE, cavity_error_adc_loop);
