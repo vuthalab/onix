@@ -25,7 +25,7 @@ class KeyPressWindow(pg.GraphicsLayoutWidget):
 
 wm = WM()
 app = pg.mkQApp("Laser control")
-q = Quarto("/dev/ttyACM1")
+q = Quarto("/dev/ttyACM5")
 device_lock = threading.Lock()
 
 win = KeyPressWindow(show=True, title="")

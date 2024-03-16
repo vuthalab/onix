@@ -195,8 +195,8 @@ def detect_segment(
 
     detect_pulse_times = [
         (
-            detect_padding_time + off_time / 2 + kk * (on_time + off_time),
-            detect_padding_time + off_time / 2 + on_time + kk * (on_time + off_time),
+            start_time + off_time / 2 + kk * (on_time + off_time),
+            start_time + off_time / 2 + on_time + kk * (on_time + off_time),
         )
         for kk in range(len(detect_detunings))
     ]
