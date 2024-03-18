@@ -50,8 +50,8 @@ class LaserLinewidth(PowerSpectrum):
 
     @property
     def W_phi_integral(self):
-        W_phi_integral, linewidth = self._get_phase_noise_integral()
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, W_phi_integral)
+        _W_phi_integral, linewidth = self._get_phase_noise_integral()
+        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, _W_phi_integral)
     
     @property
     def linewidth(self):
@@ -59,13 +59,14 @@ class LaserLinewidth(PowerSpectrum):
         return linewidth
 
     def _get_frequency_and_phase_noise_spectra(self):
-        self._W_nu = self.power_spectrum / self._discrimator_slope ** 2
-        self._W_phi = self._W_nu / self.f ** 2
+        unbinned_power_spectrum = np.mean(self._power_spectrums, axis=0)
+        self._W_nu = unbinned_power_spectrum / self._discrimator_slope ** 2 
+        self._W_phi = self._W_nu / self._frequencies ** 2
 
     def _get_phase_noise_integral(self):
         self._get_frequency_and_phase_noise_spectra()
-        frequency_resolution = self.f[1] - self.f[0]
+        frequency_resolution = self._frequencies[1] - self._frequencies[0]
         # integrating from the highest frequency.
-        W_phi_integral = np.cumsum(self._W_phi[::-1] * frequency_resolution)[::-1]
-        linewidth = self.f[np.argmin(W_phi_integral > 1 / np.pi)]
-        return W_phi_integral, linewidth
+        _W_phi_integral = np.cumsum(self._W_phi[::-1] * frequency_resolution)[::-1]
+        linewidth = self._frequencies[np.argmin(_W_phi_integral > 1 / np.pi)]
+        return _W_phi_integral, linewidth

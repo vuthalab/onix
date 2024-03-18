@@ -24,14 +24,14 @@ default_params = {
     "name": "AH Lifetime",
     "detect": {
         "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
-        "ao_amplitude": 1700,
+        "ao_amplitude": 2400,
         "on_time": 3 * ureg.us,
-        "off_time": 0.6 * ureg.us,
+        "off_time": 1 * ureg.us,
         "delta_detect_time": 0 * ureg.s,
         "cycles": {
             "chasm": 0,
-            "antihole": 16,
-            "antihole_delay": 16,
+            "antihole": 32,
+            "antihole_delay": 32,
             "rf": 0,
         },
     },

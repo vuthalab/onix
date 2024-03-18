@@ -75,7 +75,7 @@ _shared_parameters = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "offset": 20 * ureg.kHz, #-26.5 * ureg.kHz,
+        "offset": 25 * ureg.kHz,
     },
     "field_plate": {
         "name": "field_plate",
@@ -184,9 +184,10 @@ def setup_digitizer(
     dg.write_configs_to_device()
 
 
-def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False):
+def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, skip_setup = False):
     sequence.setup_sequence()
-    m4i.setup_sequence(sequence)
+    if not skip_setup:
+        m4i.setup_sequence(sequence)
 
     dg.start_capture()
     time.sleep(0.1)

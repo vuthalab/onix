@@ -46,7 +46,7 @@ const adc_scale_t CAVITY_ERROR_ADC_SCALE = BIPOLAR_10V;
 const int SCAN_STEPS = 1000;
 
 // PID parameters for piezo feedback to the error signal
-float p_gain = 0.001;
+float p_gain = 0.005;
 float i_time = 1000.0;  // us
 float d_time = 0.0;  // us
 
@@ -436,6 +436,16 @@ void cmd_output_data(qCommand& qC, Stream& S){
   pause_data = false;
 }
 
+void cmd_cavity_error_data(qCommand& qC, Stream& S){
+  pause_data = true; // pause data taking during process
+  int get_data_length = MAX_DATA_LENGTH;
+  if ( qC.next() != NULL) {
+    get_data_length = atoi(qC.current());
+  }
+  serial_print_data(S, cavity_error_data, data_index, get_data_length);
+  pause_data = false;
+}
+
 void cmd_all_data(qCommand& qC, Stream& S){
   pause_data = true; // pause data taking during process
   int start_index = SYNC_DATA_LENGTH;
@@ -503,6 +513,7 @@ void setup(void) {
   qC.addCommand("state", cmd_state);
   qC.addCommand("error_data", cmd_error_data);
   qC.addCommand("output_data", cmd_output_data);
+  qC.addCommand("cavity_error_data", cmd_cavity_error_data);
   qC.addCommand("all_data", cmd_all_data);
   qC.addCommand("limit_warnings", cmd_limit_warnings);
   qC.addCommand("integral", cmd_integral);
