@@ -619,9 +619,9 @@ void setup(void) {
   qC.addCommand("last_output_point", cmd_last_output_point);
   qC.addCommand("dc_offset", cmd_dc_offset);
   qC.addCommand("unlock_counter", cmd_unlock_counter);
-  configureADC(ERROR_INPUT, ADC_INTERVAL, ADC_DELAY, ERROR_ADC_SCALE, error_adc_loop);
   configureADC(TRANSMISSION_INPUT, ADC_INTERVAL, ADC_DELAY, TRANSMISSION_ADC_SCALE, transmission_adc_loop);
   configureADC(CAVITY_ERROR_INPUT, ADC_INTERVAL, ADC_DELAY, CAVITY_ERROR_ADC_SCALE, cavity_error_adc_loop);
+  configureADC(ERROR_INPUT, ADC_INTERVAL, ADC_DELAY, ERROR_ADC_SCALE, error_adc_loop);
   triggerMode(SCAN_TRIGGER_OUTPUT, OUTPUT);
   triggerMode(LOCK_TRIGGER_OUTPUT, OUTPUT);
   triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
