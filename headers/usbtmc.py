@@ -194,7 +194,7 @@ class USBTMCDevice:
             for tries in itertools.count(1):
                 response = self._conn.read_very_eager()
                 if response: break
-                time.sleep(0.2)
+                time.sleep(0.01)
                 if tries > 30: return None
 
         if self._mode == 'direct':

@@ -23,7 +23,7 @@ wm = WM()
 c = CTC100("192.168.0.202")
 channels = c.channels
 
-high_freq_time = 10
+high_freq_time = 1
 low_freq_time = 280
 send_permanent = True
 while True:
@@ -69,6 +69,7 @@ while True:
     except:
         print(time_str + ": CTC100 error.")
         print(traceback.format_exc())
+    print(time.time())
 
     time_end = time.time()
     delta_time = time_end - time_start
