@@ -69,7 +69,6 @@ while True:
     except:
         print(time_str + ": CTC100 error.")
         print(traceback.format_exc())
-    print(time.time())
 
     time_end = time.time()
     delta_time = time_end - time_start
