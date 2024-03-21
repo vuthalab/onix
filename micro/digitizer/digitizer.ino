@@ -10,11 +10,11 @@ const uint16_t ADC_INTERVAL = 1;
 const uint16_t ADC_DELAY = 0;
 const uint16_t ADC_SCALE = BIPOLAR_2500mV;
 
-const int DATA_LENGTH = 300000;
-int16_t data_1[DATA_LENGTH];
+const int DATA_LENGTH = 50000;
+float data_1[DATA_LENGTH];
 int data_index_1 = 0;
 int16_t data_1_read_countdown = 0;
-int16_t data_2[DATA_LENGTH];
+float data_2[DATA_LENGTH];
 int data_index_2 = 0;
 int16_t data_2_read_countdown = 0;
 
@@ -27,16 +27,18 @@ int segment_number = 0;
 
 
 void input_1_loop(void) {
+  float reading = readADC1_from_ISR();
   if (data_1_read_countdown > 0) {
-    data_1[data_index_1] = readADC1_from_ISR();
+    data_1[data_index_1] = reading;
     data_index_1++;
     data_1_read_countdown--;
   }
 }
 
 void input_2_loop(void) {
+  float reading = readADC2_from_ISR();
   if (data_2_read_countdown > 0) {
-    data_2[data_index_2] = readADC2_from_ISR();
+    data_2[data_index_2] = reading;
     data_index_2++;
     data_2_read_countdown--;
   }
@@ -82,10 +84,10 @@ void cmd_start(qCommand& qC, Stream& S) {
   else {
     running = true;
     trigger_too_soon = 0;
-    data_1_read_countdown = 0;
-    data_2_read_countdown = 0;
     data_index_1 = 0;
     data_index_2 = 0;
+    data_1_read_countdown = 0;
+    data_2_read_countdown = 0;
     S.println("started");
   }
 }
@@ -113,11 +115,11 @@ void cmd_data(qCommand& qC, Stream& S) {
   else {
     S.println(data_index_1);
     for (int i = 0; i < data_index_1; i++) {
-      S.println(data_1[i]);
+      S.println(data_1[i], 6);
     }
     S.println(data_index_2);
     for (int i = 0; i < data_index_2; i++) {
-      S.println(data_2[i]);
+      S.println(data_2[i], 6);
     }
   }
   reading = false;
