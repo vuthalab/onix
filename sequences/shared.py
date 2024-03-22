@@ -123,9 +123,11 @@ def antihole_segment(
                 )
             )
     if field_plate_parameters["use"]:
-        for segment in segment:
+        for segment in segments:
             field_plate = AWGConstant(field_plate_parameters["amplitude"])
-            segment.add_awg_function(field_plate_parameters["channel"], field_plate)
+
+            fp_channel = get_channel_from_name(field_plate_parameters["name"])
+            segment.add_awg_function(fp_channel, field_plate)
     segment = MultiSegments(name, segments)
     return (segment, repeats)
 
@@ -212,7 +214,7 @@ def detect_segment(
         "digitizer_duration": segment.duration - ttl_start_time,
         "detect_pulse_times": detect_pulse_times,
     }
-    segment._duration = segment.duration + 20 * ureg.us  # make sure that the digitizer can trigger again
+    segment._duration = segment.duration + detect_parameters["delay"]
     return (segment, analysis_parameters)
 
 
@@ -352,13 +354,24 @@ class SharedSequence(Sequence):
             self._shutter_parameters["fall_delay"] / break_time
         )
 
+    def get_detect_sequence(self, detect_cycles: int) -> list[tuple[str, int]]:
+        segment_steps = []
+        max_cycles = 1000000
+        if detect_cycles <= max_cycles:
+            segment_steps.append(("detect", detect_cycles))
+        else:
+            for _ in range(detect_cycles // max_cycles):
+                segment_steps.append(("detect", max_cycles))
+            segment_steps.append(("detect", detect_cycles % max_cycles))
+        return segment_steps
+
     def get_chasm_sequence(self):
         segment_steps = []
         segment_steps.append(("chasm", self._chasm_repeats))
         detect_cycles = self._detect_parameters["cycles"]["chasm"]
         if detect_cycles > 0:
             segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
-            segment_steps.append(("detect", detect_cycles))
+            segment_steps.extend(self.get_detect_sequence(detect_cycles))
             self.analysis_parameters["detect_groups"].append(("chasm", detect_cycles))
             segment_steps.append(("break", self._shutter_fall_delay_repeats))
         return segment_steps
@@ -372,7 +385,7 @@ class SharedSequence(Sequence):
         segment_steps.append(("break", self._field_plate_break_repeats))
         segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["antihole"]
-        segment_steps.append(("detect", detect_cycles))
+        segment_steps.extend(self.get_detect_sequence(detect_cycles))
         self.analysis_parameters["detect_groups"].append(("antihole", detect_cycles))
         segment_steps.append(("shutter_break", 1))
         if self._shutter_off_after_antihole:
