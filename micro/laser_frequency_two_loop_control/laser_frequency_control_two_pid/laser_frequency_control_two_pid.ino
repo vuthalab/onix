@@ -76,7 +76,7 @@ float integral_cavity = 0.0;
 float integral_limit = 1.0;
 float current_error = 0.0;
 float integral_limit_cavity = 1.0;
-float current_error_cavity = 0.0
+float current_error_cavity = 0.0;
 
 // last error signal for D gain.
 float previous_error = -100.0;
@@ -107,6 +107,7 @@ int state = 0;
 
 // auto relock parameters
 float last_good_integral = 0.0;
+float last_good_integral_cavity = 0.0;
 float transmission_unlock_voltage = 0.005;
 const int SAMPLES_CONFIRM_UNLOCK = 10;
 int confirm_unlock_index = -1;
