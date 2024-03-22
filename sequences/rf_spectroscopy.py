@@ -40,7 +40,7 @@ class RFSpectroscopy(SharedSequence):
         if self._shutter_off_after_antihole:
             segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["rf"]
-        segment_steps.append(("detect", detect_cycles))
+        segment_steps.extend(self.get_detect_sequence(detect_cycles))
         self.analysis_parameters["detect_groups"].append(("rf", detect_cycles))
         segment_steps.append(("break", 1))
         segment_steps.append(("break", self._shutter_fall_delay_repeats))
