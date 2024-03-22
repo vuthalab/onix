@@ -26,7 +26,7 @@ pg.setConfigOptions(antialias=True)
 primary_bg_pen = pg.mkPen(color = 'y', style=QtCore.Qt.DotLine) # set background lines to be dotted
 monitor_bg_pen = pg.mkPen(color = 'r', style=QtCore.Qt.DotLine)
 
-noise = CCedPowerSpectrum(DEFAULT_GET_DATA_LENGTH, q.sample_time, max_points_per_decade=20000)
+noise = CCedPowerSpectrum(DEFAULT_GET_DATA_LENGTH, q.sample_time, max_points_per_decade=200)
 
 relative_voltage_spectrum = win.addPlot(title="Relative Voltage Spectrum", colspan = 7)
 relative_voltage_spectrum.setMouseEnabled(x=False)
