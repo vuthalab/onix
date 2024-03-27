@@ -40,7 +40,7 @@ while True:
             times.append(record["_time"])
             data.append(record["_value"])
     print(f"{datetime.datetime.now()}: 4k plate = {data[-1]}")
-    if data[-1] > 15:
+    if data[-1] > 20:
         pt.on()
         print("turning on pulse tube!!!!")
-    time.sleep(30)
+    time.sleep(10)
