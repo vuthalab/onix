@@ -556,43 +556,31 @@ class AWGDoubleSineTrain(AWGFunction):
 
     def _unify_lists(self):
         """Makes sure that frequencies, amplitudes, and phases are lists of the same length."""
-        length1 = None
+        length = None
         try:
             self._train1_frequencies[0]
             is_list_train1_freq = True
-            length1 = len(self._train1_frequencies)
+            length = len(self._train1_frequencies)
         except Exception:
             is_list_train1_freq = False
 
-        length2 = None
         try:
             self._train2_frequencies[0]
             is_list_train2_freq = True
-            length2 = len(self._train2_frequencies)
         except Exception:
             is_list_train2_freq = False
         
-        if length1 is None:
+        if length is None:
             raise ValueError(
                 "First train frequencies not a list"
             )
         
-        if length2 is None:
-            raise ValueError(
-                "Second train frequencies not a list"
-            )
-        
-        if length1 != length2:
-            raise ValueError(
-                "First and second train frequenceies have unequal dimensions"
-            )
-        
         if not is_list_train1_freq:
             frequency_value = self._train1_frequencies.to("Hz").magnitude
-            self._train1_frequencies = np.repeat(frequency_value, length1) * ureg.Hz
+            self._train1_frequencies = np.repeat(frequency_value, length) * ureg.Hz
         if not is_list_train2_freq:
             frequency_value = self._train2_frequencies.to("Hz").magnitude
-            self._train2_frequencies = np.repeat(frequency_value, length2) * ureg.Hz
+            self._train2_frequencies = np.repeat(frequency_value, length) * ureg.Hz
 
 
     def output(self, times):
@@ -602,19 +590,28 @@ class AWGDoubleSineTrain(AWGFunction):
     
         data = np.zeros(len(times))
 
+        train1_on_time = self._train1_on_time.to("s").magnitude
+        train1_off_time = self._train1_off_time.to("s").magnitude
+        train2_on_time = self._train2_on_time.to("s").magnitude
+        train2_off_time = self._train2_off_time.to("s").magnitude
+
+        train_1_frequencies = self._train1_frequencies.to("Hz").magnitude
+        train_2_frequencies = self._train2_frequencies.to("Hz").magnitude
+
+        delay_between_trains = self._delay_between_trains.to("s").magnitude
+
         start_time = 0
-        for frequency in self._train1_frequencies:
-            end_time = start_time + self._train1_on_time
+        for frequency in train_1_frequencies:
+            end_time = start_time + train1_on_time
             data += sine(times, frequency, self._train1_amplitude, 0, start_time, end_time)
-            start_time = end_time + self._train1_off_time
-        start_time = start_time - self._train1_off_time + self._delay_between_trains
+            start_time = end_time + train1_off_time
+        start_time = start_time - train1_off_time + delay_between_trains
 
-        for frequency in self._train2_frequencies:
-            end_time = start_time + self._train2_on_time
+        for frequency in train_2_frequencies:
+            end_time = start_time + train2_on_time
             data += sine(times, frequency, self._train2_amplitude, self._phase_difference, start_time, end_time)
-            start_time = end_time + self._train2_off_time
-        start_time = start_time - self._train2_off_time
-
+            start_time = end_time + train2_off_time
+        start_time = start_time - train2_off_time
         return data
 
     @property
@@ -630,6 +627,8 @@ class AWGDoubleSineTrain(AWGFunction):
             self._train2_on_time * len(self._train2_frequencies),
             self._train2_off_time * (len(self._train2_frequencies) - 1),
         ]
+        for i, _ in enumerate(times):
+            times[i] = times[i].to("s").magnitude
         return np.sum(times) * ureg.s
 
 class AWGSimultaneousDoubleSineTrain(AWGFunction):

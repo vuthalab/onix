@@ -34,7 +34,7 @@ params = {
 V_errs = []
 N_avgs = params["n_avg"]
 if params["source"] == "quarto":
-    q = Quarto("/dev/ttyACM1")
+    q = Quarto("/dev/ttyACM8")
     resolution = 2e-6
     for i in range(N_avgs):
         err_data = q.get_cavity_error_data(2000)
@@ -43,37 +43,32 @@ if params["source"] == "quarto":
     print(f"Laser Linewidth is {laser.linewidth} Hz")
 
 ##
-fig, ax = plt.subplots()
+fig, (ax1, ax2, ax3) = plt.subplots(1,3)
 
-ax.plot(laser.f, laser.W_nu)
-ax.set_xscale("log")
-ax.set_yscale("log")
-ax.set_xlabel("Frequency (Hz)")
-ax.set_ylabel(r"Frequency Noise Spectral Density (Hz$^2$ / Hz)")
-ax.set_title("Frequency Noise Spectral Density")
-ax.grid()
-plt.show()
+ax1.plot(laser.f, laser.W_nu)
+ax1.set_xscale("log")
+ax1.set_yscale("log")
+ax1.set_xlabel("Frequency (Hz)")
+ax1.set_ylabel(r"Frequency Noise Spectral Density (Hz$^2$ / Hz)")
+ax1.set_title("Frequency Noise Spectral Density")
+ax1.grid()
 
-##
-fig, ax = plt.subplots()
-ax.plot(laser.f, laser.W_phi)
-ax.set_xscale("log")
-ax.set_yscale("log")
-ax.set_xlabel("Frequency (Hz)")
-ax.set_ylabel(r"Phase Noise Spectral Density (1/Hz)")
-ax.set_title("Phase Noise Spectral Density")
-ax.grid()
-plt.show()
+ax2.plot(laser.f, laser.W_phi)
+ax2.set_xscale("log")
+ax2.set_yscale("log")
+ax2.set_xlabel("Frequency (Hz)")
+ax2.set_ylabel(r"Phase Noise Spectral Density (1/Hz)")
+ax2.set_title("Phase Noise Spectral Density")
+ax2.grid()
 
-##
-fig, ax = plt.subplots()
-ax.plot(laser.f, laser.W_phi_integral)
-ax.set_xscale("log")
-ax.set_yscale("log")
-ax.set_xlabel("Frequency (Hz)")
-ax.set_ylabel(r"Cumulated Phase Noise")
-ax.set_title("Cumulated Phase Noise")
-ax.grid()
+ax3.plot(laser.f, laser.W_phi_integral)
+ax3.set_xscale("log")
+ax3.set_yscale("log")
+ax3.set_xlabel("Frequency (Hz)")
+ax3.set_ylabel(r"Cumulated Phase Noise")
+ax3.set_title("Cumulated Phase Noise")
+ax3.grid()
+plt.tight_layout()
 plt.show()
 
 ## Save Data

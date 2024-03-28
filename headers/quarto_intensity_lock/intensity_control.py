@@ -13,7 +13,7 @@ def round_sig(x, sig=3):
     return round(x, sig-int(np.floor(np.log10(abs(x))))-1)
 
 app = pg.mkQApp("Intensity control")
-q = Quarto("/dev/ttyACM4")
+q = Quarto("/dev/ttyACM5")
 device_lock = threading.Lock()
 
 DEFAULT_GET_DATA_LENGTH = 30000

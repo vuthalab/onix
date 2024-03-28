@@ -22,8 +22,11 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 5,
+    "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
+    "ao": {
+        "center_frequency": 75 * ureg.MHz,
+    },
     "eos": {
         "ac": {
             "name": "eo_ac",
@@ -43,12 +46,12 @@ default_params = {
     },
     "rf": {
         "amplitude": 0,  # 4200
-        "detuning": 0 * ureg.kHz,
-        "duration": 0.5 * ureg.ms,
+        "detuning": -65 * ureg.kHz,
+        "duration": 0.06 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
-        "scan": 3 * ureg.MHz,
+        "scan": 2.5 * ureg.MHz,
         "durations": 10 * ureg.ms,
         "repeats": 50,
         "detunings": 0 * ureg.MHz,
@@ -57,25 +60,26 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "ca"],
         "durations": [5 * ureg.ms, 5 * ureg.ms],
-        "repeats": 10,
+        "repeats": 50,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "detect": {
-        "detunings": np.linspace(-2, 2, 20) * ureg.MHz, # np.array([0, 1.0]) * ureg.MHz, # np.linspace(-2, 2, 20) * ureg.MHz, #
-        "ao_amplitude": 2400,
-        "on_time": 5 * ureg.us,
-        "off_time": 2 * ureg.us,
+        "detunings": np.array([-0.5, 0, 0.5, 1]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
+        "ao_amplitude": 650,
+        "on_time": 2 * ureg.us,
+        "off_time": 0.5 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 8,
-            "rf": 8,
+            "antihole": 100,
+            "rf": 100,
         },
+        "delay": 8 * ureg.us,
     },
     "digitizer": {
         "sample_rate": 25e6,
         "ch1_range": 2,
-        "ch2_range": 0.5,
+        "ch2_range": 2,
     },
 }
 default_params = update_parameters_from_shared(default_params)
@@ -86,6 +90,8 @@ setup_digitizer(
     default_sequence.analysis_parameters["digitizer_duration"],
     default_sequence.num_of_record_cycles(),
     default_params["sequence_repeats_per_transfer"],
+    ch1_range=default_params["digitizer"]["ch1_range"],
+    ch2_range=default_params["digitizer"]["ch2_range"],
 )
 
 ## test
@@ -101,7 +107,8 @@ start_time = time.time()
 ## antihole test
 params = default_params.copy()
 first_data_id = None
-for kk in range(1):
+
+for kk in range(100):
     sequence = get_sequence(params)
     data = run_sequence(sequence, params)
     data_id = save_data(sequence, params, *data)
@@ -113,13 +120,32 @@ for kk in range(1):
 # params = default_params.copy()
 # first_data_id = None
 #
-# params["rf"]["amplitude"] = 2000
-# params["rf"]["duration"] = 4 * ureg.ms
 #
-# rf_frequencies = np.arange(-300, 300, 20)
+# params["rf"]["duration"] = 1 * ureg.ms
+#
+# rf_frequencies = np.arange(-300, 300, 10)
 # rf_frequencies *= ureg.kHz
 # for kk in range(len(rf_frequencies)):
 #     params["rf"]["detuning"] = rf_frequencies[kk]
+#     sequence = get_sequence(params)
+#     data = run_sequence(sequence, params)
+#     data_id = save_data(sequence, params, *data)
+#     print(data_id)
+#     if first_data_id == None:
+#         first_data_id = data_id
+
+## scan rf duration
+# params = default_params.copy()
+# first_data_id = None
+#
+#
+# params["rf"]["duration"] = 1 * ureg.ms
+# rf_durations = np.linspace(0.01, 2.0, 15)
+# params["rf"]["amplitude"] = 300
+# print(rf_durations)
+# rf_durations *= ureg.ms
+# for kk in range(len(rf_durations)):
+#     params["rf"]["duration"] = rf_durations[kk]
 #     sequence = get_sequence(params)
 #     data = run_sequence(sequence, params)
 #     data_id = save_data(sequence, params, *data)
@@ -135,7 +161,7 @@ print(
     f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
 )
 print(f"data = (first, last)")
-print(f"data = ({first_data_id}, {data_id})")
+print(f"\"\": ({first_data_id}, {data_id}),")
 
 
 ## empty

@@ -28,8 +28,8 @@ class RFDoubleCombSatAbsSpectroscopy(SharedSequence):
         pump_time = self._rf_parameters["pump_time"]
         pump_amplitude = self._rf_parameters["pump_amplitude"]
 
-        probe_detuning = self._rf_parameters["probe_detunings"]
-        probe_freq = center_frequency + probe_detuning
+        probe_detuning = self._rf_parameters["probe_detuning"]
+        probe_freqs = pump_freqs + probe_detuning
         probe_time = self._rf_parameters["probe_time"]
         probe_amplitude = self._rf_parameters["probe_amplitude"]
         probe_phase = self._rf_parameters["probe_phase"]
@@ -43,9 +43,9 @@ class RFDoubleCombSatAbsSpectroscopy(SharedSequence):
                 pump_freqs,
                 pump_amplitude,
                 pump_time,
+                0,
                 delay_time,
-                delay_time,
-                probe_freq,
+                probe_freqs,
                 probe_amplitude,
                 probe_time,
                 0,

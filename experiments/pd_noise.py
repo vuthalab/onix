@@ -7,7 +7,7 @@ from onix.data_tools import save_experiment_data
 from onix.units import ureg, Q_
 from onix.sequences.pd_noise import pdNoiseMeasurement
 from onix.analysis.correlate import get_correlated_signal
-from onix.analysis.debug.laser_linewidth import LaserLinewidth
+#from onix.analysis.debug.laser_linewidth import LaserLinewidth
 from onix.analysis.power_spectrum import PowerSpectrum, CCedPowerSpectrum
 
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
@@ -45,8 +45,8 @@ params = {
 
     "device": "gage",  # "quarto", "gage"
     "use_sequence": True,
-    "chasm_burning": True,
-    "repeats": 20,
+    "chasm_burning": False,
+    "repeats": 1,
 }
 
 ## Sequence Setup
@@ -148,14 +148,14 @@ print("data collection ended.")
 if params["device"] == "gage":
     N_Vt = len(Vt[0])
     time_resolution = 1 / sample_rate
-    spectrum0 = PowerSpectrum(N_Vt, time_resolution, max_points_per_decade=200)
+    spectrum0 = PowerSpectrum(N_Vt, time_resolution, max_points_per_decade=200000)
     for kk in Vt:
         spectrum0.add_data(kk)
-    spectrum1 = PowerSpectrum(N_Vt, time_resolution, max_points_per_decade=200)
+    spectrum1 = PowerSpectrum(N_Vt, time_resolution, max_points_per_decade=200000)
     for kk in Vm:
         spectrum1.add_data(kk)
 
-    spectrum_cc = CCedPowerSpectrum(N_Vt, time_resolution)
+    #spectrum_cc = CCedPowerSpectrum(N_Vt, time_resolution, max_points_per_decade=200)
     for kk in range(len(Vt)):
         spectrum_cc.add_data(Vt[kk], Vm[kk])
 
@@ -178,8 +178,8 @@ plt.xlabel("Frequency (Hz)")
 
 if params["device"] == "gage":
     plt.loglog(spectrum0.f, spectrum0.relative_voltage_spectrum, label="channel 1", alpha=0.6)
-    plt.loglog(spectrum1.f, spectrum1.relative_voltage_spectrum, label="channel 2", alpha=0.6)
-    plt.loglog(spectrum_cc.f, np.abs(spectrum_cc.relative_voltage_spectrum), label="cross correlation", alpha=0.6)
+    #plt.loglog(spectrum1.f, spectrum1.relative_voltage_spectrum, label="channel 2", alpha=0.6)
+    #plt.loglog(spectrum_cc.f, np.abs(spectrum_cc.cc_relative_voltage_spectrum), label="cross correlation", alpha=0.6)
 
 elif params["device"] == "quarto":
     plt.loglog(spectrum0.f, np.sqrt(spectrum0.W_V) / np.abs(Vtavg), label="channel 1", alpha=0.6)

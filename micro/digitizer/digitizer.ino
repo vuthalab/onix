@@ -25,10 +25,10 @@ int segment_number = 0;
 
 void input_1_loop(void) {
   float reading = readADC1_from_ISR();
-  if (data_1_read_countdown > 0) {
-    data_1[data_index_1] = reading;
-    data_index_1++;
-    data_1_read_countdown--;
+  if (data_read_countdown > 0) {
+    data[data_index] = reading;
+    data_index++;
+    data_read_countdown--;
   }
 }
 

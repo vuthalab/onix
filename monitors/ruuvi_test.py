@@ -1,8 +1,10 @@
-import ruuvitag_sensor.log
 from ruuvitag_sensor.ruuvi import RuuviTagSensor
 
-ruuvitag_sensor.log.enable_console()
 
-# This will print sensor's mac and state when new sensor is found
+def handle_data(found_data):
+    print(f"MAC {found_data[0]}")
+    print(f"Data {found_data[1]}")
+
+
 if __name__ == "__main__":
-    RuuviTagSensor.find_ruuvitags()
+    RuuviTagSensor.get_data(handle_data)

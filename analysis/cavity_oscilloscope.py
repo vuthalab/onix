@@ -105,6 +105,6 @@ class Oscilloscope():
         return fitter.results["tau"], fitter.errors["Tau"]
 
 
-oscilloscope = Oscilloscope("/home/icarus/Documents/data/manual/2024_03/11")
+oscilloscope = Oscilloscope("/home/icarus/Documents/data/manual/2024_03/26")
 tau, err = oscilloscope.fit_ringdown()
 print(tau, err)

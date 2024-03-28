@@ -15,7 +15,7 @@ class RFCombSatAbsSpectroscopy(SharedSequence):
     def __init__(self, parameters: dict[str, Any]):
         super().__init__(parameters, shutter_off_after_antihole=False)
         self._define_rf()
-        
+
     def _define_rf(self):
         rf_channel = get_channel_from_name(self._rf_parameters["name"])
         lower_state = self._rf_parameters["transition"][0]
@@ -35,10 +35,10 @@ class RFCombSatAbsSpectroscopy(SharedSequence):
         probe_phase = self._rf_parameters["probe_phase"]
 
         delay_time = self._rf_parameters["delay_time"]
-        
+
         segment = Segment("rf") # TODO: include duration here
         segment.add_awg_function(
-            rf_channel, 
+            rf_channel,
             AWGDoubleSineTrain(
                 pump_freqs,
                 pump_amplitude,

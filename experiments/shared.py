@@ -51,7 +51,7 @@ _shared_parameters = {
     "ao": {
         "name": "ao_dp",
         "order": 2,
-        "center_frequency": 75 * ureg.MHz,
+        "center_frequency": 78 * ureg.MHz,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -75,7 +75,7 @@ _shared_parameters = {
     "rf": {
         "name": "rf_coil",
         "transition": "ab",
-        "offset": 25 * ureg.kHz,
+        "offset": 30 * ureg.kHz,
     },
     "field_plate": {
         "name": "field_plate",
@@ -112,16 +112,17 @@ _shared_parameters = {
     "detect": {
         "transition": "bb",
         "trigger_channel": 2,
-        "ao_amplitude": 1700,
-        "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
+        "ao_amplitude": 500,
+        "detunings": np.array([0, 1]) * ureg.MHz,
         "randomize": False,
-        "on_time": 10 * ureg.us,
-        "off_time": 2 * ureg.us,
+        "on_time": 5 * ureg.us,
+        "off_time": 1 * ureg.us,
         "cycles": {
-            "chasm": 1,
-            "antihole": 1,
-            "rf": 1,
+            "chasm": 0,
+            "antihole": 200,
+            "rf": 200,
         },
+        "delay": 4 * ureg.us,
     },
     "digitizer": {
         "sample_rate": 25e6,

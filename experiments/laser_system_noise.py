@@ -32,10 +32,10 @@ N_avgs = params["n_avg"]
 q = Quarto("/dev/ttyACM5")
 resolution = 2e-6
 for i in range(N_avgs):
-    err_data = q.get_cavity_error_data(2000)
-    #output = q.get_output_data(2000)
-    V_errs.append(err_data)
-    noise.add_data(err_data)
+    #err_data = q.get_cavity_error_data(2000)
+    output = q.get_output_data(2000)
+    V_errs.append(output)
+    noise.add_data(output)
 
 ##
 fig, ax = plt.subplots()
