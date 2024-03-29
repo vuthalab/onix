@@ -65,8 +65,8 @@ default_params = {
         "ao_amplitude": 2000,
     },
     "detect": {
-        "detunings": np.array([-0.5, 0, 0.5, 1]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
-        "ao_amplitude": 650,
+        "detunings": np.array([-1, -0.5, 0, 0.5, 1]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
+        "ao_amplitude": 450,
         "on_time": 2 * ureg.us,
         "off_time": 0.5 * ureg.us,
         "cycles": {
@@ -108,7 +108,7 @@ start_time = time.time()
 params = default_params.copy()
 first_data_id = None
 
-for kk in range(100):
+for kk in range(30):
     sequence = get_sequence(params)
     data = run_sequence(sequence, params)
     data_id = save_data(sequence, params, *data)
