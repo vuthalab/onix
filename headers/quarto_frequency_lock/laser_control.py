@@ -11,8 +11,17 @@ from influxdb_client import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from scipy.signal import find_peaks
 from onix.headers.wavemeter.wavemeter import WM
-import time
 
+## Connect to wavemeter, quarto, etc
+wm = WM()
+app = pg.mkQApp("Laser control")
+q = Quarto("/dev/ttyACM8")
+device_lock = threading.Lock()
+
+update_transmission_interval = 1000 # ms; interval in which transmission reading is updated
+update_rms_error_interval = 250 # ms; interval in which rms error is updated
+
+## Start Window
 class KeyPressWindow(pg.GraphicsLayoutWidget):
     sigKeyPress = QtCore.pyqtSignal(object)
 
@@ -23,18 +32,13 @@ class KeyPressWindow(pg.GraphicsLayoutWidget):
         self.scene().keyPressEvent(ev)
         self.sigKeyPress.emit(ev)
 
-wm = WM()
-app = pg.mkQApp("Laser control")
-q = Quarto("/dev/ttyACM8")
-device_lock = threading.Lock()
-
 win = KeyPressWindow(show=True, title="")
 win.resize(1000,600)
 pg.setConfigOptions(antialias=True)
+total_rows = 4
 
-LENGTH = 1000
-
-p_error = win.addPlot(title="error signal", colspan = 4)
+## Graphs
+p_error = win.addPlot(title="error signal", colspan = total_rows)
 p_error.setMouseEnabled(x=False)
 error = p_error.plot(pen='y')
 def update_p_error(data):
@@ -42,7 +46,7 @@ def update_p_error(data):
     error.setData(data)
 win.nextRow()
 
-p_output = win.addPlot(title="output signal", colspan = 4)
+p_output = win.addPlot(title="output signal", colspan = total_rows)
 p_output.setMouseEnabled(x=False)
 output = p_output.plot(pen='y')
 def update_p_output(data):
@@ -50,7 +54,7 @@ def update_p_output(data):
     output.setData(data)
 win.nextRow()
 
-p_transmission = win.addPlot(title="transmission signal", colspan = 4)
+p_transmission = win.addPlot(title="transmission signal", colspan = total_rows)
 p_transmission.setMouseEnabled(x=False)
 transmission = p_transmission.plot(pen='y')
 def update_p_transmission(data):
@@ -58,7 +62,7 @@ def update_p_transmission(data):
     transmission.setData(data)
 win.nextRow()
 
-p_cavity_error = win.addPlot(title="cavity error signal", colspan = 4)
+p_cavity_error = win.addPlot(title="cavity error signal", colspan = total_rows)
 p_cavity_error.setMouseEnabled(x=False)
 cavity_error = p_cavity_error.plot(pen='y')
 def update_p_cavity_error(data):
@@ -88,11 +92,11 @@ def update_all():
     else:
         pass
 
-timer = QtCore.QTimer()
-timer.timeout.connect(update_all)
-timer.start(50)
+plots_timer = QtCore.QTimer()
+plots_timer.timeout.connect(update_all)
+plots_timer.start(50)
 
-## Lock On / Off Button
+## Lock On / Off Button (Not EXTREME Autorelock)
 def on_button_pressed():
     if lock_state.text() == "Lock On" or lock_state.text() == "Autorelock On":
         lock_state.setText("Lock Off")
@@ -123,6 +127,96 @@ lock_state.clicked.connect(on_button_pressed)
 lock_state_proxy = QtWidgets.QGraphicsProxyWidget()
 lock_state_proxy.setWidget(lock_state)
 win.addItem(lock_state_proxy, row = 5, col = 0, colspan = 1)
+
+## EXTREME Autorelock On / Off Button
+def extreme_autorelock_pressed():
+    global initial_extreme_autorelock_state
+    if extreme_autorelock_state.text() == "EXTREME Autorelock On":
+        initial_extreme_autorelock_state = 0
+        extreme_autorelock_state.setText("EXTREME Autorelock Off")
+        extreme_autorelock_state.setStyleSheet("background-color: Red; color: white;")
+    elif extreme_autorelock_state.text() == "EXTREME Autorelock Off":
+        initial_extreme_autorelock_state = 1
+        extreme_autorelock_state.setText("EXTREME Autorelock On")
+        extreme_autorelock_state.setStyleSheet("background-color: green; color: white;")
+
+initial_extreme_autorelock_state = 0
+
+extreme_autorelock_state = QtWidgets.QPushButton()
+if initial_extreme_autorelock_state == 1:
+    extreme_autorelock_state.setText("EXTREME Autorelock On")
+    extreme_autorelock_state.setStyleSheet("background-color: green; color: white;")
+elif initial_extreme_autorelock_state == 0:
+    extreme_autorelock_state.setText("EXTREME Autorelock Off")
+    extreme_autorelock_state.setStyleSheet("background-color: Red; color: white;")
+
+extreme_autorelock_state.clicked.connect(extreme_autorelock_pressed)
+extreme_autorelock_state_proxy = QtWidgets.QGraphicsProxyWidget()
+extreme_autorelock_state_proxy.setWidget(extreme_autorelock_state)
+win.addItem(extreme_autorelock_state_proxy, row = 5, col = 1, colspan = 1)
+
+q.set_dc_offset(0)
+offset_scan_direction = 0
+unhop_val = True
+def lock_param_update():
+    global offset_scan_direction
+    if q.get_state() == 0:
+        if initial_extreme_autorelock_state == 1:
+            avg_data_cavity_error = np.average(data_cavity_error)
+            dc_offset = q.get_dc_offset()
+            if np.abs(avg_data_cavity_error) > 0.01:
+                if avg_data_cavity_error < 0 and dc_offset < 10:
+                    q.set_dc_offset(dc_offset + 0.1)
+                if avg_data_cavity_error > 0 and dc_offset > -10:
+                    q.set_dc_offset(dc_offset - 0.1)
+            else:
+                wm_freq = wm.read_frequency(5)
+                wm_freq_diff = wm_freq - 516847.58
+
+                if abs(wm_freq_diff) < 10:
+                    if abs(wm_freq_diff) > 0.1:
+                        scan.setValue(0.5)
+
+                        step_size = max(0.2, abs(0.2*wm_freq_diff))
+                        if scan.value() > 1:
+                            scan.setValue(scan.value() + 0.1)
+                        if offset_scan_direction == 0:
+                            offset.setValue(offset.value() + step_size)
+                        elif offset_scan_direction == 1:
+                            offset.setValue(offset.value() - step_size)
+
+
+                        if wm_freq_diff > 0:
+                            offset_scan_direction = 1
+                        else:
+                            offset_scan_direction = 0
+                    else:
+                        peak_xs, peak_ys = find_peaks(data_transmission, height = 0.005)
+                        peak_ys = peak_ys["peak_heights"]
+                        if len(peak_xs) > 0:
+                            peak_x = peak_xs[np.argmax(peak_ys)]
+                            if peak_x < 475:
+                                offset.setValue(offset.value() - 0.007)
+                            elif peak_x > 525:
+                                offset.setValue(offset.value() + 0.007)
+                            elif scan.value() > 0.1:
+                                step_size = max(scan.value()** 3, 0.05)
+                                scan.setValue(max(scan.value() - step_size, 0.1))
+                            else:
+                                lock_state.setText("Autorelock On")
+                                lock_state.setStyleSheet("background-color: green; color: white;")
+                                with device_lock:
+                                    q.set_state(2)
+                        else:
+                            scan.setValue(0.5)
+                else: 
+                    pass
+
+
+lock_param_update_timer = QtCore.QTimer()
+lock_param_update_timer.timeout.connect(lock_param_update)
+lock_param_update_timer.start(50)
+
 
 ## Output Offset Spinbox
 def _offset():
@@ -163,7 +257,26 @@ scan_proxy.setWidget(scan)
 win.addItem(scan_proxy, row = 5, col = 3)
 win.nextRow()
 
-## Integral and Output Warnings
+## Stop Plots Button
+def stop_plots_pressed():
+    global plots
+    if plots == True:
+        plots = False
+        stop_plots.setText("Plots Off")
+        stop_plots.setStyleSheet("background-color: red; color: white")
+    else:
+        plots = True
+        stop_plots.setText("Plots On")
+        stop_plots.setStyleSheet("background-color: green; color: white")
+
+stop_plots = QtWidgets.QPushButton("Plots On")
+stop_plots.setStyleSheet("background-color: green; color: white")
+stop_plots.clicked.connect(stop_plots_pressed)
+stop_plots_proxy = QtWidgets.QGraphicsProxyWidget()
+stop_plots_proxy.setWidget(stop_plots)
+win.addItem(stop_plots_proxy, row = 6, col = 0)
+
+## Integral and Output Warnings -- should probably put this on the top row, with laser linewidth taking this spot
 def update_warning():
     with device_lock:
         state = q.get_state()
@@ -185,30 +298,11 @@ warning = QtWidgets.QPushButton()
 warning_proxy = QtWidgets.QGraphicsProxyWidget()
 warning_proxy.setWidget(warning)
 update_warning()
-win.addItem(warning_proxy, row = 6, col = 0)
+win.addItem(warning_proxy, row = 6, col = 1)
 
 warning_timer = QtCore.QTimer()
 warning_timer.timeout.connect(update_warning)
 warning_timer.start(5000)
-
-## Stop Plots Button
-def stop_plots_pressed():
-    global plots
-    if plots == True:
-        plots = False
-        stop_plots.setText("Plots Off")
-        stop_plots.setStyleSheet("background-color: red; color: white")
-    else:
-        plots = True
-        stop_plots.setText("Plots On")
-        stop_plots.setStyleSheet("background-color: green; color: white")
-
-stop_plots = QtWidgets.QPushButton("Plots On")
-stop_plots.setStyleSheet("background-color: green; color: white")
-stop_plots.clicked.connect(stop_plots_pressed)
-stop_plots_proxy = QtWidgets.QGraphicsProxyWidget()
-stop_plots_proxy.setWidget(stop_plots)
-win.addItem(stop_plots_proxy, row = 6, col = 1)
 
 ## Transmission
 def round_sig(x, sig=3):
@@ -230,7 +324,7 @@ win.addItem(last_transmission_proxy, row = 6, col = 2)
 
 last_transmission_timer = QtCore.QTimer()
 last_transmission_timer.timeout.connect(update_transmission)
-last_transmission_timer.start(1000)
+last_transmission_timer.start(update_transmission_interval)
 
 ## RMS Error
 track_rms_err = True
@@ -262,71 +356,7 @@ win.addItem(rms_err_proxy, row = 6, col = 3)
 
 rms_err_timer = QtCore.QTimer()
 rms_err_timer.timeout.connect(update_rms_err)
-rms_err_timer.start(250)
-
-## Monitor the integral and output using influx db
-token = os.environ.get("INFLUXDB_TOKEN")
-org = "onix"
-url = "http://onix-pc:8086"
-bucket_week = "week"
-
-write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
-write_api = write_client.write_api(write_options=SYNCHRONOUS)
-
-
-if q.get_state() == 0:
-    counter_starts_off = True
-else:
-    counter_starts_off = False
-
-unlock_counter = 0
-
-
-def record_data():
-    try:
-        point = Point("laser_controller")
-        with device_lock:
-            integral = q.get_integral()
-            output = q.get_last_output_point()
-            dc_offset = q.get_dc_offset()
-            unlock_counter = q.get_unlock_counter()
-
-        point.field("integral", integral)
-        point.field("output", output)
-        point.field("dc offset", dc_offset)
-        point.field("unlock counter", unlock_counter)
-        write_api.write(bucket=bucket_week, org="onix", record=point)
-    except:
-        print("Error recording to InfluxDB")
-
-influx_db_timer = QtCore.QTimer()
-influx_db_timer.timeout.connect(record_data)
-influx_db_timer.start(5000) #5 seconds
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+rms_err_timer.start(update_rms_error_interval)
 
 
 
@@ -335,195 +365,32 @@ influx_db_timer.start(5000) #5 seconds
 
 def keyPressed(evt):
     print(evt.key())
-
     if q.get_state() == 0:
-        # print("Key pressed")
-        
-
         if evt.key() == Qt.Key_Left:
-            print("test1") # left
             offset.setValue(offset.value() + 0.01)
 
-
         if evt.key() == Qt.Key_Up:
-            print("test2") # up
             if q.get_dc_offset() < 10:
                 q.set_dc_offset(q.get_dc_offset() + 0.1)
                 print(f"cavity error = {np.average(data_cavity_error)}")
                 print(f"DC offset = {q.get_dc_offset()}")
 
-
         if evt.key() == Qt.Key_Right:
-            print("test3") # right
             offset.setValue(offset.value() - 0.01)
 
-
         if evt.key() == Qt.Key_Down:
-            print("test4") # down
             if q.get_dc_offset() > -10:
                 q.set_dc_offset(q.get_dc_offset() - 0.1)
-                print(f"cavity error = {np.average(data_cavity_error)}")
-                print(f"DC offset = {q.get_dc_offset()}")
-
-
-    # if evt.key() == Qt.Key_Control: # ctrl
-    #     if lock_state.text() == "Lock On" or lock_state.text() == "Autorelock On":
-    #         lock_state.setText("Lock Off")
-    #         lock_state.setStyleSheet("background-color: Red; color: white;")
-    #         with device_lock:
-    #             q.set_state(0)
-    #     elif lock_state.text() == "Lock Off":
-    #         lock_state.setText("Autorelock On")
-    #         lock_state.setStyleSheet("background-color: green; color: white;")
-    #         with device_lock:
-    #             q.set_state(2)
         
 win.sigKeyPress.connect(keyPressed)
 
 
 
-## Lock On / Off Button
-def on_button_pressed_2():
-    global initial_super_relock_state
-    if super_relock_state.text() == "EXTREME Autorelock On":
-        initial_super_relock_state = 0
-        super_relock_state.setText("EXTREME Autorelock Off")
-        super_relock_state.setStyleSheet("background-color: Red; color: white;")
-    elif super_relock_state.text() == "EXTREME Autorelock Off":
-        initial_super_relock_state = 1
-        super_relock_state.setText("EXTREME Autorelock On")
-        super_relock_state.setStyleSheet("background-color: green; color: white;")
-
-initial_super_relock_state = 0
-
-super_relock_state = QtWidgets.QPushButton()
-if initial_super_relock_state == 1:
-    super_relock_state.setText("EXTREME Autorelock On")
-    super_relock_state.setStyleSheet("background-color: green; color: white;")
-elif initial_super_relock_state == 0:
-    super_relock_state.setText("EXTREME Autorelock Off")
-    super_relock_state.setStyleSheet("background-color: Red; color: white;")
-
-super_relock_state.clicked.connect(on_button_pressed_2)
-super_relock_state_proxy = QtWidgets.QGraphicsProxyWidget()
-super_relock_state_proxy.setWidget(super_relock_state)
-win.addItem(super_relock_state_proxy, row = 5, col = 1, colspan = 1)
-
-# def lock_param_update():
-#     if initial_super_relock_state == 1:
-#         freq = wm.read_frequency(5) - 516847 # MHz
-#         print(freq)
-#         if 100 > freq > -100:
-#             peak_xs, peak_ys = find_peaks(data_transmission, height = 0.003)
-#             l_peak_xs, l_peak_ys = find_peaks(data_transmission, heights= 0.1)
-#             peak_ys = peak_ys["peak_heights"]
-#             if len(peak_xs) == 3:
-#                 if peak_xs[1] < 475:
-#                     offset.setValue(offset.value() - 0.001)
-#                 elif peak_xs[1] > 525:
-#                     offset.setValue(offset.value() + 0.001)
-#                 else:
-#                     if scan.value() > 0.1:
-#                         scan.setValue(scan.value() - 0.01)
-#             elif len(peak_xs) < 3:
-#                 scan.setValue(scan.value() + 0.1)
-#             else:
-#                 ll = np.argmax(peak_ys)
-#                 scan.setValue(scan.value() - 0.01)
-#                 if peak_xs[ll] < 475:
-#                     offset.setValue(offset.value() - 0.01)
-#                 elif peak_xs[ll] > 525:
-#                     offset.setValue(offset.value() + 0.01)
-#                 else:
-#                     if scan.value() > 0.1:
-#                         scan.setValue(scan.value() - 0.01)
-                
-#             print(peak_xs)
-#             # print(peak_xs[1])
-#         else:
-#             pass # wrong frequency
-
-#     else:
-#         pass
-q.set_dc_offset(0)
-offset_scan_direction = 0
-unhop_val = True
-def lock_param_update():
-    global offset_scan_direction
-    if q.get_state() == 0:
-        if initial_super_relock_state == 1:
-            avg_data_cavity_error = np.average(data_cavity_error)
-            dc_offset = q.get_dc_offset()
-            if np.abs(avg_data_cavity_error) > 0.01:
-                if avg_data_cavity_error < 0 and dc_offset < 10:
-                    q.set_dc_offset(dc_offset + 0.1)
-                if avg_data_cavity_error > 0 and dc_offset > -10:
-                    q.set_dc_offset(dc_offset - 0.1)
-            else:
-                wm_freq = wm.read_frequency(5)
-                wm_freq_diff = wm_freq - 516847.58
-
-                if abs(wm_freq_diff) < 10:
-                    if abs(wm_freq_diff) > 0.1:
-                        scan.setValue(0.5)
-
-                        step_size = max(0.2, abs(0.2*wm_freq_diff))
-                        if scan.value() > 1:
-                            scan.setValue(scan.value() + 0.1)
-                        if offset_scan_direction == 0:
-                            offset.setValue(offset.value() + step_size)
-                        elif offset_scan_direction == 1:
-                            offset.setValue(offset.value() - step_size)
-
-
-                        if wm_freq_diff > 0:
-                            offset_scan_direction = 1
-                        else:
-                            offset_scan_direction = 0
-                    else:
-                        peak_xs, peak_ys = find_peaks(data_transmission, height = 0.005)
-                        peak_ys = peak_ys["peak_heights"]
-                        # print(l_peak_xs)
-                        if len(peak_xs) > 0:
-                            peak_x = peak_xs[np.argmax(peak_ys)]
-                            if peak_x < 475:
-                                offset.setValue(offset.value() - 0.007)
-                            elif peak_x > 525:
-                                offset.setValue(offset.value() + 0.007)
-                            elif scan.value() > 0.1:
-                                step_size = max(scan.value()** 3, 0.05)
-                                scan.setValue(max(scan.value() - step_size, 0.1))
-                            else:
-                                lock_state.setText("Autorelock On")
-                                lock_state.setStyleSheet("background-color: green; color: white;")
-                                with device_lock:
-                                    q.set_state(2)
-                        else:
-                            scan.setValue(0.5)
-                                
-
-                else: 
-                    pass
-                    # global unhop_val
-                    # if scan.value() != 0.1:
-                    #     scan.setValue(0.1)
-                    # if unhop_val == True:
-                    #     offset.setValue(0)
-                    #     unhop_val = False
-                    # else:
-                    #     offset.setValue(10)
-                    #     unhop_val = True
-
-
-lock_param_update_timer = QtCore.QTimer()
-lock_param_update_timer.timeout.connect(lock_param_update)
-lock_param_update_timer.start(50)
-
 # check transmission
 
 def transmission_check():
-    global initial_super_relock_state
-    if q.get_state() == 2 and initial_super_relock_state == 1:
+    global initial_extreme_autorelock_state
+    if q.get_state() == 2 and initial_extreme_autorelock_state == 1:
         if np.average(data_transmission) < 0.1:
             # unlocked        
             lock_state.setText("Lock Off")
@@ -565,14 +432,51 @@ def update_text():
     else:
         mode_hop_text_label.setText("", color="#FF0000")
 
-
-
-
-
 update_wavemeter_frequency_timer = QtCore.QTimer()
 update_wavemeter_frequency_timer.timeout.connect(update_text)
 update_wavemeter_frequency_timer.start(50)
 
+
+
+
+## Monitor the integral and output using influx db
+token = os.environ.get("INFLUXDB_TOKEN")
+org = "onix"
+url = "http://onix-pc:8086"
+bucket_week = "week"
+
+write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
+write_api = write_client.write_api(write_options=SYNCHRONOUS)
+
+
+if q.get_state() == 0:
+    counter_starts_off = True
+else:
+    counter_starts_off = False
+
+unlock_counter = 0
+
+
+def record_data():
+    try:
+        point = Point("laser_controller")
+        with device_lock:
+            integral = q.get_integral()
+            output = q.get_last_output_point()
+            dc_offset = q.get_dc_offset()
+            unlock_counter = q.get_unlock_counter()
+
+        point.field("integral", integral)
+        point.field("output", output)
+        point.field("dc offset", dc_offset)
+        point.field("unlock counter", unlock_counter)
+        write_api.write(bucket=bucket_week, org="onix", record=point)
+    except:
+        print("Error recording to InfluxDB")
+
+influx_db_timer = QtCore.QTimer()
+influx_db_timer.timeout.connect(record_data)
+influx_db_timer.start(5000) #5 seconds
 
 if __name__ == '__main__':
     pg.exec()
