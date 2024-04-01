@@ -21,7 +21,7 @@ Down Arrow: decrease dc offset by 0.1
 """
 GET_CAVITY_DATA_LENGTH = 2000
 
-## Connect to wavemeter, quarto, etc
+## Initialize wavemeter, quarto, laser class
 wm = WM()
 app = pg.mkQApp("Laser control")
 q = Quarto("/dev/ttyACM8")
@@ -32,7 +32,7 @@ laser = LaserLinewidth(GET_CAVITY_DATA_LENGTH, 2e-6, discriminator_slope)
 frequency_setpoint = 516847.58 # frequency we want to be near, for purposes of determining when we have mode hopped
 update_transmission_interval = 1000 # ms; interval in which transmission reading is updated
 update_rms_error_interval = 250 # ms; interval in which rms error is updated
-laser_linewidth_averages = 1000 # how many average to use when calculating laser linewidth
+laser_linewidth_averages = 1000 # how many averages to use when calculating laser linewidth
 
 ## Start Window
 class KeyPressWindow(pg.GraphicsLayoutWidget):
@@ -306,6 +306,7 @@ win.addItem(stop_plots_proxy, row = 6, col = 0)
 ## Laser Linewidth Monitor
 kk = 0
 def update_laser_linewidth():
+    global kk
     with device_lock:
         error = q.get_cavity_error_data()
     if kk < laser_linewidth_averages:
