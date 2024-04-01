@@ -11,15 +11,28 @@ from influxdb_client import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from scipy.signal import find_peaks
 from onix.headers.wavemeter.wavemeter import WM
+from onix.analysis.laser_linewidth import LaserLinewidth
+"""
+Keyboard Controls:
+Left Arrow: increase offset by 0.01
+Right Arrow: decrease offset by 0.01
+Up Arrow: increase dc offset by 0.1
+Down Arrow: decrease dc offset by 0.1
+"""
+GET_CAVITY_DATA_LENGTH = 2000
 
 ## Connect to wavemeter, quarto, etc
 wm = WM()
 app = pg.mkQApp("Laser control")
 q = Quarto("/dev/ttyACM8")
 device_lock = threading.Lock()
+discriminator_slope = 1.5e-5
+laser = LaserLinewidth(GET_CAVITY_DATA_LENGTH, 2e-6, discriminator_slope) 
 
+frequency_setpoint = 516847.58 # frequency we want to be near, for purposes of determining when we have mode hopped
 update_transmission_interval = 1000 # ms; interval in which transmission reading is updated
 update_rms_error_interval = 250 # ms; interval in which rms error is updated
+laser_linewidth_averages = 1000 # how many average to use when calculating laser linewidth
 
 ## Start Window
 class KeyPressWindow(pg.GraphicsLayoutWidget):
@@ -217,6 +230,20 @@ lock_param_update_timer = QtCore.QTimer()
 lock_param_update_timer.timeout.connect(lock_param_update)
 lock_param_update_timer.start(50)
 
+## Detect unlocks when in EXTREME Autorelock mode
+def transmission_check(): 
+    global initial_extreme_autorelock_state
+    if q.get_state() == 2 and initial_extreme_autorelock_state == 1:
+        if np.average(data_transmission) < 0.1:
+            # unlocked        
+            lock_state.setText("Lock Off")
+            lock_state.setStyleSheet("background-color: Red; color: white;")
+            with device_lock:
+                q.set_state(0)
+
+transmission_check_timer = QtCore.QTimer()
+transmission_check_timer.timeout.connect(transmission_check)
+transmission_check_timer.start(100)
 
 ## Output Offset Spinbox
 def _offset():
@@ -276,35 +303,31 @@ stop_plots_proxy = QtWidgets.QGraphicsProxyWidget()
 stop_plots_proxy.setWidget(stop_plots)
 win.addItem(stop_plots_proxy, row = 6, col = 0)
 
-## Integral and Output Warnings -- should probably put this on the top row, with laser linewidth taking this spot
-def update_warning():
+## Laser Linewidth Monitor
+kk = 0
+def update_laser_linewidth():
     with device_lock:
-        state = q.get_state()
-    if state == 0:
-        warning.setStyleSheet("background-color: white; color: black")
-        warning_text = "No Warnings"
+        error = q.get_cavity_error_data()
+    if kk < laser_linewidth_averages:
+        laser.add_data(error)
     else:
-        integral_warning, output_warning = q.output_limit_indicator()
-        warning_text = integral_warning + " " + output_warning
-        if "out" in integral_warning or "out" in output_warning:
-            warning.setStyleSheet("background-color: red; color: white")
-        elif "warning" in integral_warning or "warning" in output_warning:
-            warning.setStyleSheet("background-color: yellow; color: black")
-        else:
-            warning.setStyleSheet("background-color: green; color: white")
-    warning.setText(warning_text)
+        laser.update_data(error)
+    try:
+        kk += 1
+    except:
+        kk = laser_linewidth_averages
+    laser_linewidth.setText(f"Laser Linewidth: {laser.linewidth} Hz")
 
-warning = QtWidgets.QPushButton()
-warning_proxy = QtWidgets.QGraphicsProxyWidget()
-warning_proxy.setWidget(warning)
-update_warning()
-win.addItem(warning_proxy, row = 6, col = 1)
+laser_linewidth = QtWidgets.QPushButton()
+laser_linewidth_proxy = QtWidgets.QGraphicsProxyWidget()
+laser_linewidth_proxy.setWidget(laser_linewidth)
+win.addItem(laser_linewidth_proxy, row = 6, col = 1) 
 
-warning_timer = QtCore.QTimer()
-warning_timer.timeout.connect(update_warning)
-warning_timer.start(5000)
+laser_linewidth_timer = QtCore.QTimer()
+laser_linewidth_timer.timeout.connect(update_laser_linewidth)
+laser_linewidth_timer.start(50)
 
-## Transmission
+## Transmission Monitor
 def round_sig(x, sig=3):
     """
     Rounds to specified number of significant figures
@@ -320,13 +343,13 @@ last_transmission = QtWidgets.QPushButton()
 last_transmission_proxy = QtWidgets.QGraphicsProxyWidget()
 last_transmission_proxy.setWidget(last_transmission)
 update_transmission()
-win.addItem(last_transmission_proxy, row = 6, col = 2)
+win.addItem(last_transmission_proxy, row = 6, col = 2) 
 
 last_transmission_timer = QtCore.QTimer()
 last_transmission_timer.timeout.connect(update_transmission)
 last_transmission_timer.start(update_transmission_interval)
 
-## RMS Error
+## RMS Error Monitor
 track_rms_err = True
 
 def _toggle_rms_error():
@@ -359,24 +382,18 @@ rms_err_timer.timeout.connect(update_rms_err)
 rms_err_timer.start(update_rms_error_interval)
 
 
-
-
-## Keyboard testing
-
+## Keyboard Controls
 def keyPressed(evt):
-    print(evt.key())
     if q.get_state() == 0:
         if evt.key() == Qt.Key_Left:
             offset.setValue(offset.value() + 0.01)
+      
+        if evt.key() == Qt.Key_Right:
+            offset.setValue(offset.value() - 0.01)
 
         if evt.key() == Qt.Key_Up:
             if q.get_dc_offset() < 10:
                 q.set_dc_offset(q.get_dc_offset() + 0.1)
-                print(f"cavity error = {np.average(data_cavity_error)}")
-                print(f"DC offset = {q.get_dc_offset()}")
-
-        if evt.key() == Qt.Key_Right:
-            offset.setValue(offset.value() - 0.01)
 
         if evt.key() == Qt.Key_Down:
             if q.get_dc_offset() > -10:
@@ -384,48 +401,27 @@ def keyPressed(evt):
         
 win.sigKeyPress.connect(keyPressed)
 
-
-
-# check transmission
-
-def transmission_check():
-    global initial_extreme_autorelock_state
-    if q.get_state() == 2 and initial_extreme_autorelock_state == 1:
-        if np.average(data_transmission) < 0.1:
-            # unlocked        
-            lock_state.setText("Lock Off")
-            lock_state.setStyleSheet("background-color: Red; color: white;")
-            with device_lock:
-                q.set_state(0)
-
-
-transmission_check_timer = QtCore.QTimer()
-transmission_check_timer.timeout.connect(transmission_check)
-transmission_check_timer.start(100)
-
+## Reading Wavemeter and Mode Hop Detection
 wavemeter_text_label = pg.LabelItem(f"Wavemeter: ")
 win.addItem(wavemeter_text_label, row = 4,  col = 0, colspan = 1)
-
-dc_offset_text_label = pg.LabelItem(f"DC Offset: ")
-win.addItem(dc_offset_text_label, row = 4,  col = 1, colspan = 1)
 
 mode_hop_text_label = pg.LabelItem(f"")
 win.addItem(mode_hop_text_label, row = 4,  col = 3, colspan = 1)
 
-def update_text():
+def update_wavemeter():
     global wavemeter_text_label
     wm_freq = wm.read_frequency(5)
     if type(wm_freq) == str:
         wavemeter_text_label.setText(wm_freq)
     else:
-        wm_freq_diff = wm_freq - 516847.58
+        wm_freq_diff = wm_freq - frequency_setpoint
         if abs(wm_freq_diff) > 0.1:
-            color = "#E61414"
+            color = "#E61414" # red
         else:
-            color = "#33FF33"
+            color = "#33FF33" # green
         wavemeter_text_label.setText(f"Wavemeter: {wm_freq:.4f} MHz", color = color)
 
-    dc_offset_text_label.setText(f"DC Offset: {q.get_dc_offset():.4f}", color = "#FFFFFF")
+    
 
     if abs(wm_freq_diff) > 50:
         mode_hop_text_label.setText("MODE HOPPED", color="#FF0000")
@@ -433,13 +429,46 @@ def update_text():
         mode_hop_text_label.setText("", color="#FF0000")
 
 update_wavemeter_frequency_timer = QtCore.QTimer()
-update_wavemeter_frequency_timer.timeout.connect(update_text)
+update_wavemeter_frequency_timer.timeout.connect(update_wavemeter)
 update_wavemeter_frequency_timer.start(50)
 
+## Update DC Offset Text
+dc_offset_text_label = pg.LabelItem(f"DC Offset: ")
+win.addItem(dc_offset_text_label, row = 4,  col = 1, colspan = 1)
 
+def update_dc_offset():
+    with device_lock:
+        dc_offset_text_label.setText(f"DC Offset: {q.get_dc_offset():.4f}", color = "#FFFFFF")
 
+update_dc_offset_timer = QtCore.QTimer()
+update_dc_offset_timer.timeout.connect(update_dc_offset)
+update_dc_offset_timer.start(50)
 
-## Monitor the integral and output using influx db
+## Update Integral and Output Warnings
+integral_output_warning = pg.LabelItem(f"")
+win.addItem(integral_output_warning, row = 4,  col = 2, colspan = 1)
+
+def _update_integral_output_warning():
+    with device_lock:
+        state = q.get_state()
+    if state == 0:
+        integral_output_warning.setText(f"")
+    else:
+        with device_lock:
+            integral_warning, output_warning = q.output_limit_indicator()
+        warning_text = integral_warning + " " + output_warning
+        if "out" in integral_warning or "out" in output_warning:
+            integral_output_warning.setText(warning_text, color = "#E61414") # red
+        elif "warning" in integral_warning or "warning" in output_warning:
+            integral_output_warning.setText(warning_text, color = "#F5DD42") # yellow
+        else:
+            integral_output_warning.setText(warning_text, color = "#33FF33") # green
+
+integral_output_warning_timer = QtCore.QTimer()
+integral_output_warning_timer.timeout.connect(_update_integral_output_warning)
+integral_output_warning_timer.start(5000)
+
+## Save the integral and output using influx db
 token = os.environ.get("INFLUXDB_TOKEN")
 org = "onix"
 url = "http://onix-pc:8086"
@@ -448,14 +477,12 @@ bucket_week = "week"
 write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
 write_api = write_client.write_api(write_options=SYNCHRONOUS)
 
-
 if q.get_state() == 0:
     counter_starts_off = True
 else:
     counter_starts_off = False
 
 unlock_counter = 0
-
 
 def record_data():
     try:
