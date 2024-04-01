@@ -62,7 +62,8 @@ class PowerSpectrum:
         self._error_signal_avgs = []
         self._power_spectrums = []
         self._last_updated_index = -1
-        self._bin_edges, self._digitized, self._frequency_start_bin_index = _get_bin_start(self._max_points_per_decade, self._frequencies)
+        if max_points_per_decade != None:
+            self._bin_edges, self._digitized, self._frequency_start_bin_index = _get_bin_start(self._max_points_per_decade, self._frequencies)
 
     def add_data(self, error_signal):
         self._power_spectrums.append(self._voltages_to_power_spectrum(error_signal))
@@ -97,7 +98,10 @@ class PowerSpectrum:
 
     @property
     def f(self):
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, self._frequencies)
+        if self._max_points_per_decade == None:
+            return self._frequencies
+        else:
+            return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, self._frequencies)
 
     @property
     def num_of_averages(self):
@@ -109,7 +113,10 @@ class PowerSpectrum:
     
     @property
     def power_spectrum(self):
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._power_spectrums, axis=0))
+        if self._max_points_per_decade == None:
+            return np.mean(self._power_spectrums, axis=0)
+        else:
+            return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._power_spectrums, axis=0))
     
     @property
     def relative_power_spectrum(self):
@@ -137,7 +144,8 @@ class CCedPowerSpectrum:
         self._error_signal_1_power_spectrum = []
         self._error_signal_2_power_spectrum = []
         self._last_updated_index = -1
-        self._bin_edges, self._digitized, self._frequency_start_bin_index = _get_bin_start(self._max_points_per_decade, self._frequencies)
+        if self._max_points_per_decade != None:
+            self._bin_edges, self._digitized, self._frequency_start_bin_index = _get_bin_start(self._max_points_per_decade, self._frequencies)
 
     def add_data(self, error_signal_1, error_signal_2):
         self._power_spectrums.append(self._voltages_to_power_spectrum(error_signal_1, error_signal_2))
@@ -190,7 +198,10 @@ class CCedPowerSpectrum:
 
     @property
     def f(self):
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, self._frequencies)
+        if self._max_points_per_decade == None:
+            return self._frequencies
+        else:
+            return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, self._frequencies)
 
     @property
     def num_of_averages(self):
@@ -206,7 +217,10 @@ class CCedPowerSpectrum:
     
     @property
     def cc_power_spectrum(self):
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._power_spectrums, axis=0))
+        if self._max_points_per_decade == None:
+            return np.mean(self._power_spectrums, axis=0)
+        else:
+            return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._power_spectrums, axis=0))
 
     @property
     def cc_voltage_spectrum(self):
@@ -222,7 +236,10 @@ class CCedPowerSpectrum:
    
     @property
     def signal_1_power_spectrum(self):
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._error_signal_1_power_spectrum, axis=0))
+        if self._max_points_per_decade == None:
+            np.mean(self._error_signal_1_power_spectrum, axis=0)
+        else:
+            return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._error_signal_1_power_spectrum, axis=0))
     
     @property
     def signal_1_relative_power_spectrum(self):
@@ -238,7 +255,10 @@ class CCedPowerSpectrum:
    
     @property
     def signal_2_power_spectrum(self):
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._error_signal_2_power_spectrum, axis=0))
+        if self._max_points_per_decade == None:
+            return np.mean(self._error_signal_2_power_spectrum, axis=0)
+        else:
+            return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, np.mean(self._error_signal_2_power_spectrum, axis=0))
     
     @property
     def signal_2_relative_power_spectrum(self):
