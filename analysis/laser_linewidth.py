@@ -1,6 +1,6 @@
 from typing import Optional
 import numpy as np
-from onix.analysis.power_spectrum import PowerSpectrum, _get_binned_variable
+from onix.analysis.power_spectrum_copy import PowerSpectrum, _get_binned_variable
 
     
 class LaserLinewidth(PowerSpectrum):
