@@ -10,7 +10,7 @@ const uint16_t ADC_INTERVAL = 1;
 const uint16_t ADC_DELAY = 0;
 const uint16_t ADC_SCALE = BIPOLAR_2500mV;
 
-const int DATA_LENGTH = 100000;
+const int DATA_LENGTH = 32767; //100000;
 float data[DATA_LENGTH];
 int data_index = 0;
 int16_t data_read_countdown = 0;
@@ -52,11 +52,14 @@ void cmd_setup(qCommand& qC, Stream& S) {
   if ( qC.next() != NULL) {
     new_segment_number = atoi(qC.current());
   }
-  if (new_segment_number * new_segment_number <= DATA_LENGTH) {
+  if (new_segment_number * new_segment_length <= DATA_LENGTH) {
     segment_length = new_segment_length;
     segment_number = new_segment_number;
+    S.printf("segment length is %i, segment number is %i\n", segment_length, segment_number);
   }
-  S.printf("segment length is %i, segment number is %i\n", segment_length, segment_number);
+  else {
+    S.printf("asking for too many data points\n");
+  }
 }
 
 void cmd_start(qCommand& qC, Stream& S) {
@@ -67,7 +70,7 @@ void cmd_start(qCommand& qC, Stream& S) {
     running = true;
     trigger_too_soon = 0;
     data_index = 0;
-    data_read_countdown = 0;
+    data_read_countdown = segment_length * segment_number;
     S.println("started");
   }
 }
