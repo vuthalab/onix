@@ -164,7 +164,8 @@ def detect_segment(
             (detect_detunings.size * 2,), dtype=detect_detunings.dtype
         )
         all_detunings *= detect_detunings.units
-        all_detunings[0::2] = detect_detunings - field_plate_parameters["stark_shift"]
+        # multiplied left side detect_detunings by -1 such that they are symmetric
+        all_detunings[0::2] = -detect_detunings - field_plate_parameters["stark_shift"]
         all_detunings[1::2] = detect_detunings + field_plate_parameters["stark_shift"]
         detect_detunings = all_detunings
     if detect_parameters["randomize"]:

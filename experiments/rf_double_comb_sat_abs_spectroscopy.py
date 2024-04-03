@@ -26,14 +26,38 @@ default_params = {
     "sequence_repeats_per_transfer": 10,
     "data_transfer_repeats": 1,
     "rf": {
-        "pump_amplitude": 4200,  # 4200
-        "probe_amplitude": 2100,  # 1100
+        "pump_amplitude": 500,  # 4200
+        "probe_amplitude": 500,  # 1100
         "pump_detunings": np.array([-65]) * ureg.kHz,  #np.arange(-70, -10, 13)
         "probe_detuning": 0 * ureg.kHz,
-        "pump_time": 0.06 * ureg.ms,
-        "probe_time": 0.06 * ureg.ms,
+        "pump_time": 0.48 * ureg.ms,
+        "probe_time": 0.48 * ureg.ms,
         "delay_time": 0.1 * ureg.ms,
         "probe_phase": 0,
+    },
+    "field_plate": {
+        "name": "field_plate",
+        "use": True,
+        "amplitude": 4500,
+        "stark_shift": 2 * ureg.MHz,
+        "padding_time": 0 * ureg.ms,
+    },
+    "detect": {
+        "detunings": np.array([-2, 0]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
+        "ao_amplitude": 550,
+        "on_time": 2 * ureg.us,
+        "off_time": 0.5 * ureg.us,
+        "cycles": {
+            "chasm": 0,
+            "antihole": 100,
+            "rf": 100,
+        },
+        "delay": 8 * ureg.us,
+    },
+    "digitizer": {
+        "sample_rate": 25e6,
+        "ch1_range": 2,
+        "ch2_range": 0.5,
     },
 }
 default_params = update_parameters_from_shared(default_params)
@@ -79,47 +103,52 @@ probe_amplitude_ref = 2100
 #     if first_data_id_1 == None:
 #         first_data_id_1 = data_id
 # last_data_id_1 = data_id
-#
-# for ll in range(50):
-#     start_time = time.time()
-#     # pt.off()
-#     # time.sleep(5)
-#     scan_center = scan_center_ref - 167
-#
-#     probe_detunings = np.arange(scan_center - scan_range, scan_center + scan_range, scan_step)
-#     probe_detunings *= ureg.kHz
-#     params = default_params.copy()
-#     for kk in range(len(probe_detunings)):
-#         params["rf"]["probe_detuning"] = probe_detunings[kk]
-#         params["rf"]["probe_amplitude"] = 4200
-#         sequence = get_sequence(params)
-#         data = run_sequence(sequence, params)
-#         data_id = save_data(sequence, params, *data)
-#         # print(data_id)
-#         if first_data_id_2 == None:
-#             first_data_id_2 = data_id
-#     last_data_id_2 = data_id
-#     end_time = time.time()
-#     print(
-#         f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
-#     )
-#     print(f"data = ({first_data_id_2}, {last_data_id_2})")
-#     # pt.on()
-#     # time.sleep(300)
 
-## center
-for ll in range(1):
+for ll in range(20):
     start_time = time.time()
     pt.off()
     time.sleep(5)
-    scan_center = scan_center_ref
-
+    scan_range = 10
+    scan_step = 1
+    scan_center = scan_center_ref - 167
     probe_detunings = np.arange(scan_center - scan_range, scan_center + scan_range, scan_step)
     probe_detunings *= ureg.kHz
     params = default_params.copy()
     for kk in range(len(probe_detunings)):
+        params["field_plate"]["amplitude"] = 4500
         params["rf"]["probe_detuning"] = probe_detunings[kk]
-        params["rf"]["probe_amplitude"] = 4200
+        # params["rf"]["probe_amplitude"] = 550
+        sequence = get_sequence(params)
+        data = run_sequence(sequence, params)
+        data_id = save_data(sequence, params, *data)
+        # print(data_id)
+
+        if first_data_id_2 == None:
+            first_data_id_2 = data_id
+    last_data_id_2 = data_id
+    end_time = time.time()
+    print(
+        f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
+    )
+    print(f"data = ({first_data_id_2}, {last_data_id_2})")
+    pt.on()
+    time.sleep(200)
+
+## center
+for ll in range(20):
+    start_time = time.time()
+    pt.off()
+    time.sleep(5)
+    scan_range = 10
+    scan_step = 1.5
+    scan_center = scan_center_ref
+    probe_detunings = np.arange(scan_center - scan_range, scan_center + scan_range, scan_step)
+    probe_detunings *= ureg.kHz
+    params = default_params.copy()
+    for kk in range(len(probe_detunings)):
+        params["field_plate"]["amplitude"] = 4500
+        params["rf"]["probe_detuning"] = probe_detunings[kk]
+        # params["rf"]["probe_amplitude"] = 550
         sequence = get_sequence(params)
         data = run_sequence(sequence, params)
         data_id = save_data(sequence, params, *data)
@@ -133,7 +162,7 @@ for ll in range(1):
     )
     print(f"data = ({first_data_id_2}, {last_data_id_2})")
     pt.on()
-    time.sleep(300)
+    time.sleep(200)
 
 ## right cross
 # scan_center = scan_center_ref + 303
@@ -194,3 +223,77 @@ for ll in range(1):
 
 
 ## empty
+
+
+# FOR reversed e field
+
+start_time = time.time()
+
+first_data_id_1 = None
+first_data_id_2 = None
+first_data_id_3 = None
+
+
+scan_range = 30
+scan_step = 1.5
+scan_center_ref = 0
+probe_amplitude_ref = 2100
+
+
+for ll in range(20):
+    start_time = time.time()
+    pt.off()
+    time.sleep(5)
+    scan_range = 10
+    scan_step = 1
+    scan_center = scan_center_ref - 167
+    probe_detunings = np.arange(scan_center - scan_range, scan_center + scan_range, scan_step)
+    probe_detunings *= ureg.kHz
+    params = default_params.copy()
+    for kk in range(len(probe_detunings)):
+        params["field_plate"]["amplitude"] = -4500
+        params["rf"]["probe_detuning"] = probe_detunings[kk]
+        # params["rf"]["probe_amplitude"] = 4200
+        sequence = get_sequence(params)
+        data = run_sequence(sequence, params)
+        data_id = save_data(sequence, params, *data)
+        # print(data_id)
+        if first_data_id_2 == None:
+            first_data_id_2 = data_id
+    last_data_id_2 = data_id
+    end_time = time.time()
+    print(
+        f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
+    )
+    print(f"data = ({first_data_id_2}, {last_data_id_2})")
+    pt.on()
+    time.sleep(200)
+
+for ll in range(20):
+    start_time = time.time()
+    pt.off()
+    time.sleep(5)
+    scan_range = 10
+    scan_step = 1.5
+    scan_center = scan_center_ref
+    probe_detunings = np.arange(scan_center - scan_range, scan_center + scan_range, scan_step)
+    probe_detunings *= ureg.kHz
+    params = default_params.copy()
+    for kk in range(len(probe_detunings)):
+        params["field_plate"]["amplitude"] = -4500
+        params["rf"]["probe_detuning"] = probe_detunings[kk]
+        # params["rf"]["probe_amplitude"] = 4200
+        sequence = get_sequence(params)
+        data = run_sequence(sequence, params)
+        data_id = save_data(sequence, params, *data)
+        # print(data_id)
+        if first_data_id_2 == None:
+            first_data_id_2 = data_id
+    last_data_id_2 = data_id
+    end_time = time.time()
+    print(
+        f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
+    )
+    print(f"data = ({first_data_id_2}, {last_data_id_2})")
+    pt.on()
+    time.sleep(200)

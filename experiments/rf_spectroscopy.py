@@ -65,7 +65,7 @@ default_params = {
         "ao_amplitude": 2000,
     },
     "detect": {
-        "detunings": np.array([-1, -0.5, 0, 0.5, 1]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
+        "detunings": np.array([-2, 0]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
         "ao_amplitude": 450,
         "on_time": 2 * ureg.us,
         "off_time": 0.5 * ureg.us,
@@ -81,6 +81,9 @@ default_params = {
         "ch1_range": 2,
         "ch2_range": 2,
     },
+    "field_plate": {
+        "use": True,
+    }
 }
 default_params = update_parameters_from_shared(default_params)
 
