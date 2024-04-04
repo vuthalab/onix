@@ -493,11 +493,15 @@ def record_data():
             output = q.get_last_output_point()
             dc_offset = q.get_dc_offset()
             unlock_counter = q.get_unlock_counter()
+            linewidth = laser.linewidth()
+            transmission = q.get_last_transmission_point()
 
         point.field("integral", integral)
         point.field("output", output)
         point.field("dc offset", dc_offset)
         point.field("unlock counter", unlock_counter)
+        point.field("linewidth", linewidth)
+        point.field("transmission", transmission)
         write_api.write(bucket=bucket_week, org="onix", record=point)
     except:
         print("Error recording to InfluxDB")
