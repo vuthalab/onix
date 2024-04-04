@@ -7,6 +7,7 @@ from onix.data_tools import save_experiment_data
 from onix.experiments.helpers import average_data, combine_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
+from onix.headers.quarto_digitizer import Quarto
 from onix.units import Q_, ureg
 from onix.sequences.sequence import Sequence
 from onix.headers.wavemeter.wavemeter import WM
@@ -31,6 +32,17 @@ except Exception:
         dg = Digitizer()
     except Exception as e:
         dg = None
+        print("dg is not defined with error:")
+        print(traceback.format_exc())
+
+try:
+    qu  # type: ignore
+    print("dg is already defined.")
+except Exception:
+    try:
+        qu = Quarto()
+    except Exception as e:
+        qu = None
         print("dg is not defined with error:")
         print(traceback.format_exc())
 
@@ -171,18 +183,21 @@ def setup_digitizer(
     ch2_range: float = 0.5,
     sample_rate: int = 25e6,
 ):
+    # digitizer_time_s = segment_time.to("s").magnitude
+    # dg.set_acquisition_config(
+    #     num_channels=num_channels,
+    #     sample_rate=sample_rate,
+    #     segment_size=int(digitizer_time_s * sample_rate),
+    #     segment_count=segment_repeats * sequence_repeats,
+    # )
+    # dg.set_channel_config(channel=1, range=ch1_range)
+    # if num_channels > 1:
+    #     dg.set_channel_config(channel=2, range=ch2_range)
+    # dg.set_trigger_source_edge()
+    # dg.write_configs_to_device()    
+
     digitizer_time_s = segment_time.to("s").magnitude
-    dg.set_acquisition_config(
-        num_channels=num_channels,
-        sample_rate=sample_rate,
-        segment_size=int(digitizer_time_s * sample_rate),
-        segment_count=segment_repeats * sequence_repeats,
-    )
-    dg.set_channel_config(channel=1, range=ch1_range)
-    if num_channels > 1:
-        dg.set_channel_config(channel=2, range=ch2_range)
-    dg.set_trigger_source_edge()
-    dg.write_configs_to_device()
+    qu.setup(int(digitizer_time_s * sample_rate), segment_repeats * sequence_repeats)
 
 
 def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, skip_setup = False):
@@ -190,7 +205,8 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
     if not skip_setup:
         m4i.setup_sequence(sequence)
 
-    dg.start_capture()
+    # dg.start_capture()
+    qu.start()
     time.sleep(0.1)
 
     sequence_repeats_per_transfer = params["sequence_repeats_per_transfer"]
@@ -210,9 +226,11 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
             m4i.wait_for_sequence_complete()
         m4i.stop_sequence()
 
-        timeout = 1
-        dg.wait_for_data_ready(timeout)
-        sample_rate, digitizer_data = dg.get_data()
+        # timeout = 1
+        # dg.wait_for_data_ready(timeout)
+        # sample_rate, digitizer_data = dg.get_data()
+        digitizer_data = qu.data()
+        sample_rate = 1e6
 
         transmissions = np.array(digitizer_data[0])
         transmissions_avg, transmissions_err = average_data(

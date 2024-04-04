@@ -41,12 +41,12 @@ class Quarto:
         ch1_data = []
         for kk in range(ch1_length):
             ch1_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
-        #ch2_length = int(self.device.readline().decode('utf-8').strip('\n'))
-        #ch2_data = []
-        #for kk in range(ch2_length):
-        #    ch2_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
-        #return np.array([ch1_data, ch2_data])
-        return np.array(ch1_data)
+        ch2_length = int(self.device.readline().decode('utf-8').strip('\n'))
+        ch2_data = []
+        for kk in range(ch2_length):
+           ch2_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
+        return np.array([ch1_data, ch2_data])
+        # return np.array(ch1_data)
 
     def close(self):
         self.device.close()
