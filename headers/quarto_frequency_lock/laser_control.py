@@ -19,12 +19,12 @@ Right Arrow: decrease offset by 0.01
 Up Arrow: increase dc offset by 0.1
 Down Arrow: decrease dc offset by 0.1
 """
-GET_CAVITY_DATA_LENGTH = 2000
+GET_CAVITY_DATA_LENGTH = 1000
 
 ## Initialize wavemeter, quarto, laser class
 wm = WM()
 app = pg.mkQApp("Laser control")
-q = Quarto("/dev/ttyACM8")
+q = Quarto("/dev/ttyACM1")
 device_lock = threading.Lock()
 discriminator_slope = 1.5e-5
 laser = LaserLinewidth(GET_CAVITY_DATA_LENGTH, 2e-6, discriminator_slope) 
@@ -307,26 +307,30 @@ win.addItem(stop_plots_proxy, row = 6, col = 0)
 kk = 0
 def update_laser_linewidth():
     global kk
-    with device_lock:
-        error = q.get_cavity_error_data()
-    if kk < laser_linewidth_averages:
-        laser.add_data(error)
+    if data_transmission[0] > 0.2:
+        error = data_cavity_error
+        if kk < laser_linewidth_averages:
+            laser.add_data(error)
+        else:
+            laser.update_data(error)
+        try:
+            kk += 1
+        except:
+            kk = laser_linewidth_averages
+        laser_linewidth.setText(f"Laser Linewidth: {laser.linewidth} Hz")
     else:
-        laser.update_data(error)
-    try:
-        kk += 1
-    except:
-        kk = laser_linewidth_averages
-    laser_linewidth.setText(f"Laser Linewidth: {laser.linewidth} Hz")
+        laser_linewidth.setText(f"Laser Linewidth: -- Hz")
+
 
 laser_linewidth = QtWidgets.QPushButton()
+laser_linewidth.setText(f"Laser Linewidth: Hz")
 laser_linewidth_proxy = QtWidgets.QGraphicsProxyWidget()
 laser_linewidth_proxy.setWidget(laser_linewidth)
 win.addItem(laser_linewidth_proxy, row = 6, col = 1) 
 
 laser_linewidth_timer = QtCore.QTimer()
 laser_linewidth_timer.timeout.connect(update_laser_linewidth)
-laser_linewidth_timer.start(50)
+laser_linewidth_timer.start(500)
 
 ## Transmission Monitor
 def round_sig(x, sig=3):
@@ -493,7 +497,7 @@ def record_data():
             output = q.get_last_output_point()
             dc_offset = q.get_dc_offset()
             unlock_counter = q.get_unlock_counter()
-            linewidth = laser.linewidth()
+            linewidth = laser.linewidth
             transmission = q.get_last_transmission_point()
 
         point.field("integral", integral)
