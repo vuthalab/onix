@@ -307,16 +307,18 @@ win.addItem(stop_plots_proxy, row = 6, col = 0)
 kk = 0
 def update_laser_linewidth():
     global kk
-    if data_transmission[0] > 0.2:
-        error = data_cavity_error
-        if kk < laser_linewidth_averages:
-            laser.add_data(error)
-        else:
-            laser.update_data(error)
-        try:
-            kk += 1
-        except:
-            kk = laser_linewidth_averages
+    with device_lock:
+        transmission = q.get_last_transmission_point()
+    error = data_cavity_error
+    if kk < laser_linewidth_averages:
+        laser.add_data(error)
+    else:
+        laser.update_data(error)
+    try:
+        kk += 1
+    except:
+        kk = laser_linewidth_averages
+    if transmission > 0.2:
         laser_linewidth.setText(f"Laser Linewidth: {laser.linewidth} Hz")
     else:
         laser_linewidth.setText(f"Laser Linewidth: -- Hz")
@@ -497,17 +499,20 @@ def record_data():
             output = q.get_last_output_point()
             dc_offset = q.get_dc_offset()
             unlock_counter = q.get_unlock_counter()
-            linewidth = laser.linewidth
             transmission = q.get_last_transmission_point()
-
+        linewidth = laser.linewidth
         point.field("integral", integral)
         point.field("output", output)
         point.field("dc offset", dc_offset)
         point.field("unlock counter", unlock_counter)
-        point.field("linewidth", linewidth)
+        if transmission > 0.2:
+           point.field("linewidth", linewidth)
+        else:
+           point.field("linewidth", -1.)
         point.field("transmission", transmission)
         write_api.write(bucket=bucket_week, org="onix", record=point)
-    except:
+    except Exception as e:
+        print(e)
         print("Error recording to InfluxDB")
 
 influx_db_timer = QtCore.QTimer()
