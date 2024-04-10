@@ -47,10 +47,3 @@ class TViolation():
         W_T = W_a - W_b
 
         return W_T
-    
-
-test = TViolation(1, 0.1, 2, 0.1, 3, 0.1, 4, 0.1)
-
-wt = test.get_W_T()
-
-print(wt)
