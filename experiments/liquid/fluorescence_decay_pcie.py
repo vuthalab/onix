@@ -33,21 +33,21 @@ wavemeter = WM()
 m4i = M4i6622()
 
 ## experiment parameters
-excitation_aom_channel = 0
+excitation_aom_channel = 1
 excitation_aom_frequency = 78 * ureg.MHz
 excitation_aom_amplitude = 2800
 excitation_time = 5 * ureg.ms
 excitation_delay = 10 * ureg.us
 
-test_aom_channel = 0
+test_aom_channel = 1
 test_aom_frequency = 78 * ureg.MHz
 test_aom_amplitude = 500
 test_time = 10 * ureg.us
 
-pmt_gate_ttl_channel = 0  # also used to trigger the digitizer.
+pmt_gate_ttl_channel = 2  # also used to trigger the digitizer.
 measurement_time = 8 * ureg.ms + excitation_time
 
-repeats = 10
+repeats = 1000
 time_between_repeat = measurement_time.to("s").magnitude
 sampling_rate = 1e6
 
@@ -59,7 +59,7 @@ offset = 100 * ureg.us
 ttl_gate = TTLPulses([[0, offset]])
 segment_test.add_ttl_function(pmt_gate_ttl_channel, ttl_gate)
 pulse_test = AWGSinePulse(
-    frequency=test_aom_fsequency,
+    frequency=test_aom_frequency,
     amplitude=test_aom_amplitude,
     start_time=offset*2+excitation_delay,
     end_time=offset*2+excitation_delay+test_time,
