@@ -96,7 +96,7 @@ pulse_excitation = AWGSinePulse( # awg 10 us - 5ms
     end_time=excitation_delay+excitation_time,
 ) # ttl 5 ms + 20us - 12 ms + 20us
 segment_excitation.add_awg_function(excitation_aom_channel, pulse_excitation)
-ttl_gate = TTLPulses([[2 * excitation_delay + excitation_time, 2 * excitation_delay + measurement_time]])
+ttl_gate = TTLPulses([[0, 2 * excitation_delay + excitation_time]])
 segment_excitation.add_ttl_function(pmt_gate_ttl_channel, ttl_gate)
 sequence.add_segment(segment_excitation)
 
@@ -126,7 +126,7 @@ dg.set_acquisition_config(
     num_channels=1,
     sample_rate=sampling_rate,
     segment_size=int(duration * sampling_rate),
-    segment_count=1,
+    segment_count=repeats,
 )
 
 dg.set_channel_config(channel=1, range=5, high_impedance=False)
@@ -139,18 +139,20 @@ pmt_voltages = []
 pmt_times = []
 
 # dg.initiate_data_acquisition()
+dg.start_capture()
+
 for kk in range(repeats):
-    dg.start_capture()
-    time.sleep(0.5)
+    time.sleep(0.1)
     m4i.start_sequence()
     epoch_times.append(time.time())
     m4i.wait_for_sequence_complete()
     time.sleep(time_between_repeat)
-    m4i.stop_sequence()
-    timeout = 1
-    dg.wait_for_data_ready(timeout)
-    sample_rate, digitizer_data = dg.get_data()
-    pmt_voltages.append(digitizer_data[0][0])
+
+m4i.stop_sequence()
+timeout = 1
+dg.wait_for_data_ready(timeout)
+sample_rate, digitizer_data = dg.get_data()
+pmt_voltages = digitizer_data[0]
 # pmt_voltages = np.average(pmt_voltages, axis=0)
 pmt_times = [kk / sample_rate for kk in range(len(pmt_voltages[0]))]
 
