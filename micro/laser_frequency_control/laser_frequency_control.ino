@@ -59,7 +59,7 @@ float error_offset = 5.468;
 // keeps track of the integral term
 float integral = 0.0;
 // limits the integral term magnitude so it does not blow up
-float integral_limit = 1.0;
+float integral_limit = 3.0;
 float current_error = 0.0;
 // last error signal for D gain.
 float previous_error = -100.0;

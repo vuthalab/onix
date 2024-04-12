@@ -8,7 +8,7 @@ const uint8_t TRIGGER_INPUT_PORT = 1;
 
 const uint16_t ADC_INTERVAL = 1;
 const uint16_t ADC_DELAY = 0;
-const uint16_t ADC_SCALE = BIPOLAR_2500mV;
+const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
 
 const int DATA_LENGTH = 32767; //100000;
 float data[DATA_LENGTH];
@@ -21,7 +21,6 @@ int trigger_too_soon = 0;
 
 int segment_length = 0;
 int segment_number = 0;
-
 
 void input_1_loop(void) {
   float reading = readADC1_from_ISR();
@@ -70,7 +69,7 @@ void cmd_start(qCommand& qC, Stream& S) {
     running = true;
     trigger_too_soon = 0;
     data_index = 0;
-    data_read_countdown = segment_length * segment_number;
+    data_read_countdown = 0;
     S.println("started");
   }
 }
