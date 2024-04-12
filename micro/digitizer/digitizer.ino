@@ -10,7 +10,7 @@ const uint16_t ADC_INTERVAL = 1;
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
 
-const int DATA_LENGTH = 32767; //100000;
+const int DATA_LENGTH = 100000;
 float data[DATA_LENGTH];
 int data_index = 0;
 int16_t data_read_countdown = 0;
