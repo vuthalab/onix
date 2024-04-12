@@ -123,18 +123,20 @@ class Digitizer:
     def get_channel_config(self, channel: int) -> dict:
         return PyGage.GetChannelConfig(self._handle, channel)
 
-    def set_channel_config(  # dc offset
+    def set_channel_config(
         self,
         channel: Literal[1, 2],
         range: float,
         ac_coupled: bool = False,
         high_impedance: bool = False,
+        use_filter: bool = True,
     ):
         default_chan_config = {
             "InputRange": 2000,
             "Coupling": gc.CS_COUPLING_DC,
             "Impedance": 50,
             "DcOffset": 0,
+            "Filter": 1,
         }
 
         acq_config = self.get_acquisition_config()
@@ -158,6 +160,10 @@ class Digitizer:
             chan_config["Impedance"] = 1000000
         else:
             chan_config["Impedance"] = 50
+        if use_filter:
+            chan_config["Filter"] = 1
+        else:
+            chan_config["Filter"] = 0
 
         status = PyGage.SetChannelConfig(self._handle, channel, chan_config)
         if status < 0:
