@@ -11,6 +11,7 @@ from onix.experiments.shared import (
     run_sequence,
     save_data,
 )
+from tqdm import tqdm
 
 
 ## function to run the experiment
@@ -22,7 +23,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 4,
+    "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "ao": {
         "center_frequency": 75 * ureg.MHz,
@@ -58,21 +59,21 @@ default_params = {
         "ao_amplitude": 2000,
     },
     "antihole": {
-        "transitions": ["ac", "ca", "rf_b"],
+        "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
         "durations": 10 * ureg.ms,
         "repeats": 50,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "detect": {
-        "detunings": np.array([-1.5, -1, -0.5, 0, 0.5, 1, 1.5]) * ureg.MHz, #np.array([-1, 0, 0.5, 1]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
-        "ao_amplitude": 500,
+        "detunings": np.linspace(-2, 2, 20) * ureg.MHz, #np.array([-1.5, -1, -0.5, 0, 0.5, 1, 1.5]) * ureg.MHz, #np.array([-1, 0, 0.5, 1]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
+        "ao_amplitude": 450, #500
         "on_time": 2 * ureg.us,
         "off_time": 0.5 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 100,
-            "rf": 100,
+            "antihole": 1,
+            "rf": 1,
         },
         "delay": 8 * ureg.us,
     },
@@ -83,7 +84,7 @@ default_params = {
     },
     "field_plate": {
         "amplitude": 4500,
-        "use": False,
+        "use": True,
     }
 }
 default_params = update_parameters_from_shared(default_params)
@@ -121,22 +122,22 @@ start_time = time.time()
 #         first_data_id = data_id
 
 ## scan freq
-params = default_params.copy()
-first_data_id = None
-
-
-# params["rf"]["duration"] = 1 * ureg.ms
-
-rf_frequencies = np.arange(-300, 300, 20)
-rf_frequencies *= ureg.kHz
-for kk in range(len(rf_frequencies)):
-    params["rf"]["detuning"] = rf_frequencies[kk]
-    sequence = get_sequence(params)
-    data = run_sequence(sequence, params)
-    data_id = save_data(sequence, params, *data)
-    print(data_id)
-    if first_data_id == None:
-        first_data_id = data_id
+# params = default_params.copy()
+# first_data_id = None
+#
+#
+# # params["rf"]["duration"] = 1 * ureg.ms
+#
+# rf_frequencies = np.arange(-300, 300, 20)
+# rf_frequencies *= ureg.kHz
+# for kk in range(len(rf_frequencies)):
+#     params["rf"]["detuning"] = rf_frequencies[kk]
+#     sequence = get_sequence(params)
+#     data = run_sequence(sequence, params)
+#     data_id = save_data(sequence, params, *data)
+#     print(data_id)
+#     if first_data_id == None:
+#         first_data_id = data_id
 
 ## scan rf duration
 # params = default_params.copy()
@@ -154,6 +155,30 @@ for kk in range(len(rf_frequencies)):
 #     print(data_id)
 #     if first_data_id == None:
 #         first_data_id = data_id
+
+
+## chasm test
+params = default_params.copy()
+
+params["chasm"]["durations"] = 10 * ureg.ms
+params["chasm"]["repeats"] = 50
+params["chasm"]["ao_amplitude"] = 2000
+
+# run once with chasm burning
+sequence = get_sequence(params)
+data = run_sequence(sequence, params)
+first_data_id = save_data(sequence, params, *data)
+
+# rerun without chasm burning
+params["chasm"]["durations"] = 1e-6 * ureg.ms
+params["chasm"]["repeats"] = 0
+params["chasm"]["ao_amplitude"] = 0
+
+for kk in tqdm(range(99)):
+    sequence = get_sequence(params)
+    data = run_sequence(sequence, params)
+    data_id = save_data(sequence, params, *data)
+
 
 ## print info
 end_time = time.time()
