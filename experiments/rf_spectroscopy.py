@@ -47,12 +47,12 @@ default_params = {
     },
     "rf": {
         "amplitude": 4200,  # 4200
-        "detuning": (-65-167) * ureg.kHz,
-        "duration": 0.3 * ureg.ms,
+        "detuning": -65 * ureg.kHz,
+        "duration": 0.07 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
-        "scan": 2.5 * ureg.MHz,
+        "scan": 1 * ureg.MHz,
         "durations": 10 * ureg.ms,
         "repeats": 50,
         "detunings": 0 * ureg.MHz,
@@ -61,14 +61,14 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
         "durations": 10 * ureg.ms,
-        "repeats": 50,
+        "repeats": 40,
         "detunings": 0 * ureg.MHz,
-        "ao_amplitude": 2000,
+        "ao_amplitude": 300,
     },
     "detect": {
-        "detunings": np.linspace(-2, 2, 20) * ureg.MHz, #np.array([-1.5, -1, -0.5, 0, 0.5, 1, 1.5]) * ureg.MHz, #np.array([-1, 0, 0.5, 1]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
-        "ao_amplitude": 450, #500
-        "on_time": 2 * ureg.us,
+        "detunings": np.linspace(-0.3, 0.5, 40) * ureg.MHz, #np.array([-1.5, -1, -0.5, 0, 0.5, 1, 1.5]) * ureg.MHz, #np.array([-1, 0, 0.5, 1]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
+        "ao_amplitude": 250, #500
+        "on_time": 1000 * ureg.us,
         "off_time": 0.5 * ureg.us,
         "cycles": {
             "chasm": 0,
@@ -84,7 +84,7 @@ default_params = {
     },
     "field_plate": {
         "amplitude": 4500,
-        "use": True,
+        "use": False,
     }
 }
 default_params = update_parameters_from_shared(default_params)
@@ -100,11 +100,11 @@ setup_digitizer(
 )
 
 ## test
-# params = default_params.copy()
-# sequence = get_sequence(params)
-# data = run_sequence(sequence, params)
-# data_id = save_data(sequence, params, *data)
-# print(data_id)
+params = default_params.copy()
+sequence = get_sequence(params)
+data = run_sequence(sequence, params)
+data_id = save_data(sequence, params, *data)
+print(data_id)
 
 ## timeit
 start_time = time.time()
