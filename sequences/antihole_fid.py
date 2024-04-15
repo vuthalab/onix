@@ -133,7 +133,7 @@ def fid_detect_segment(
     ao_pulse = AWGMultiFunctions(
         [ao_pump_pulse, ao_probe_pulse],
         [0 * ureg.s, pump_time],
-        [pump_time + delay_time, pump_time + delay_time + probe_time],
+        [pump_time, pump_time + delay_time + probe_time],
     )
     ao_channel = get_channel_from_name(ao_parameters["name"])
     segment.add_awg_function(ao_channel, ao_pulse)
@@ -148,7 +148,7 @@ def fid_detect_segment(
     segment.add_ttl_function(fid_detect_parameters["trigger_channel"], ttl_function)
 
     analysis_parameters = {
-        "digitizer_duration": segment.duration - ttl_start_time,
+        "digitizer_duration": fid_detect_parameters["probe_time"],
     }
     segment._duration = segment.duration + fid_detect_parameters["delay"]
     return (segment, analysis_parameters)
@@ -156,8 +156,8 @@ def fid_detect_segment(
 
 class AntiholeFID(SharedSequence):
     def __init__(self, parameters: dict[str, Any]):
-        super().__init__(parameters, shutter_off_after_antihole=False)
         self._fid_detect_parameters = parameters["fid_detect"]
+        super().__init__(parameters, shutter_off_after_antihole=False)
 
     def _define_detect(self):
         segment, self.analysis_parameters = fid_detect_segment(
@@ -170,6 +170,23 @@ class AntiholeFID(SharedSequence):
         )
         self.analysis_parameters["detect_groups"] = []
         self.add_segment(segment)
+
+    def get_antihole_sequence(self):
+        segment_steps = []
+        # waiting for the field plate to go high
+        segment_steps.append(("field_plate_break", self._field_plate_break_repeats))
+        segment_steps.append(("antihole", self._antihole_repeats))
+        # waiting for the field plate to go low
+        segment_steps.append(("break", self._field_plate_break_repeats))
+        segment_steps.append(("break", 10000))
+        segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
+        detect_cycles = self._fid_detect_parameters["cycles"]["antihole"]
+        segment_steps.extend(self.get_detect_sequence(detect_cycles))
+        self.analysis_parameters["detect_groups"].append(("antihole", detect_cycles))
+        segment_steps.append(("shutter_break", 1))
+        if self._shutter_off_after_antihole:
+            segment_steps.append(("break", self._shutter_fall_delay_repeats))
+        return segment_steps
 
     def get_rf_sequence(self):
         return []
