@@ -89,7 +89,7 @@ def antihole_segment(
 ):
     transitions: list[str] = antihole_parameters["transitions"]
     detunings = antihole_parameters["detunings"]
-    ao_amplitude = antihole_parameters["ao_amplitude"]
+    ao_amplitudes = antihole_parameters["ao_amplitude"]
     durations = antihole_parameters["durations"]
     repeats = antihole_parameters["repeats"]
     segments = []
@@ -105,6 +105,11 @@ def antihole_segment(
             detuning = detunings[kk]
         except TypeError:
             detuning = detunings
+        try:
+            len(ao_amplitudes)
+            ao_amplitude = ao_amplitudes[kk]
+        except TypeError:
+            ao_amplitude = ao_amplitudes
 
         segment_name = transition
         if transition.startswith("rf_"):
