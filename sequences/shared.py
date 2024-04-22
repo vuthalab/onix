@@ -113,6 +113,8 @@ def antihole_segment(
 
         segment_name = transition
         if transition.startswith("rf_"):
+            rf_pump_parameters = rf_pump_parameters.copy()
+            rf_pump_parameters["into"] = transition[3:]
             segments.append(_rf_pump_segment(segment_name, rf_parameters, rf_pump_parameters, duration))
         else:
             segments.append(
