@@ -7,7 +7,6 @@ from onix.data_tools import save_experiment_data
 from onix.experiments.helpers import average_data, combine_data
 from onix.headers.awg.M4i6622 import M4i6622
 from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.headers.quarto_digitizer import Quarto
 from onix.units import Q_, ureg
 from onix.sequences.sequence import Sequence
 from onix.headers.wavemeter.wavemeter import WM
@@ -32,17 +31,6 @@ except Exception:
         dg = Digitizer()
     except Exception as e:
         dg = None
-        print("dg is not defined with error:")
-        print(traceback.format_exc())
-
-try:
-    qu  # type: ignore
-    print("dg is already defined.")
-except Exception:
-    try:
-        qu = Quarto()
-    except Exception as e:
-        qu = None
         print("dg is not defined with error:")
         print(traceback.format_exc())
 
@@ -92,7 +80,7 @@ _shared_parameters = {
     "field_plate": {
         "name": "field_plate",
         "use": False,
-        "amplitude": 4500,
+        "amplitude": 3800,
         "stark_shift": 2 * ureg.MHz,
         "padding_time": 5 * ureg.ms,
     },
@@ -107,7 +95,7 @@ _shared_parameters = {
     "rf_pump": {
         "use": False,
         "into": "b",
-        "amplitude": 1000,
+        "amplitude": 4000,
         "scan_detunings": {
             "bbar": np.array([-130, 0]) * ureg.kHz,
             "b": np.array([0, 130]) * ureg.kHz,
@@ -116,15 +104,15 @@ _shared_parameters = {
     },
     "antihole": {
         "transitions": ["ac", "ca"],
-        "durations": 10 * ureg.ms,
-        "repeats": 20,
+        "durations": 10 * ureg.us,
+        "repeats": 5000,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "detect": {
         "transition": "bb",
         "trigger_channel": 2,
-        "ao_amplitude": 500,
+        "ao_amplitude": 450,
         "detunings": np.array([0, 1]) * ureg.MHz,
         "randomize": False,
         "on_time": 5 * ureg.us,
@@ -134,7 +122,7 @@ _shared_parameters = {
             "antihole": 200,
             "rf": 200,
         },
-        "delay": 4 * ureg.us,
+        "delay": 8 * ureg.us,
     },
     "digitizer": {
         "sample_rate": 25e6,
@@ -183,21 +171,18 @@ def setup_digitizer(
     ch2_range: float = 0.5,
     sample_rate: int = 25e6,
 ):
-    # digitizer_time_s = segment_time.to("s").magnitude
-    # dg.set_acquisition_config(
-    #     num_channels=num_channels,
-    #     sample_rate=sample_rate,
-    #     segment_size=int(digitizer_time_s * sample_rate),
-    #     segment_count=segment_repeats * sequence_repeats,
-    # )
-    # dg.set_channel_config(channel=1, range=ch1_range)
-    # if num_channels > 1:
-    #     dg.set_channel_config(channel=2, range=ch2_range)
-    # dg.set_trigger_source_edge()
-    # dg.write_configs_to_device()    
-
     digitizer_time_s = segment_time.to("s").magnitude
-    qu.setup(int(digitizer_time_s * sample_rate), segment_repeats * sequence_repeats)
+    dg.set_acquisition_config(
+        num_channels=num_channels,
+        sample_rate=sample_rate,
+        segment_size=int(digitizer_time_s * sample_rate),
+        segment_count=segment_repeats * sequence_repeats,
+    )
+    dg.set_channel_config(channel=1, range=ch1_range)
+    if num_channels > 1:
+        dg.set_channel_config(channel=2, range=ch2_range)
+    dg.set_trigger_source_edge()
+    dg.write_configs_to_device()
 
 
 def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, skip_setup = False):
@@ -205,8 +190,7 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
     if not skip_setup:
         m4i.setup_sequence(sequence)
 
-    # dg.start_capture()
-    qu.start()
+    dg.start_capture()
     time.sleep(0.1)
 
     sequence_repeats_per_transfer = params["sequence_repeats_per_transfer"]
@@ -226,11 +210,9 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
             m4i.wait_for_sequence_complete()
         m4i.stop_sequence()
 
-        # timeout = 1
-        # dg.wait_for_data_ready(timeout)
-        # sample_rate, digitizer_data = dg.get_data()
-        digitizer_data = qu.data()
-        sample_rate = 1e6
+        timeout = 1
+        dg.wait_for_data_ready(timeout)
+        sample_rate, digitizer_data = dg.get_data()
 
         transmissions = np.array(digitizer_data[0])
         transmissions_avg, transmissions_err = average_data(
