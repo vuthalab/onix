@@ -23,11 +23,8 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 1,
+    "sequence_repeats_per_transfer": 50,
     "data_transfer_repeats": 1,
-    "ao": {
-        "center_frequency": 75 * ureg.MHz,
-    },
     "eos": {
         "ac": {
             "name": "eo_ac",
@@ -47,33 +44,31 @@ default_params = {
     },
     "rf": {
         "amplitude": 4200,  # 4200
-        "detuning": (-65-167) * ureg.kHz,
-        "duration": 0.3 * ureg.ms,
+        "detuning": (65) * ureg.kHz,
+        "duration": 0.1 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
         "scan": 2.5 * ureg.MHz,
-        "durations": 10 * ureg.ms,
-        "repeats": 50,
+        "durations": 50 * ureg.us,
+        "repeats": 2000,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
-        "durations": 10 * ureg.ms,
-        "repeats": 50,
-        "detunings": 0 * ureg.MHz,
+        "durations": [50 * ureg.us, 50 * ureg.us],
+        "repeats": 500,
         "ao_amplitude": 2000,
     },
     "detect": {
-        "detunings": np.linspace(-2, 2, 20) * ureg.MHz, #np.array([-1.5, -1, -0.5, 0, 0.5, 1, 1.5]) * ureg.MHz, #np.array([-1, 0, 0.5, 1]) * ureg.MHz, #np.array([0, 1]) * ureg.MHz,  # np.linspace(-2, 2, 20) * ureg.MHz,
-        "ao_amplitude": 450, #500
+        "detunings": np.array([-2, 0]) * ureg.MHz,
         "on_time": 2 * ureg.us,
         "off_time": 0.5 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 1,
-            "rf": 1,
+            "antihole": 64,
+            "rf": 64,
         },
         "delay": 8 * ureg.us,
     },
@@ -83,7 +78,9 @@ default_params = {
         "ch2_range": 2,
     },
     "field_plate": {
-        "amplitude": 4500,
+        "off_amplitude": 0,
+        "amplitude": 3800,
+        "stark_shift": 2 * ureg.MHz,
         "use": True,
     }
 }
@@ -113,7 +110,7 @@ start_time = time.time()
 # params = default_params.copy()
 # first_data_id = None
 #
-# for kk in range(1):
+# for kk in range(100):
 #     sequence = get_sequence(params)
 #     data = run_sequence(sequence, params)
 #     data_id = save_data(sequence, params, *data)
@@ -139,16 +136,31 @@ start_time = time.time()
 #     if first_data_id == None:
 #         first_data_id = data_id
 
-## scan rf duration
+## scan inhom broad
 # params = default_params.copy()
 # first_data_id = None
 #
+# rf_frequencies = np.arange(-150, 160, 20)
+# rf_frequencies *= ureg.kHz
+# for mm in range(10000):
+#     for ll in [-3800, 3800]:
+#         params["field_plate"]["amplitude"] = ll
+#         for kk in range(len(rf_frequencies)):
+#             params["rf"]["detuning"] = rf_frequencies[kk]
+#             sequence = get_sequence(params)
+#             data = run_sequence(sequence, params)
+#             data_id = save_data(sequence, params, *data)
+#             print(data_id)
+#             if first_data_id == None:
+#                 first_data_id = data_id
+
+## scan power
+# params = default_params.copy()
+# first_data_id = None
 #
-# params["rf"]["duration"] = 1 * ureg.ms
-# rf_durations = np.linspace(0.01, 0.8, 15)
-# rf_durations *= ureg.ms
-# for kk in range(len(rf_durations)):
-#     params["rf"]["duration"] = rf_durations[kk]
+# rf_amplitudes = np.sqrt(np.linspace(0, 4000 ** 2, 25))
+# for kk in range(len(rf_amplitudes)):
+#     params["rf"]["amplitude"] = rf_amplitudes[kk]
 #     sequence = get_sequence(params)
 #     data = run_sequence(sequence, params)
 #     data_id = save_data(sequence, params, *data)
@@ -156,28 +168,59 @@ start_time = time.time()
 #     if first_data_id == None:
 #         first_data_id = data_id
 
+## scan rf duration
+for off_amplitude in np.arange(-200, 220, 20):
+    params = default_params.copy()
+    params["field_plate"]["off_amplitude"] = off_amplitude
+    for amp in [3800, -3800]:
+        start_time = time.time()
+        params = default_params.copy()
+        first_data_id = None
+
+        rf_durations = np.linspace(0.01, 0.5, 25)
+        rf_durations *= ureg.ms
+        params["field_plate"]["amplitude"] = amp
+        for kk in range(len(rf_durations)):
+            params["rf"]["duration"] = rf_durations[kk]
+            sequence = get_sequence(params)
+            data = run_sequence(sequence, params)
+            data_id = save_data(sequence, params, *data)
+            #print(data_id)
+            if first_data_id == None:
+                first_data_id = data_id
+        end_time = time.time()
+
+        print(amp)
+        print("\n")
+        print(
+            f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
+        )
+        print(f"data = (first, last)")
+        print(f"\"\": ({first_data_id}, {data_id}),")
+
+
 
 ## chasm test
-params = default_params.copy()
-
-params["chasm"]["durations"] = 10 * ureg.ms
-params["chasm"]["repeats"] = 50
-params["chasm"]["ao_amplitude"] = 2000
-
-# run once with chasm burning
-sequence = get_sequence(params)
-data = run_sequence(sequence, params)
-first_data_id = save_data(sequence, params, *data)
-
-# rerun without chasm burning
-params["chasm"]["durations"] = 1e-6 * ureg.ms
-params["chasm"]["repeats"] = 0
-params["chasm"]["ao_amplitude"] = 0
-
-for kk in tqdm(range(99)):
-    sequence = get_sequence(params)
-    data = run_sequence(sequence, params)
-    data_id = save_data(sequence, params, *data)
+# params = default_params.copy()
+#
+# params["chasm"]["durations"] = 10 * ureg.ms
+# params["chasm"]["repeats"] = 50
+# params["chasm"]["ao_amplitude"] = 2000
+#
+# # run once with chasm burning
+# sequence = get_sequence(params)
+# data = run_sequence(sequence, params)
+# first_data_id = save_data(sequence, params, *data)
+#
+# # rerun without chasm burning
+# params["chasm"]["durations"] = 1e-6 * ureg.ms
+# params["chasm"]["repeats"] = 0
+# params["chasm"]["ao_amplitude"] = 0
+#
+# for kk in tqdm(range(99)):
+#     sequence = get_sequence(params)
+#     data = run_sequence(sequence, params)
+#     data_id = save_data(sequence, params, *data)
 
 
 ## print info
