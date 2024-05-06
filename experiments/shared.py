@@ -89,6 +89,9 @@ _shared_parameters = {
         "transition": "ab",
         "offset": 30 * ureg.kHz,
     },
+    "lf": {
+        "name": "lf_coil", 
+    },
     "field_plate": {
         "name": "field_plate",
         "use": False,

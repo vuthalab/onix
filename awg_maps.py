@@ -25,8 +25,8 @@ awg_channels = {
         "max_allowed_amplitude" : 4500,
     },
     4 : {
-        "name" : "channel_4",
-        "desc" : "not connected",
+        "name" : "lf_coil",
+        "desc" : "lf coil",
         "max_allowed_amplitude" : 32768,
     },
     5 : {
