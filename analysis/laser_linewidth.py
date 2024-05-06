@@ -1,6 +1,6 @@
 from typing import Optional
 import numpy as np
-from onix.analysis.power_spectrum_copy import PowerSpectrum, _get_binned_variable
+from onix.analysis.power_spectrum import PowerSpectrum, _get_binned_variable
 
     
 class LaserLinewidth(PowerSpectrum):
@@ -41,17 +41,26 @@ class LaserLinewidth(PowerSpectrum):
     @property
     def W_nu(self):
         self._get_frequency_and_phase_noise_spectra()
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, self._W_nu)
+        if self._max_points_per_decade == None:
+            return self._W_nu
+        else:
+            return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, self._W_nu)
 
     @property
     def W_phi(self):
         self._get_frequency_and_phase_noise_spectra()
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, self._W_phi)
+        if self._max_points_per_decade == None:
+            return self._W_phi
+        else:
+            return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, self._W_phi)
 
     @property
     def W_phi_integral(self):
         _W_phi_integral, linewidth = self._get_phase_noise_integral()
-        return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, _W_phi_integral)
+        if self._max_points_per_decade == None:
+            return _W_phi_integral
+        else:
+            return _get_binned_variable(self._max_points_per_decade, self._frequency_start_bin_index, self._bin_edges, self._digitized, _W_phi_integral)
     
     @property
     def linewidth(self):

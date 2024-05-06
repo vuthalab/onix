@@ -157,8 +157,16 @@ class Fitter:
 
         Keyword arguments are passed to the scipy.optimize.curve_fit function.
         """
-        self._opt, cov = _curve_fit(**self._fit_kwargs, **kwargs)
-        self._err = _np.sqrt(_np.diag(cov))
+        try:
+            fit_kwargs = self._fit_kwargs.copy()
+            if fit_kwargs["sigma"] is None:
+                fit_kwargs["absolute_sigma"] = False
+            self._opt, cov = _curve_fit(**fit_kwargs, **kwargs)
+            self._err = _np.sqrt(_np.diag(cov))
+        except RuntimeError as e:
+            self._opt = None
+            self._err = None
+            raise e
 
     def _param_list_to_dict(self, variable_list):
         result = {}
@@ -170,14 +178,16 @@ class Fitter:
     def results(self):
         """Fitting results."""
         if self._opt is None:
-            raise Exception("Fitting results are not generated")
+            print("Fitting results are not generated")
+            return self._param_list_to_dict([_np.nan for kk in self.parameters])
         return self._param_list_to_dict(self._opt)
 
     @property
     def errors(self):
         """Fitting errors."""
         if self._err is None:
-            raise Exception("Fitting errors are not generated")
+            print("Fitting errors are not generated")
+            return self._param_list_to_dict([_np.nan for kk in self.parameters])
         return self._param_list_to_dict(self._err)
 
     def fitted_value(self, x):
