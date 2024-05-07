@@ -724,55 +724,75 @@ class AWGHSHPulse(AWGFunction):
     """
     def __init__(
       self,
-      duration, 
-      Omega,
-      t_0,
-      T_e,
-      T_ch,
-      w_0, 
-      kappa,
+      amplitude: float,
+      T_0: Union[float, Q_],
+      T_e: Union[float, Q_],
+      T_ch: Union[float, Q_],
+      center_frequency: Union[float, Q_], 
+      scan_range: Union[float, Q_],  
     ):
         super().__init__()
-        self.duration = duration
-        self.Omega = Omega
-        self.t_0 = t_0
-        self.T_e = T_e
-        self.T_ch = T_ch
-        self.w_0 = w_0
-        self.kappa = kappa
+        self.amplitude = amplitude
+        #self.T_0 = T_0
+        #self.T_e = T_e
+        #self.T_ch = T_ch
+        #self.center_frequency = center_frequency
+        #self.scan_range = scan_range
 
-    def amplitude(self, t): # Returns Omega(t)
-        condlist = [t < self.t_0, 
-                    np.logical_and(t >= self.t_0, t <= self.t_0+self.T_ch), 
-                    t > self.t_0+self.T_ch]
+        if isinstance(T_0, numbers.Number):
+            T_0 = T_0 * ureg.s
+        self.T_0: Q_ = T_0
+
+        if isinstance(T_e, numbers.Number):
+            T_e = T_e * ureg.s
+        self.T_e: Q_ = T_e
+
+        if isinstance(T_ch, numbers.Number):
+            T_ch = T_ch * ureg.s
+        self.T_ch: Q_ = T_ch
+
+        if isinstance(center_frequency, numbers.Number):
+            center_frequency = center_frequency * ureg.Hz
+        self.center_frequency: Q_ = center_frequency
+
+        if isinstance(scan_range, numbers.Number):
+            scan_range = scan_range * ureg.Hz
+        self.scan_range: Q_ = scan_range
+
+
+    def Omega(self, t): # Returns Omega(t)
+        condlist = [t < self.T_0.to("s").magnitude, 
+                    np.logical_and(t >= self.T_0.to("s").magnitude, t <= self.T_0.to("s").magnitude+self.T_ch.to("s").magnitude), 
+                    t > self.T_0.to("s").magnitude+self.T_ch.to("s").magnitude]
         
-        funclist_amplitudes = [lambda t: self.Omega/np.cosh((t - self.t_0)/self.T_e),
-                               self.Omega,
-                               lambda t: self.Omega/np.cosh((t - self.t_0 - self.T_ch)/self.T_e)]
+        funclist_amplitudes = [lambda t: self.amplitude/np.cosh((t - self.T_0.to("s").magnitude)/self.T_e.to("s").magnitude),
+                               self.amplitude,
+                               lambda t: self.amplitude/np.cosh((t - self.T_0.to("s").magnitude - self.T_ch.to("s").magnitude)/self.T_e.to("s").magnitude)]
         instant_amplitudes = np.piecewise(t, condlist, funclist_amplitudes)
         return instant_amplitudes
     
-    def frequency(self, t): # Returns omega(t)
-        condlist = [t < self.t_0, 
-                    np.logical_and(t >= self.t_0, t <= self.t_0+self.T_ch), 
-                    t > self.t_0+self.T_ch]
-        
-        funclist_angular_frequencies = [lambda t: self.w_0 - self.kappa*self.T_ch/2 + self.kappa*self.T_e*np.tanh((t - self.t_0)/self.T_e),
-                               lambda t: self.w_0 - self.kappa*(t - self.t_0 - self.T_ch/2),
-                               lambda t: self.w_0 + self.kappa*self.T_ch/2 + self.kappa*self.T_e*np.tanh((t - self.t_0 - self.T_ch)/self.T_e)]
+    def omega(self, t): # Returns omega(t)
+        condlist = [t < self.T_0.to("s").magnitude, 
+                    np.logical_and(t >= self.T_0.to("s").magnitude, t <= self.T_0.to("s").magnitude+self.T_ch.to("s").magnitude), 
+                    t > self.T_0.to("s").magnitude+self.T_ch.to("s").magnitude]
+        center_angular_frequency = 2*np.pi*self.center_frequency
+        kappa = self.scan_range / self.T_ch
+        funclist_angular_frequencies = [lambda t: center_angular_frequency - kappa*self.T_ch/2 + kappa*self.T_e*np.tanh((t - self.T_0)/self.T_e),
+                               lambda t: center_angular_frequency - kappa*(t - self.T_0 - self.T_ch/2),
+                               lambda t: center_angular_frequency + kappa*self.T_ch/2 + kappa*self.T_e*np.tanh((t - self.T_0 - self.T_ch)/self.T_e)]
         instant_angular_frequencies = np.piecewise(t, condlist, funclist_angular_frequencies)
         return instant_angular_frequencies
 
     def output(self, times):
-        return self.amplitude(times) * np.sin(self.frequency(times)*times)
+        return self.Omega(times) * np.sin(self.omega(times)*times)
     
     @property 
     def max_amplitude(self) -> float:
-        return self.Omega
+        return self.amplitude
     
     @property
     def min_duration(self) -> Q_:
-        return self.duration
+        return self.T_ch + 2*self.T_0
     
 class TTLFunction:
     def output(self, times):

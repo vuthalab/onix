@@ -16,16 +16,15 @@ class LFSpectroscopy(SharedSequence):
     HSH  https://doi.org/10.1364/AO.50.006548
     Parameters:
     "rf": {
-        "duration": time for entire HSH pulse, 
-        "Omega": rabi frequency of transition, 
-        "t_0": time at which to start frequency chirping,
+        "amplitude": rabi frequency of transition, 
+        "T_0": time at which to start frequency chirping,
         "T_e": width of edge function,
-        "T_ch": chirp time,
-        "frequency": frequency of transition to drive,
-        "kappa": linear chip rate,
+        "T_ch": time spent chirping,
+        "center_frequency": center frequency of transition to drive,
+        "scan_range": scan range we wish to go over
         }
     "lf": {
-        "frequency": ,
+        "center_frequency": ,
         "detuning": , 
         "duration": ,
         "amplitude": ,
@@ -40,12 +39,12 @@ class LFSpectroscopy(SharedSequence):
 
     def _define_lf(self):
         lf_channel = get_channel_from_name(self._lf_parameters["name"])
-        frequency =  self._lf_parameters["frequency"]
+        center_frequency =  self._lf_parameters["center_frequency"]
         detuning = self._lf_parameters["detuning"]
         duration = self._lf_parameters["duration"]
         amplitude = self._lf_parameters["amplitude"]
         segment = Segment("lf", duration=duration)
-        pulse = AWGSinePulse(frequency + detuning, amplitude)
+        pulse = AWGSinePulse(center_frequency + detuning, amplitude)
         segment.add_awg_function(lf_channel, pulse)
         if not self._shutter_off_after_antihole:
             segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
@@ -54,16 +53,15 @@ class LFSpectroscopy(SharedSequence):
 
     def _define_rf(self):
         rf_channel = get_channel_from_name(self._rf_parameters["name"])
-        duration = self._rf_parameters["duration"]
-        Omega = self._rf_parameters["Omega"]
-        t_0 = self._rf_parameters["t_0"]
+        amplitude = self._rf_parameters["amplitude"]
+        T_0 = self._rf_parameters["T_0"]
         T_e = self._rf_parameters["T_e"]
         T_ch = self._rf_parameters["T_ch"]
-        omega_0 = self._rf_parameters["frequency"] * 2 * np.pi
-        kappa = self._rf_parameters["kappa"]
-        pulse = AWGHSHPulse(duration, Omega, t_0, T_e, T_ch, omega_0, kappa)
+        center_frequency = self._rf_parameters["center_frequency"]
+        scan_range = self._rf_parameters["scan_range"]
+        pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, center_frequency, scan_range)
 
-        segment = Segment("rf", duration=duration)
+        segment = Segment("rf", duration=2*T_0 + T_ch)
         segment.add_awg_function(rf_channel, pulse)
         self.add_segment(segment)
 
