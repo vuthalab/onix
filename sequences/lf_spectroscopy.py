@@ -1,7 +1,4 @@
 from typing import Any
-from functools import partial
-
-from onix.models.hyperfine import energies, states
 from onix.sequences.sequence import (
     AWGHSHPulse,
     AWGSinePulse,
@@ -9,7 +6,6 @@ from onix.sequences.sequence import (
     TTLOn,
 )
 from onix.sequences.shared import SharedSequence
-from onix.units import ureg
 from onix.awg_maps import get_channel_from_name
 import numpy as np
 
@@ -19,7 +15,7 @@ class LFSpectroscopy(SharedSequence):
     Use LF coil to drive b, b bar transition, the use HSH Pulse to drive either b to a or b bar to a transition
     HSH  https://doi.org/10.1364/AO.50.006548
     Parameters:
-    rf: {
+    "rf": {
         "duration": time for entire HSH pulse, 
         "Omega": rabi frequency of transition, 
         "t_0": time at which to start frequency chirping,
@@ -28,7 +24,7 @@ class LFSpectroscopy(SharedSequence):
         "frequency": frequency of transition to drive,
         "kappa": linear chip rate,
         }
-    lf: {
+    "lf": {
         "frequency": ,
         "detuning": , 
         "duration": ,
@@ -43,7 +39,6 @@ class LFSpectroscopy(SharedSequence):
         self._define_rf()
 
     def _define_lf(self):
-        # turn on the lf coil at some frequency, power, duration to drive b, b bar transition
         lf_channel = get_channel_from_name(self._lf_parameters["name"])
         frequency =  self._lf_parameters["frequency"]
         detuning = self._lf_parameters["detuning"]

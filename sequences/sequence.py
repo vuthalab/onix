@@ -742,30 +742,38 @@ class AWGHSHPulse(AWGFunction):
         self.kappa = kappa
 
     def amplitude(self, t): # Returns Omega(t)
-        condlist = [np.where(t < self.t_0), 
-                    np.logical_and(np.where(t >= self.t_0), np.where(t <= self.t_0+self.T_ch)), 
-                    np.where(t > self.t_0+self.T_ch)]
+        condlist = [t < self.t_0, 
+                    np.logical_and(t >= self.t_0, t <= self.t_0+self.T_ch), 
+                    t > self.t_0+self.T_ch]
         
         funclist_amplitudes = [lambda t: self.Omega/np.cosh((t - self.t_0)/self.T_e),
                                self.Omega,
                                lambda t: self.Omega/np.cosh((t - self.t_0 - self.T_ch)/self.T_e)]
         instant_amplitudes = np.piecewise(t, condlist, funclist_amplitudes)
-        return instant_amplitudes(t)
+        return instant_amplitudes
     
     def frequency(self, t): # Returns omega(t)
-        condlist = [np.where(t < self.t_0), 
-                    np.logical_and(np.where(t >= self.t_0), np.where(t <= self.t_0+self.T_ch)), 
-                    np.where(t > self.t_0+self.T_ch)]
+        condlist = [t < self.t_0, 
+                    np.logical_and(t >= self.t_0, t <= self.t_0+self.T_ch), 
+                    t > self.t_0+self.T_ch]
         
         funclist_angular_frequencies = [lambda t: self.w_0 - self.kappa*self.T_ch/2 + self.kappa*self.T_e*np.tanh((t - self.t_0)/self.T_e),
                                lambda t: self.w_0 - self.kappa*(t - self.t_0 - self.T_ch/2),
                                lambda t: self.w_0 + self.kappa*self.T_ch/2 + self.kappa*self.T_e*np.tanh((t - self.t_0 - self.T_ch)/self.T_e)]
         instant_angular_frequencies = np.piecewise(t, condlist, funclist_angular_frequencies)
-        return instant_angular_frequencies(t)
+        return instant_angular_frequencies
 
     def output(self, times):
-        return self.amplitude(times) * np.sin(self.frequency(times))
-
+        return self.amplitude(times) * np.sin(self.frequency(times)*times)
+    
+    @property 
+    def max_amplitude(self) -> float:
+        return self.Omega
+    
+    @property
+    def min_duration(self) -> Q_:
+        return self.duration
+    
 class TTLFunction:
     def output(self, times):
         raise NotImplementedError()
