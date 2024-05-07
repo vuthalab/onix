@@ -718,6 +718,54 @@ class AWGSimultaneousDoubleSineTrain(AWGFunction):
     def min_duration(self) -> Q_:
         return self._on_time1 + self._on_time2 + self._delay
 
+class AWGHSHPulse(AWGFunction):
+    """
+    See https://doi.org/10.1364/AO.50.006548 for details
+    """
+    def __init__(
+      self,
+      duration, 
+      Omega,
+      t_0,
+      T_e,
+      T_ch,
+      w_0, 
+      kappa,
+    ):
+        super().__init__()
+        self.duration = duration
+        self.Omega = Omega
+        self.t_0 = t_0
+        self.T_e = T_e
+        self.T_ch = T_ch
+        self.w_0 = w_0
+        self.kappa = kappa
+
+    def amplitude(self, t): # Returns Omega(t)
+        condlist = [np.where(t < self.t_0), 
+                    np.logical_and(np.where(t >= self.t_0), np.where(t <= self.t_0+self.T_ch)), 
+                    np.where(t > self.t_0+self.T_ch)]
+        
+        funclist_amplitudes = [lambda t: self.Omega/np.cosh((t - self.t_0)/self.T_e),
+                               self.Omega,
+                               lambda t: self.Omega/np.cosh((t - self.t_0 - self.T_ch)/self.T_e)]
+        instant_amplitudes = np.piecewise(t, condlist, funclist_amplitudes)
+        return instant_amplitudes(t)
+    
+    def frequency(self, t): # Returns omega(t)
+        condlist = [np.where(t < self.t_0), 
+                    np.logical_and(np.where(t >= self.t_0), np.where(t <= self.t_0+self.T_ch)), 
+                    np.where(t > self.t_0+self.T_ch)]
+        
+        funclist_angular_frequencies = [lambda t: self.w_0 - self.kappa*self.T_ch/2 + self.kappa*self.T_e*np.tanh((t - self.t_0)/self.T_e),
+                               lambda t: self.w_0 - self.kappa*(t - self.t_0 - self.T_ch/2),
+                               lambda t: self.w_0 + self.kappa*self.T_ch/2 + self.kappa*self.T_e*np.tanh((t - self.t_0 - self.T_ch)/self.T_e)]
+        instant_angular_frequencies = np.piecewise(t, condlist, funclist_angular_frequencies)
+        return instant_angular_frequencies(t)
+
+    def output(self, times):
+        return self.amplitude(times) * np.sin(self.frequency(times))
+
 class TTLFunction:
     def output(self, times):
         raise NotImplementedError()
