@@ -762,11 +762,13 @@ class AWGHSHPulse(AWGFunction):
 
         condlist = [t < T_0, 
                     np.logical_and(t >= T_0, t <= T_0+T_ch), 
-                    t > T_0+T_ch]
+                    np.logical_and(t > T_0+T_ch, t<= T_ch + 2*T_0),
+                    t > T_ch + 2*T_0]
         
         funclist_amplitudes = [lambda t: self.amplitude/np.cosh((t - T_0)/T_e),
                                self.amplitude,
-                               lambda t: self.amplitude/np.cosh((t - T_0 - T_ch)/T_e)]
+                               lambda t: self.amplitude/np.cosh((t - T_0 - T_ch)/T_e),
+                               0]
         instant_amplitudes = np.piecewise(t, condlist, funclist_amplitudes)
         return instant_amplitudes
     
@@ -775,24 +777,23 @@ class AWGHSHPulse(AWGFunction):
         T_ch = self.T_ch.to("s").magnitude
         T_e = self.T_e.to("s").magnitude
         center_frequency = self.center_frequency.to("Hz").magnitude
-        scan_range = 2*np.pi*self.scan_range.to("Hz").magnitude
+        scan_range = self.scan_range.to("Hz").magnitude
 
         condlist = [t < T_0, 
                     np.logical_and(t >= T_0, t <= T_0+T_ch), 
-                    t > T_0+T_ch]
+                    np.logical_and(t > T_0+T_ch, t<= T_ch + 2*T_0),
+                    t > T_ch + 2*T_0]
         
-        center_angular_frequency = 2*np.pi*center_frequency
         kappa = scan_range / T_ch
-        #print(T_0, T_e, T_ch,center_frequency, scan_range,center_angular_frequency, kappa)
-        funclist_angular_frequencies = [lambda t: center_angular_frequency - kappa*T_ch/2 + kappa*T_e*np.tanh((t - T_0)/T_e),
-                               lambda t: center_angular_frequency + kappa*(t - T_0 - T_ch/2),
-                               lambda t: center_angular_frequency + kappa*T_ch/2 + kappa*T_e*np.tanh((t - T_0 - T_ch)/T_e)]
-        instant_angular_frequencies = np.piecewise(t, condlist, funclist_angular_frequencies)
-        #print(instant_angular_frequencies[0]/(2*np.pi), instant_angular_frequencies[-1]/(2*np.pi))
-        return instant_angular_frequencies
+        funclist_frequencies = [lambda t: center_frequency - kappa*T_ch/2 + kappa*T_e*np.tanh((t - T_0)/T_e),
+                               lambda t: center_frequency + kappa*(t - T_0 - T_ch/2),
+                               lambda t: center_frequency + kappa*T_ch/2 + kappa*T_e*np.tanh((t - T_0 - T_ch)/T_e),
+                               0]
+        instant_frequencies = np.piecewise(t, condlist, funclist_frequencies)
+        return instant_frequencies
 
     def output(self, times):
-        return self.Omega(times) * np.sin(self.omega(times)*times)
+        return self.Omega(times) * np.sin(2*np.pi*self.omega(times)*times)
     
     @property 
     def max_amplitude(self) -> float:

@@ -60,8 +60,10 @@ class LFSpectroscopy(SharedSequence):
         center_frequency = self._rf_parameters["center_frequency"]
         scan_range = self._rf_parameters["scan_range"]
         pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, center_frequency, scan_range)
-
-        segment = Segment("rf", duration=2*T_0 + T_ch)
+        if self._lf_parameters["rf_hsh_duration"] == None:
+            segment = Segment("rf", duration=2*T_0 + T_ch)
+        else:
+            segment = Segment("rf", duration=self._lf_parameters["rf_hsh_duration"])
         segment.add_awg_function(rf_channel, pulse)
         self.add_segment(segment)
 

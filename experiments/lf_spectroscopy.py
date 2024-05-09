@@ -34,7 +34,7 @@ default_params = {
         "scan_range": 5 * ureg.kHz,
         },
     "lf": {
-        "center_frequency": 167 * ureg.kHz,
+        "center_frequency": 100 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 50 * ureg.ms,
         "amplitude": 0,
@@ -74,3 +74,18 @@ sequence = get_sequence(params)
 data = run_sequence(sequence, params)
 # data_id = save_data(sequence, params, *data)
 # print(data_id)
+
+## Scan the LF Detunings
+params = default_params.copy()
+first_data_id = None
+
+lf_frequencies = np.arange(-167/2, 167/2, 30)
+lf_frequencies *= ureg.kHz
+for kk in range(len(rf_frequencies)):
+    params["lf"]["detuning"] = lf_frequencies[kk]
+    sequence = get_sequence(params)
+    data = run_sequence(sequence, params)
+    data_id = save_data(sequence, params, *data)
+    print(data_id)
+    if first_data_id == None:
+        first_data_id = data_id

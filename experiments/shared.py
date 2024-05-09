@@ -79,6 +79,7 @@ _shared_parameters = {
     },
     "lf": {
         "name": "lf_coil", 
+        "rf_hsh_duration": None,
     },
     "field_plate": {
         "name": "field_plate",
