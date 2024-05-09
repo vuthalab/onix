@@ -6,6 +6,7 @@ from onix.analysis.fitter import Fitter
 from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 import numpy as np
+import matplotlib.pyplot as plt
 
 imvOCTTopLeft = None
 
@@ -91,7 +92,8 @@ class FLIRCamera:
 
 
 class CameraView(QtWidgets.QWidget):
-    # TODO: ROI, center_select, fit contour plot, exposure and gain change, auto exposure.
+    # TODO: center_select, auto exposure.
+    # Done, semi-tested: fit contour plot, exposure and gain change, ROI
     def __init__(self, camera: FLIRCamera, parent = None):        
         super().__init__(parent)
         self._camera = camera
@@ -99,7 +101,7 @@ class CameraView(QtWidgets.QWidget):
         layout = QtWidgets.QGridLayout()
 
         self.image = pg.ImageView(view=pg.PlotItem())
-        layout.addWidget(self.image, 0, 0)
+        layout.addWidget(self.image, 0, 0,1,2)
 
         viewbox = self.image.view
         if not isinstance(viewbox, pg.ViewBox):
@@ -112,7 +114,27 @@ class CameraView(QtWidgets.QWidget):
         
         self.label = QtWidgets.QLabel("No fit")
         self.label.setFont(QtGui.QFont('Arial', 80)) 
-        layout.addWidget(self.label)
+        self.label.setAlignment(QtCore.Qt.AlignCenter)
+        layout.addWidget(self.label, 1,0, 1,2)
+
+        self.exposure_spinbox = QtWidgets.QSpinBox(prefix = "Exposure: ", suffix = " us")
+        self.exposure_spinbox.setValue(self._camera.get_exposure())
+        self.exposure_spinbox.setSingleStep(1)
+        self.exposure_spinbox.valueChanged.connect(self._change_exposure)
+        self.exposure_spinbox.setMinimum(29)
+        self.exposure_spinbox.setMaximum(30000000)
+        self.exposure_spinbox.setFont(QtGui.QFont('Arial', 30)) 
+        layout.addWidget(self.exposure_spinbox, 2,0)
+
+        self.gain_spinbox = QtWidgets.QSpinBox(prefix = "Gain: ", suffix = " dB")
+        self.gain_spinbox.setValue(self._camera.get_gain())
+        self.gain_spinbox.setSingleStep(1)
+        self.gain_spinbox.valueChanged.connect(self._change_gain)
+        self.gain_spinbox.setMinimum(0)
+        self.gain_spinbox.setMaximum(30)
+        self.gain_spinbox.setFont(QtGui.QFont('Arial', 30)) 
+        layout.addWidget(self.gain_spinbox, 2,1)
+        #add widgets here for exposure and gain change
 
         self.setLayout(layout)
 
@@ -128,6 +150,12 @@ class CameraView(QtWidgets.QWidget):
         self._fit = state
         if not self._fit:
             self.label.setText("No fit")
+
+    def _change_exposure(self, exposure):
+        self._camera.set_exposure(exposure)
+
+    def _change_gain(self, gain):
+        self._camera.set_gain(gain)
 
     def update_loop(self, auto_range=False, auto_levels=False):
         image_raw = np.transpose(self._camera.get_image())
@@ -163,12 +191,20 @@ class CameraView(QtWidgets.QWidget):
                 sigmax_fit = fitter.results["sigmax"]
                 one_over_e2_fit = sigmax_fit * bin_size * self._camera.pixel_size * 2
                 fit_label = f"1/e<sup>2</sup> radius = {abs(one_over_e2_fit * 1e3):.3f} mm"
+                # plot the level curve of the 2D gaussian we have just fitted
+                pred = fitter.fitted_value((x,y))
+                contour = plt.contour((x,y), pred)
+                x_contour = contour.collections[0].get_paths()[0].vertics[:,0]
+                y_contour = contour.collections[0].get_paths()[0].vertics[:,1]
+                imv_v = self.image.getView()
+                pci = pg.PlotCurveItem(x=x_contour, y=y_contour)
+                imv_v.addItem(pci)
             except Exception:
                 fit_label = "Fitting failed"
             if np.max(image_raw) == self._camera.pixel_max_brightness:
                 fit_label += ", over-exposed"
             self.label.setText(fit_label)
-
+        
         if self._running:
             QtCore.QTimer.singleShot(1, self.update_loop)
 
@@ -177,7 +213,7 @@ if __name__=="__main__":
     app = QtWidgets.QApplication([])
     cam = FLIRCamera()
     cam.set_gain(0)
-    cam.set_exposure(80)
+    cam.set_exposure(29)
 
     widget = CameraView(cam)
     widget.show()
