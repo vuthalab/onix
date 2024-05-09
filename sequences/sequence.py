@@ -717,7 +717,7 @@ class AWGSimultaneousDoubleSineTrain(AWGFunction):
     @property
     def min_duration(self) -> Q_:
         return self._on_time1 + self._on_time2 + self._delay
-
+    
 class AWGHSHPulse(AWGFunction):
     """
     See https://doi.org/10.1364/AO.50.006548 for details
@@ -755,13 +755,13 @@ class AWGHSHPulse(AWGFunction):
         self.scan_range: Q_ = scan_range
         
 
-    def Omega(self, t): # Returns Omega(t)
+    def Omega(self, t):
         T_0 = self.T_0.to("s").magnitude
         T_ch = self.T_ch.to("s").magnitude
         T_e = self.T_e.to("s").magnitude
 
-        condlist = [t < T_0, 
-                    np.logical_and(t >= T_0, t <= T_0+T_ch), 
+        condlist = [t <= T_0, 
+                    np.logical_and(t > T_0, t <= T_0+T_ch), 
                     np.logical_and(t > T_0+T_ch, t<= T_ch + 2*T_0),
                     t > T_ch + 2*T_0]
         
@@ -771,29 +771,39 @@ class AWGHSHPulse(AWGFunction):
                                0]
         instant_amplitudes = np.piecewise(t, condlist, funclist_amplitudes)
         return instant_amplitudes
-    
-    def omega(self, t): # Returns omega(t)
+
+    def f(self, t): 
         T_0 = self.T_0.to("s").magnitude
         T_ch = self.T_ch.to("s").magnitude
         T_e = self.T_e.to("s").magnitude
         center_frequency = self.center_frequency.to("Hz").magnitude
         scan_range = self.scan_range.to("Hz").magnitude
 
-        condlist = [t < T_0, 
-                    np.logical_and(t >= T_0, t <= T_0+T_ch), 
+        def int_f_1(t_prime):
+            return center_frequency*t_prime - kappa*T_ch*t_prime/2 + T_e**2 * kappa * np.log(np.cosh((t_prime-T_0)/T_e))
+
+        def int_f_2(t_prime):
+            return center_frequency*t_prime + 0.5*kappa*t_prime**2 - kappa * t_prime* (T_0 + T_ch/2)
+    
+        def int_f_3(t_prime):
+            return center_frequency*t_prime + kappa*T_ch*t_prime/2 + T_e**2 * kappa * np.log(np.cosh((T_0 + T_ch - t_prime)/T_e))
+    
+    
+        condlist = [t <= T_0, 
+                    np.logical_and(t > T_0, t <= T_0+T_ch), 
                     np.logical_and(t > T_0+T_ch, t<= T_ch + 2*T_0),
                     t > T_ch + 2*T_0]
         
         kappa = scan_range / T_ch
-        funclist_frequencies = [lambda t: center_frequency - kappa*T_ch/2 + kappa*T_e*np.tanh((t - T_0)/T_e),
-                               lambda t: center_frequency + kappa*(t - T_0 - T_ch/2),
-                               lambda t: center_frequency + kappa*T_ch/2 + kappa*T_e*np.tanh((t - T_0 - T_ch)/T_e),
-                               0]
+        funclist_frequencies = [lambda r: int_f_1(r) - int_f_1(0),
+                                lambda r: int_f_1(T_0) - int_f_1(0) + int_f_2(r) - int_f_2(T_0),
+                                lambda r: int_f_1(T_0) - int_f_1(0) + int_f_2(T_0 + T_ch) - int_f_2(T_0) + int_f_3(r) - int_f_3(T_0 + T_ch) ,
+                                0]
         instant_frequencies = np.piecewise(t, condlist, funclist_frequencies)
         return instant_frequencies
 
     def output(self, times):
-        return self.Omega(times) * np.sin(2*np.pi*self.omega(times)*times)
+        return np.sin(2*np.pi*self.f(times))
     
     @property 
     def max_amplitude(self) -> float:
