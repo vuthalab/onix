@@ -733,11 +733,6 @@ class AWGHSHPulse(AWGFunction):
     ):
         super().__init__()
         self.amplitude = amplitude
-        #self.T_0 = T_0
-        #self.T_e = T_e
-        #self.T_ch = T_ch
-        #self.center_frequency = center_frequency
-        #self.scan_range = scan_range
 
         if isinstance(T_0, numbers.Number):
             T_0 = T_0 * ureg.s
@@ -758,29 +753,42 @@ class AWGHSHPulse(AWGFunction):
         if isinstance(scan_range, numbers.Number):
             scan_range = scan_range * ureg.Hz
         self.scan_range: Q_ = scan_range
-
+        
 
     def Omega(self, t): # Returns Omega(t)
-        condlist = [t < self.T_0.to("s").magnitude, 
-                    np.logical_and(t >= self.T_0.to("s").magnitude, t <= self.T_0.to("s").magnitude+self.T_ch.to("s").magnitude), 
-                    t > self.T_0.to("s").magnitude+self.T_ch.to("s").magnitude]
+        T_0 = self.T_0.to("s").magnitude
+        T_ch = self.T_ch.to("s").magnitude
+        T_e = self.T_e.to("s").magnitude
+
+        condlist = [t < T_0, 
+                    np.logical_and(t >= T_0, t <= T_0+T_ch), 
+                    t > T_0+T_ch]
         
-        funclist_amplitudes = [lambda t: self.amplitude/np.cosh((t - self.T_0.to("s").magnitude)/self.T_e.to("s").magnitude),
+        funclist_amplitudes = [lambda t: self.amplitude/np.cosh((t - T_0)/T_e),
                                self.amplitude,
-                               lambda t: self.amplitude/np.cosh((t - self.T_0.to("s").magnitude - self.T_ch.to("s").magnitude)/self.T_e.to("s").magnitude)]
+                               lambda t: self.amplitude/np.cosh((t - T_0 - T_ch)/T_e)]
         instant_amplitudes = np.piecewise(t, condlist, funclist_amplitudes)
         return instant_amplitudes
     
     def omega(self, t): # Returns omega(t)
-        condlist = [t < self.T_0.to("s").magnitude, 
-                    np.logical_and(t >= self.T_0.to("s").magnitude, t <= self.T_0.to("s").magnitude+self.T_ch.to("s").magnitude), 
-                    t > self.T_0.to("s").magnitude+self.T_ch.to("s").magnitude]
-        center_angular_frequency = 2*np.pi*self.center_frequency
-        kappa = self.scan_range / self.T_ch
-        funclist_angular_frequencies = [lambda t: center_angular_frequency - kappa*self.T_ch/2 + kappa*self.T_e*np.tanh((t - self.T_0)/self.T_e),
-                               lambda t: center_angular_frequency - kappa*(t - self.T_0 - self.T_ch/2),
-                               lambda t: center_angular_frequency + kappa*self.T_ch/2 + kappa*self.T_e*np.tanh((t - self.T_0 - self.T_ch)/self.T_e)]
+        T_0 = self.T_0.to("s").magnitude
+        T_ch = self.T_ch.to("s").magnitude
+        T_e = self.T_e.to("s").magnitude
+        center_frequency = self.center_frequency.to("Hz").magnitude
+        scan_range = 2*np.pi*self.scan_range.to("Hz").magnitude
+
+        condlist = [t < T_0, 
+                    np.logical_and(t >= T_0, t <= T_0+T_ch), 
+                    t > T_0+T_ch]
+        
+        center_angular_frequency = 2*np.pi*center_frequency
+        kappa = scan_range / T_ch
+        #print(T_0, T_e, T_ch,center_frequency, scan_range,center_angular_frequency, kappa)
+        funclist_angular_frequencies = [lambda t: center_angular_frequency - kappa*T_ch/2 + kappa*T_e*np.tanh((t - T_0)/T_e),
+                               lambda t: center_angular_frequency + kappa*(t - T_0 - T_ch/2),
+                               lambda t: center_angular_frequency + kappa*T_ch/2 + kappa*T_e*np.tanh((t - T_0 - T_ch)/T_e)]
         instant_angular_frequencies = np.piecewise(t, condlist, funclist_angular_frequencies)
+        #print(instant_angular_frequencies[0]/(2*np.pi), instant_angular_frequencies[-1]/(2*np.pi))
         return instant_angular_frequencies
 
     def output(self, times):

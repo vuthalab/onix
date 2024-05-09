@@ -27,17 +27,17 @@ default_params = {
     "data_transfer_repeats": 1,
     "rf": {
         "amplitude": 4000,
-        "T_0": 10e-3,
-        "T_e": 10e-3,
-        "T_ch": 30e-3,
-        "center_frequency": 20e3,
-        "scan_range": 3000,
+        "T_0": 10 * ureg.ms,
+        "T_e": 10 * ureg.ms,
+        "T_ch": 30 * ureg.ms,
+        "center_frequency": 20 * ureg.kHz,
+        "scan_range": 5 * ureg.kHz,
         },
     "lf": {
         "center_frequency": 167 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "duration": 50 * ureg.ms,
-        "amplitude": 4000,
+        "amplitude": 0,
     },
     "detect": {
         "detunings": np.array([-2, 0]) * ureg.MHz,
