@@ -98,8 +98,6 @@ class FLIRCamera:
 
 
 class CameraView(QtWidgets.QWidget):
-    # TODO: auto-range and test to ensure that sigma_x and sigma_y are the same x,y as the axes, not inverted
-
     def __init__(self, camera: FLIRCamera, parent = None):        
         super().__init__(parent)
         self._camera = camera
@@ -223,18 +221,21 @@ class CameraView(QtWidgets.QWidget):
                 one_over_e2_fit_x = sigmax_fit * bin_size * self._camera.pixel_size * 2
                 one_over_e2_fit_y = sigmay_fit * bin_size * self._camera.pixel_size * 2
                 # use 1/e<sup>2</sup><sub style='position: relative; left: -.5em;'>x</sub> for e_x^2 nicely formatted
-                fit_label = f"radius<sub>x</sub> = {abs(one_over_e2_fit_x * 1e3):.3f} mm -- radius<sub>y</sub> = {abs(one_over_e2_fit_y * 1e3):.3f} mm"
+                # x and y are flipped, between what is done here and the image
+                fit_label = f"r<sub>x</sub> = {abs(one_over_e2_fit_y * 1e3):.3f} mm    r<sub>y</sub> = {abs(one_over_e2_fit_x * 1e3):.3f} mm"
             except Exception:
                 fit_label = "Fitting failed"
             self.label.setText(fit_label)
         if np.max(image_raw) == self._camera.pixel_max_brightness:
-            fit_label += ", over-exposed"
+            if self._fit:
+                fit_label += ", over-exposed"
             if self.autoexposure:
                 self.exposure -= 1
                 self.exposure_spinbox.setValue(self.exposure)
                 self._change_exposure()
         elif np.max(image_raw) <= self.min_brightness:
-            fit_label += ", under-exposed"
+            if self._fit:
+                fit_label += ", under-exposed"
             if self.autoexposure:
                 self.exposure += 1
                 self.exposure_spinbox.setValue(self.exposure)
@@ -251,7 +252,7 @@ if __name__=="__main__":
 
     widget = CameraView(cam)
     widget.show()
-    widget.start(auto_levels=False) # "auto-range" should amount to just setting this to be true?
+    widget.start(auto_levels=True, auto_range = True) 
     widget.set_fit_state(True)
 
     app.exec()
