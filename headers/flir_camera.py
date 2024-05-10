@@ -13,7 +13,7 @@ imvOCTTopLeft = None
 Must use the FLIR virtual environment. In terminal, run "source ~/.venv/flir/bin/activate". When done, run "deactivate".
 
 Auto-exposure works best in steady state. Program begins with autoexposure off. Best to set exposure yourself, fix the camera with a view of the 
-beam and then turn on auto-exposure. This will protect against fluctuations in laser power as your work, adjusting the exposure to compensate.
+beam and then turn on auto-exposure. This will protect against fluctuations in laser power as your work.
 
 Camera model: FFY-U3-16S2M-CS
 
@@ -226,23 +226,22 @@ class CameraView(QtWidgets.QWidget):
                 fit_label = f"radius<sub>x</sub> = {abs(one_over_e2_fit_x * 1e3):.3f} mm -- radius<sub>y</sub> = {abs(one_over_e2_fit_y * 1e3):.3f} mm"
             except Exception:
                 fit_label = "Fitting failed"
-            if np.max(image_raw) == self._camera.pixel_max_brightness:
-                fit_label += ", over-exposed"
-                if self.autoexposure:
-                    self.exposure -= 1
-                    self.exposure_spinbox.setValue(self.exposure)
-                    self._change_exposure()
-            elif np.max(image_raw) <= self.min_brightness:
-                fit_label += ", under-exposed"
-                if self.autoexposure:
-                    self.exposure += 1
-                    self.exposure_spinbox.setValue(self.exposure)
-                    self._change_exposure()
             self.label.setText(fit_label)
-        
+        if np.max(image_raw) == self._camera.pixel_max_brightness:
+            fit_label += ", over-exposed"
+            if self.autoexposure:
+                self.exposure -= 1
+                self.exposure_spinbox.setValue(self.exposure)
+                self._change_exposure()
+        elif np.max(image_raw) <= self.min_brightness:
+            fit_label += ", under-exposed"
+            if self.autoexposure:
+                self.exposure += 1
+                self.exposure_spinbox.setValue(self.exposure)
+                self._change_exposure()
+            
         if self._running:
             QtCore.QTimer.singleShot(1, self.update_loop) # update every ms
-
 
 if __name__=="__main__":
     app = QtWidgets.QApplication([])
@@ -252,7 +251,7 @@ if __name__=="__main__":
 
     widget = CameraView(cam)
     widget.show()
-    widget.start(auto_levels=False)
+    widget.start(auto_levels=False) # "auto-range" should amount to just setting this to be true?
     widget.set_fit_state(True)
 
     app.exec()
