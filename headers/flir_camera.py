@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 imvOCTTopLeft = None
 """
-Must us the FLIR virtual environment. In terminal, run "source ~/.venv/flir/bin/activate". When done, run "deactivate".
+Must use the FLIR virtual environment. In terminal, run "source ~/.venv/flir/bin/activate". When done, run "deactivate".
 
 Auto-exposure works best in steady state. Program begins with autoexposure off. Best to set exposure yourself, fix the camera with a view of the 
 beam and then turn on auto-exposure. This will protect against fluctuations in laser power as your work, adjusting the exposure to compensate.
@@ -98,8 +98,8 @@ class FLIRCamera:
 
 
 class CameraView(QtWidgets.QWidget):
-    # TODO: center_select
-    # Done, semi-tested: fit contour plot, exposure and gain change, ROI, auto exposure
+    # TODO: auto-range and test to ensure that sigma_x and sigma_y are the same x,y as the axes, not inverted
+
     def __init__(self, camera: FLIRCamera, parent = None):        
         super().__init__(parent)
         self._camera = camera
@@ -201,9 +201,6 @@ class CameraView(QtWidgets.QWidget):
             x = np.arange(1080 // bin_size)
             y = np.arange(1440 // bin_size)
             x, y = np.meshgrid(x, y)
-            #self.iso = pg.IsocurveItem(level=0.8, pen='g')
-            #self.iso.setParentItem(pg.ImageItem())
-            #self.iso.setZValue(5)
 
             fitter = Fitter(Gaussian2D)
             fitter.set_absolute_sigma(False)
@@ -222,16 +219,11 @@ class CameraView(QtWidgets.QWidget):
             try:
                 fitter.fit(maxfev=300)
                 sigmax_fit = fitter.results["sigmax"]
-                one_over_e2_fit = sigmax_fit * bin_size * self._camera.pixel_size * 2
-                fit_label = f"1/e<sup>2</sup> radius = {abs(one_over_e2_fit * 1e3):.3f} mm"
-                # plot the level curve of the 2D gaussian we have just fitted
-                #pred = fitter.fitted_value((x,y))
-                #contour = plt.contour((x,y), pred, [10])
-                # x_contour = contour.collections[0].get_paths()[0].vertics[:,0]
-                # y_contour = contour.collections[0].get_paths()[0].vertics[:,1]
-                #imv_v = self.image.getView()
-                #pci = pg.PlotCurveItem(x=[1,50,100,150,200], y=[1,50,100,150,200], pen = 'y')
-                #imv_v.addItem(pci)
+                sigmay_fit = fitter.results["sigmay"]
+                one_over_e2_fit_x = sigmax_fit * bin_size * self._camera.pixel_size * 2
+                one_over_e2_fit_y = sigmay_fit * bin_size * self._camera.pixel_size * 2
+                # use 1/e<sup>2</sup><sub style='position: relative; left: -.5em;'>x</sub> for e_x^2 nicely formatted
+                fit_label = f"radius<sub>x</sub> = {abs(one_over_e2_fit_x * 1e3):.3f} mm -- radius<sub>y</sub> = {abs(one_over_e2_fit_y * 1e3):.3f} mm"
             except Exception:
                 fit_label = "Fitting failed"
             if np.max(image_raw) == self._camera.pixel_max_brightness:
