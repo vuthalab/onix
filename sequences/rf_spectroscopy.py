@@ -37,6 +37,8 @@ class RFSpectroscopy(SharedSequence):
         # the shutter is open (high) at the beginning of this function.
         segment_steps = []
         segment_steps.append(("rf", 1))
+        # waiting for the field plate to go high
+        segment_steps.append(("field_plate_break", self._field_plate_break_repeats))
         if self._shutter_off_after_antihole:
             segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["rf"]
@@ -44,4 +46,6 @@ class RFSpectroscopy(SharedSequence):
         self.analysis_parameters["detect_groups"].append(("rf", detect_cycles))
         segment_steps.append(("break", 1))
         segment_steps.append(("break", self._shutter_fall_delay_repeats))
+        # waiting for the field plate to go low
+        segment_steps.append(("break", self._field_plate_break_repeats))
         return segment_steps
