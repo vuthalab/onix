@@ -311,18 +311,14 @@ class SharedSequence(Sequence):
             self._rf_parameters,
             self._rf_pump_parameters,
         )
-        if self._field_plate_parameters["use"]:
-            segment.add_awg_function(7, AWGConstant(self._field_plate_parameters["amplitude"]))
         self.add_segment(segment)
 
     def _define_antihole(self):
-        field_plate_parameters = self._field_plate_parameters.copy()
-        field_plate_parameters["use"] = False
         segment, self._antihole_repeats = antihole_segment(
             "antihole",
             self._ao_parameters,
             self._eos_parameters,
-            field_plate_parameters,
+            self._field_plate_parameters,
             self._antihole_parameters,
             self._rf_parameters,
             self._rf_pump_parameters,
@@ -339,8 +335,6 @@ class SharedSequence(Sequence):
             self._detect_parameters,
         )
         self.analysis_parameters["detect_groups"] = []
-        if self._field_plate_parameters["use"]:
-            segment.add_awg_function(7, AWGConstant(self._field_plate_parameters["amplitude"]))
         self.add_segment(segment)
 
     def _define_breaks(self):
@@ -360,8 +354,6 @@ class SharedSequence(Sequence):
 
         segment = Segment("shutter_break", break_time)
         segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
-        if self._field_plate_parameters["use"]:
-            segment.add_awg_function(7, AWGConstant(self._field_plate_parameters["amplitude"]))
         self.add_segment(segment)
         self._shutter_rise_delay_repeats = int(
             self._shutter_parameters["rise_delay"] / break_time
@@ -383,31 +375,27 @@ class SharedSequence(Sequence):
 
     def get_chasm_sequence(self):
         segment_steps = []
-        # waiting for the field plate to go high
-        segment_steps.append(("field_plate_break", self._field_plate_break_repeats))
         segment_steps.append(("chasm", self._chasm_repeats))
         detect_cycles = self._detect_parameters["cycles"]["chasm"]
         if detect_cycles > 0:
             segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
             segment_steps.extend(self.get_detect_sequence(detect_cycles))
             self.analysis_parameters["detect_groups"].append(("chasm", detect_cycles))
-            segment_steps.append(("field_plate_break", self._shutter_fall_delay_repeats))
-        # waiting for the field plate to go low
-        segment_steps.append(("break", self._field_plate_break_repeats))
+            segment_steps.append(("break", self._shutter_fall_delay_repeats))
         return segment_steps
 
     def get_antihole_sequence(self):
         segment_steps = []
-        segment_steps.append(("antihole", self._antihole_repeats))
         # waiting for the field plate to go high
         segment_steps.append(("field_plate_break", self._field_plate_break_repeats))
+        segment_steps.append(("antihole", self._antihole_repeats))
+        # waiting for the field plate to go low
+        segment_steps.append(("break", self._field_plate_break_repeats))
         segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["antihole"]
         segment_steps.extend(self.get_detect_sequence(detect_cycles))
         self.analysis_parameters["detect_groups"].append(("antihole", detect_cycles))
         segment_steps.append(("shutter_break", 1))
-        # waiting for the field plate to go low
-        segment_steps.append(("break", self._field_plate_break_repeats))
         if self._shutter_off_after_antihole:
             segment_steps.append(("break", self._shutter_fall_delay_repeats))
         return segment_steps
