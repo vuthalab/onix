@@ -51,7 +51,7 @@ _shared_parameters = {
     "ao": {
         "name": "ao_dp",
         "order": 2,
-        "center_frequency": 78 * ureg.MHz,
+        "center_frequency": 71 * ureg.MHz,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -78,7 +78,7 @@ _shared_parameters = {
         "offset": 30 * ureg.kHz,
     },
     "lf": {
-        "name": "lf_coil", 
+        "name": "lf_coil",
         "rf_hsh_duration": None,
     },
     "field_plate": {
