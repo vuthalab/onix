@@ -803,7 +803,7 @@ class AWGHSHPulse(AWGFunction):
         return instant_frequencies
 
     def output(self, times):
-        return np.sin(2*np.pi*self.f(times))
+        return self.Omega(times) * np.sin(2*np.pi*self.f(times))
     
     @property 
     def max_amplitude(self) -> float:

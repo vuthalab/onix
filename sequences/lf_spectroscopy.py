@@ -2,12 +2,15 @@ from typing import Any
 from onix.sequences.sequence import (
     AWGHSHPulse,
     AWGSinePulse,
+    AWGSineSweep,
     Segment,
     TTLOn,
 )
+from onix.models.hyperfine import energies
 from onix.sequences.shared import SharedSequence
 from onix.awg_maps import get_channel_from_name
 import numpy as np
+from onix.units import ureg
 
 
 class LFSpectroscopy(SharedSequence):
@@ -32,7 +35,7 @@ class LFSpectroscopy(SharedSequence):
     
     """
     def __init__(self, parameters: dict[str, Any]):
-        super().__init__(parameters, shutter_off_after_antihole=False)
+        super().__init__(parameters, shutter_off_after_antihole=True)
         self._lf_parameters = parameters["lf"]
         self._define_lf()
         self._define_rf()
@@ -57,18 +60,31 @@ class LFSpectroscopy(SharedSequence):
         T_0 = self._rf_parameters["T_0"]
         T_e = self._rf_parameters["T_e"]
         T_ch = self._rf_parameters["T_ch"]
-        center_frequency = self._rf_parameters["center_frequency"]
+        lower_state = self._rf_parameters["transition"][0]
+        upper_state = self._rf_parameters["transition"][1]
+        offset = self._rf_parameters["offset"]
+        center_frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + offset
+        pulse_center = self._rf_parameters["center_detuning"] + center_frequency
         scan_range = self._rf_parameters["scan_range"]
-        pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, center_frequency, scan_range)
-        if self._lf_parameters["rf_hsh_duration"] == None:
-            segment = Segment("rf", duration=2*T_0 + T_ch)
+        if self._rf_parameters["use_hsh"]:
+            pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, pulse_center, scan_range)
+            if self._lf_parameters["rf_hsh_duration"] == None:
+                segment = Segment("rf", duration=2*T_0 + T_ch)
+            else:
+                segment = Segment("rf", duration=self._lf_parameters["rf_hsh_duration"])
         else:
-            segment = Segment("rf", duration=self._lf_parameters["rf_hsh_duration"])
+            pulse = AWGSineSweep(
+                pulse_center - scan_range / 2,
+                pulse_center + scan_range / 2,
+                amplitude,
+                start_time=0*ureg.s,
+                end_time=T_ch,
+            )
+            segment = Segment("rf")
         segment.add_awg_function(rf_channel, pulse)
         self.add_segment(segment)
 
     def get_rf_sequence(self):
-        # the shutter is open (high) at the beginning of this function.
         segment_steps = []
         segment_steps.append(("lf", 1))
         segment_steps.append(("rf", 1))
