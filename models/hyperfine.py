@@ -109,25 +109,11 @@ class HyperfineStates:
         ]
 
     def Schiff_moment_sensitivity(self, eigenvector: qutip.Qobj):
-        """Returns the dot product of nuclear spin and electric field direction.
+        """Returns the dot product of nuclear spin and the electric field direction.
 
-        This calculation depends on the sign of the Stark shifts. Therefore, there are a total
-        of four possible values. Two of them are returned by this function. The other two
-        are the two returned values with sign flips.
-
-        TODO: The Stark shifts used in Harish's notebook is 90600 and 186600 V / cm.
+        Assumes that the electric field is on D1 and D2 axes respectively.
         """
-        stark_shift_x = 271.8  # Zhang2020, Table I
-        stark_shift_y = 186.1  # Zhang2020, Table I
-        stark_shift = np.sqrt(stark_shift_x ** 2 + stark_shift_y ** 2)
-        n_x = stark_shift_x / stark_shift
-        n_y_1 = stark_shift_y / stark_shift
-        n_y_2 = -n_y_1
-        m_Ix = self.m_Ix(eigenvector)
-        m_Iy = self.m_Iy(eigenvector)
-        sensitivity_1 = m_Ix * n_x + m_Iy * n_y_1
-        sensitivity_2 = m_Ix * n_x + m_Iy * n_y_2
-        return (sensitivity_1, sensitivity_2)
+        return (self.m_Ix(eigenvector) / self.I, self.m_Iy(eigenvector) / self.I)
 
     def m1_elements(self):
         """Magnetic dipole transition matrix elements between different Zeeman levels.
