@@ -20,11 +20,12 @@ wavemeter = WM()
 import contextlib
 import io
 import sys
+from onix.units import ureg
 #
 # import pyttsx3
 # reader = pyttsx3.init()
 
-
+from onix.headers.awg.M4i6622 import M4i6622
 ## calibration at zero optical power
 # dg.autozero(dg_channels)
 
@@ -36,7 +37,7 @@ except Exception:
     dg = Digitizer()
 
 
-set_sample_rate = 100e6
+set_sample_rate = 10000
 duration = 0.1
 dg.set_acquisition_config(
     num_channels=2,
@@ -45,7 +46,7 @@ dg.set_acquisition_config(
     segment_count=1,
 )
 
-dg.set_channel_config(channel=1, range=1, high_impedance=True)
+dg.set_channel_config(channel=1, range=2, high_impedance=False)
 dg.set_channel_config(channel=2, range=5, high_impedance=True)
 dg.set_trigger_source_software()
 dg.write_configs_to_device()
@@ -80,6 +81,23 @@ def get_contrast():
     # print(f'Measured contrast is {contrast}')
     return contrast
 
+
+##Set M4i params
+try:
+    m4i  # type: ignore
+    print("m4i is already defined.")
+except Exception:
+    try:
+        m4i = M4i6622()
+    except Exception as e:
+        m4i = None
+        print("m4i is not defined with error:")
+        print(traceback.format_exc())
+
+m4i.set_sine_output(1, 78 * ureg.MHz, 900)
+
+
+m4i.start_sine_outputs()
 ## initialize data
 frequency_before_GHz = []
 V_transmission = []
@@ -87,7 +105,6 @@ V_monitor = []
 frequency_after_GHz = []
 contrast_after = []
 times = []
-
 
 ## take data manually
 def capture_sample(verbose = True):
@@ -98,7 +115,6 @@ def capture_sample(verbose = True):
 
     V1 = data[0][0]
     V2 = data[1][0]
-
     times.append(time.time())
 
     frequency_before_GHz.append(wavemeter_frequency())
@@ -142,7 +158,7 @@ try:
         frequency_after_GHz.append(wavemeter_frequency())
         print(f"{frequency_before_GHz[-1]:.3f}", f"{np.average(V1):.5f}", f"{np.average(V2):.5f}", f"{np.average(V1 + V2):.3f}", f"{np.average(V1) / np.average(V2):.4f}")"""
         dg.start_capture()
-        timeout = 1
+        timeout = 5
         dg.wait_for_data_ready(duration+timeout)
         sample_rate, data = dg.get_data()
 
@@ -157,7 +173,6 @@ try:
 
         frequency_after_GHz.append(wavemeter_frequency())
         contrast_after.append(get_contrast())
-        print(V2)
         print(frequency_before_GHz[-1], contrast_after[-1], np.average(V1), np.average(V2), np.average(V1 + V2), np.average(V1) / np.average(V2))
         print("transmission", np.average(V1), "normalizer", np.average(V2), "contrast", contrast_after[-1])
         time.sleep(5)
@@ -203,8 +218,10 @@ def etalon_scan(start_temp, end_temp, step_size, num_samples, tolerance):
                 i+=1
     except KeyboardInterrupt:
         return temps[i]
+## Setting
+start_temp =44.5
 ## Temp data collection
-end_temp=etalon_scan(end_temp, 80, 1, 3, 0.03)
+end_temp=etalon_scan(start_temp, 80, 0.33, 3, 0.03)
 ## save data
 data = {
     "times": times,
@@ -218,9 +235,12 @@ name = "Transmission"
 data_id = save_experiment_data(name, data)
 print(data_id)
 
-##Emergency Plot
+##Emergency Temporal Plot
 import matplotlib.pyplot as plt
 plt.scatter(times, np.average(np.array(V_transmission), axis = 1)/np.average(np.array(V_monitor), axis = 1))
 plt.show()
-
+##Emergency Frequency Plot
+import matplotlib.pyplot as plt
+plt.scatter(frequency_before_GHz, np.average(np.array(V_transmission), axis = 1)/np.average(np.array(V_monitor), axis = 1))
+plt.show()
 

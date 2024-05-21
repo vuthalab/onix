@@ -87,25 +87,24 @@ default_params = {
     },
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
-        "durations": 10 * ureg.ms,
-        "repeats": 50,
-        "detunings": 0 * ureg.MHz,
-        "ao_amplitude": 2000,
+        "durations": [0.1 * ureg.ms, 0.1 * ureg.ms],
+        "repeats": 200,
+        "ao_amplitude": 800,
     },
     "fid_detect": {
         "transition": "bb",
         "trigger_channel": 2,
         "randomize": False,
         "probe_detuning": 13 * ureg.MHz,
-        "ao_pump_amplitude": 2000,
+        "ao_pump_amplitude": 1000,
         "ao_probe_amplitude": 450,
         "pump_time": 20 * ureg.us,
-        "probe_time": 20 * ureg.us,
+        "probe_time": 15 * ureg.us,
         "delay_time": 2 * ureg.us,
         "probe_phase": 0,
         "cycles": {
             "chasm": 0,
-            "antihole": 10000,
+            "antihole": 50,
             "rf": 0,
         },
         "delay": 8 * ureg.us,
@@ -116,9 +115,9 @@ default_params = {
         "ch2_range": 2,
     },
     "field_plate": {
-        "amplitude": 4000,
-        "use": True,
+        "amplitude": 3800,
         "stark_shift": 2 * ureg.MHz,
+        "use": False,
     }
 }
 default_params = update_parameters_from_shared(default_params)
@@ -142,8 +141,7 @@ data = run_sequence(sequence, params)
 #print(data_id)
 
 times = np.arange(len(data[0][0])) / params["digitizer"]["sample_rate"] * 1e6
-plt.plot(times, np.average(data[0], axis=0)); plt.show();
-plt.plot(times, data[0][:10].T); plt.xlabel("Time (us)"); plt.ylabel("Photodiode voltage (V)"); plt.show();
+plt.plot(times, data[0][:].T); plt.xlabel("Time (us)"); plt.ylabel("Photodiode voltage (V)"); plt.show();
 
 ## spectrum
 pss = []
@@ -153,21 +151,19 @@ for d in data[0]:
     pss.append((ps.f, ps.voltage_spectrum, ps.error_signal_average))
 ps_avg = PowerSpectrum(len(times), 1 / params["digitizer"]["sample_rate"])
 ps_avg.add_data(np.average(data[0], axis=0))
-plt.plot(ps_avg.f, ps_avg.voltage_spectrum, label="fridge off")
-#plt.plot(*a, label="fridge on")
-#plt.plot(ps.f, ps.voltage_spectrum)
+plt.plot(ps_avg.f, ps_avg.voltage_spectrum)
 plt.xscale("log")
 plt.yscale("log")
 plt.xlabel("FFT frequency (Hz)")
 plt.ylabel("Voltage noise density (V / $\\sqrt{\\mathrm{Hz}}$)")
-plt.legend()
 plt.show()
 
-## empty
-plt.plot([ps[1][np.abs(ps[0] - 11005502.75137569) == min(np.abs(ps[0] - 11005502.75137569))] for ps in pss])
-plt.plot([ps[2] for ps in pss])
-#plt.xscale("log")
-plt.yscale("log")
-plt.xlabel("Repeat index")
-plt.ylabel("Height of the 11 MHz peak (V / $\\sqrt{\\mathrm{Hz}}$)")
-plt.show()
+print(ps_avg.error_signal_average)
+index_1 = 164
+print(ps_avg.f[index_1], ps_avg.voltage_spectrum[index_1], ps_avg.voltage_spectrum[index_1] / ps_avg.error_signal_average)
+index_2 = 194
+print(ps_avg.f[index_2], ps_avg.voltage_spectrum[index_2], ps_avg.voltage_spectrum[index_2] / ps_avg.error_signal_average)
+index_3 = 224
+print(ps_avg.f[index_3], ps_avg.voltage_spectrum[index_3], ps_avg.voltage_spectrum[index_3] / ps_avg.error_signal_average)
+print(ps_avg.voltage_spectrum[index_1] / ps_avg.voltage_spectrum[index_3], ps_avg.voltage_spectrum[index_2] / ps_avg.voltage_spectrum[index_3])
+
