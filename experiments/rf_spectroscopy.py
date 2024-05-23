@@ -44,22 +44,22 @@ default_params = {
         },
     },
     "rf": {
-        "amplitude": 1050,  # 4200
+        "amplitude": 4200,  # 4200
         "detuning": (65) * ureg.kHz,
-        "duration": 0.28 * ureg.ms,
+        "duration": 0.07 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
         "scan": 2.5 * ureg.MHz,
         "durations": 50 * ureg.us,
-        "repeats": 500,
+        "repeats": 400,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
         "durations": [1 * ureg.ms, 1 * ureg.ms],
-        "repeats": 20,
+        "repeats": 10,
         "ao_amplitude": 800,
     },
     "detect": {
@@ -79,8 +79,8 @@ default_params = {
         "ch2_range": 2,
     },
     "field_plate": {
-        "amplitude": 3800,
-        "stark_shift": 2 * ureg.MHz,
+        "amplitude": 3600,
+        "stark_shift": 2.2 * ureg.MHz,
         "use": True,
     }
 }
@@ -122,7 +122,7 @@ first_data_id = None
 ## scan freq
 params = default_params.copy()
 first_data_id = None
-rf_frequencies = np.arange(-150, 150, 20)
+rf_frequencies = np.linspace(-150, 150, 21)
 rf_frequencies *= ureg.kHz
 f_check = f_lock_Quarto(location='/dev/ttyACM0')
 field_plate_amplitude = 3800
@@ -133,41 +133,21 @@ for _ in tqdm(range(1000)):
         params["field_plate"]["amplitude"] = amplitude
         expt_start_time = time.time()
         for kk in range(len(rf_frequencies)):
-            # laser lock check 1
 
-            start_time = time.time()
-            break_expt = False
-
-            while time.time()-start_time <= 60*60: # continue re-checks for upto 1hr
-                print('Checking if laser is locked.')
+            print_unlock = False
+            while True:
                 if f_check.get_last_transmission_point() > 0.1:
-                    break   # transmission signal > 0 => laser locked
-            else:
-                break_expt = True
-            end_time = time.time()
+                    break
+                if print_unlock == False:
+                    print("LASER UNLOCKED")
+                    print_unlock = True
 
-            print(f"Time taken to check locking: {end_time-start_time}")
 
-            if break_expt:
-                print("Experiment aborted as laser is not locked.")
-                break
+
 
             params["rf"]["detuning"] = rf_frequencies[kk]
             sequence = get_sequence(params)
             data = run_sequence(sequence, params)
-
-            # laser lock check 2
-            """
-            start_time_2 = time.time()
-            while time.time()-start_time_2 <= 600:
-                if f_check.get_last_transmission_point() > 0.1:
-                    break   # transmission signal > 0 => laser locked
-            else:
-                break_expt = True
-
-            if break_expt:
-                break
-            """
             data_id = save_data(sequence, params, *data)
             if _ == 0:
                 print(data_id)
@@ -177,8 +157,6 @@ for _ in tqdm(range(1000)):
         expt_end_time = time.time()
         print(f"time taken for one iteration: {expt_end_time-expt_start_time}")
 
-        if break_expt:
-            break
 
     print(data_id)
 
