@@ -463,7 +463,7 @@ def _update_integral_output_warning():
     else:
         with device_lock:
             integral_warning, output_warning = q.output_limit_indicator()
-        warning_text = integral_warning + " " + output_warning
+        warning_text = "Quarto: " + integral_warning + " " + output_warning
         if "out" in integral_warning or "out" in output_warning:
             integral_output_warning.setText(warning_text, color = "#E61414") # red
         elif "warning" in integral_warning or "warning" in output_warning:
