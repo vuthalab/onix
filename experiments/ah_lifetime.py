@@ -22,11 +22,24 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "AH Lifetime",
+    "chasm": {
+        "transitions": ["bb"], #, "rf_both"
+        "scan": 2.5 * ureg.MHz,
+        "durations": 500 * ureg.us,
+        "repeats": 500,
+        "detunings": 0 * ureg.MHz,
+        "ao_amplitude": 2000,
+    },
+    "antihole": {
+        "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
+        "durations": [1 * ureg.ms, 1 * ureg.ms],
+        "repeats": 20,
+        "ao_amplitude": 800,
+    },
     "detect": {
         "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
-        "ao_amplitude": 2400,
-        "on_time": 3 * ureg.us,
-        "off_time": 1 * ureg.us,
+        "on_time": 5 * ureg.us,
+        "off_time": 0.5 * ureg.us,
         "delta_detect_time": 0 * ureg.s,
         "cycles": {
             "chasm": 0,
