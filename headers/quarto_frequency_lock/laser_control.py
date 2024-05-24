@@ -51,7 +51,7 @@ pg.setConfigOptions(antialias=True)
 total_rows = 4
 
 ## Graphs
-p_error = win.addPlot(title="error signal", colspan = total_rows)
+p_error = win.addPlot(title="Vescent Output Signal", colspan = total_rows)
 p_error.setMouseEnabled(x=False)
 error = p_error.plot(pen='y')
 def update_p_error(data):
@@ -59,7 +59,7 @@ def update_p_error(data):
     error.setData(data)
 win.nextRow()
 
-p_output = win.addPlot(title="output signal", colspan = total_rows)
+p_output = win.addPlot(title="Quarto Output Signal", colspan = total_rows)
 p_output.setMouseEnabled(x=False)
 output = p_output.plot(pen='y')
 def update_p_output(data):
@@ -67,7 +67,7 @@ def update_p_output(data):
     output.setData(data)
 win.nextRow()
 
-p_transmission = win.addPlot(title="transmission signal", colspan = total_rows)
+p_transmission = win.addPlot(title="Cavity Transmission", colspan = total_rows)
 p_transmission.setMouseEnabled(x=False)
 transmission = p_transmission.plot(pen='y')
 def update_p_transmission(data):
@@ -75,7 +75,7 @@ def update_p_transmission(data):
     transmission.setData(data)
 win.nextRow()
 
-p_cavity_error = win.addPlot(title="cavity error signal", colspan = total_rows)
+p_cavity_error = win.addPlot(title="Cavity PID Error Signal", colspan = total_rows)
 p_cavity_error.setMouseEnabled(x=False)
 cavity_error = p_cavity_error.plot(pen='y')
 def update_p_cavity_error(data):
@@ -440,12 +440,12 @@ update_wavemeter_frequency_timer.timeout.connect(update_wavemeter)
 update_wavemeter_frequency_timer.start(50)
 
 ## Update DC Offset Text
-dc_offset_text_label = pg.LabelItem(f"DC Offset: ")
+dc_offset_text_label = pg.LabelItem(f"Quarto DC Offset: ")
 win.addItem(dc_offset_text_label, row = 4,  col = 1, colspan = 1)
 
 def update_dc_offset():
     with device_lock:
-        dc_offset_text_label.setText(f"DC Offset: {q.get_dc_offset():.4f}", color = "#FFFFFF")
+        dc_offset_text_label.setText(f"Quarto DC Offset: {q.get_dc_offset():.4f}", color = "#FFFFFF")
 
 update_dc_offset_timer = QtCore.QTimer()
 update_dc_offset_timer.timeout.connect(update_dc_offset)
