@@ -445,6 +445,16 @@ void cmd_output_data(qCommand& qC, Stream& S){
   pause_data = false;
 }
 
+void cmd_transmission_data(qCommand& qC, Stream& S){
+  pause_data = true; // pause data taking during process
+  int get_data_length = MAX_DATA_LENGTH;
+  if ( qC.next() != NULL) {
+    get_data_length = atoi(qC.current());
+  }
+  serial_print_data(S, transmission_data, data_index, get_data_length);
+  pause_data = false;
+}
+
 void cmd_cavity_error_data(qCommand& qC, Stream& S){
   pause_data = true; // pause data taking during process
   int get_data_length = MAX_DATA_LENGTH;

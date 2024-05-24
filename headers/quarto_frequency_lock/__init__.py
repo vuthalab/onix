@@ -189,6 +189,27 @@ class Quarto:
 
         return self.error_data
 
+    def get_transmission_data(self, val = None):
+        """
+        Returns list of transmission data
+        """
+        if val is None:
+            val = DEFAULT_GET_DATA_LENGTH
+        self.transmission_data = []
+        self.device.reset_input_buffer()
+        self.device.reset_output_buffer()
+        out = "transmission_data " + str(val) + "\n"
+        self.device.write(out.encode('utf-8'))
+        for i in range(val):
+            try:
+                self.transmission_data.append(float(self.device.readline().decode('utf-8').strip('\n')))
+            except ValueError as e:
+                print(i)
+                raise e
+        self.transmission_data = np.asarray(self.transmission_data)
+
+        return self.transmission_data
+
     def get_output_data(self, val = None):
         """
         Returns list of output data
