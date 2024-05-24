@@ -95,9 +95,11 @@ class M4i6622:
         spcm1 to 4-7.
         """
         if addresses == ["/dev/spcm0", "/dev/spcm1"]:
-            ext_clock_freq_2 = int(50e6)
+            ext_clock_freq_2 = 10000000
             self._set_clock_mode(self._hcards[0], "internal_pll")
-            self._set_clock_mode(self._hcards[1], "external_reference")
+            self._set_external_clock_mode(self._hcards[0], "enable")
+            # print(self._get_sample_rate(self._hcards[0]))
+            self._set_clock_mode(self._hcards[1], "internal_pll") #external_reference pxi_reference internal_pll
             self._set_external_clock_frequency(
                 self._hcards[1], ext_clock_freq_2)
 
@@ -138,7 +140,9 @@ class M4i6622:
         # Maps of TTL channels mixing with AWG channels
         self._ttl_awg_map = {0: 0, 1: 1, 2: 2}
 
+
         for hcard in self._hcards:
+
             for ttl_channel in [0, 1, 2]:
                 mode = pyspcm.SPCM_XMODE_DIGOUT
 
@@ -403,6 +407,21 @@ class M4i6622:
         if ret != pyspcm.ERR_OK:
             raise Exception(f"Set number of loops failed with code {ret}.")
 
+    def _set_external_clock_mode(
+            self,
+            hcard,
+            external_clock_mode: Literal[
+                "enable"
+            ],
+    ):
+        if external_clock_mode == "enable":
+            value = 1
+        else:
+            raise ValueError(f"External clock mode {external_clock_mode} is not valid.")
+        ret = pyspcm.spcm_dwSetParam_i32(hcard, pyspcm.SPC_CLOCKOUT, value)
+        if ret != pyspcm.ERR_OK:
+            raise Exception(f"Set external clock mode failed with code {ret}.")
+        
     def _set_clock_mode(
         self,
         hcard,

@@ -1,7 +1,7 @@
 import time
 
 import numpy as np
-from onix.sequences.lf_spectroscopy import LFSpectroscopy
+from onix.sequences.test_clock_sharing import ClockSharingTest
 from onix.units import ureg
 from onix.experiments.shared import (
     m4i,
@@ -16,13 +16,13 @@ from tqdm import tqdm
 
 # function to run the experiment
 def get_sequence(params):
-    sequence = LFSpectroscopy(params)
+    sequence = ClockSharingTest(params)
     return sequence
 
 
 # parameters
 default_params = {
-    "name": "LF Spectroscopy",
+    "name": "ClockSharingTest",
     "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "chasm": {
@@ -34,8 +34,8 @@ default_params = {
         "ao_amplitude": 2000,
     },
     "antihole": {
-        "transitions": ["ac", "ca", "rf_b"],  # , "rf_b" (for rf assist)
-        "durations": [0 * ureg.ms, 0 * ureg.ms, 0 * ureg.ms],
+        "transitions": ["ac", "ca"],  # , "rf_b" (for rf assist)
+        "durations": [0 * ureg.ms, 0 * ureg.ms],
         "repeats": 0,
         "ao_amplitude": 800,
     },
@@ -53,7 +53,7 @@ default_params = {
     },
     "rf": {
         "amplitude": 4000,
-        "T_0": 0 * ureg.ms,
+        "T_0": 10 * ureg.ms,
         "T_e": 0 * ureg.ms,
         "T_ch": 0 * ureg.ms,
         "center_detuning": 0 * ureg.kHz,
@@ -63,7 +63,7 @@ default_params = {
     "test_params": {
         "channel1": 0,
         "channel2": 4,
-        "amplitude": 4000,  # what units?
+        "amplitude": 4000,
         "frequency": 1*ureg.MHz,
         "duration": 10*ureg.us
     }
@@ -80,35 +80,5 @@ setup_digitizer(
     ch2_range=default_params["digitizer"]["ch2_range"],
 )
 
-# Scan the RF Center Detunings
-# params = default_params.copy()
-# rf_frequencies = np.arange(-200, 200, 20)
-# rf_frequencies *= ureg.kHz
-# for kk in range(len(rf_frequencies)):
-#     params["rf"]["center_detuning"] = rf_frequencies[kk]
-#     sequence = get_sequence(params)
-#     data = run_sequence(sequence, params)
-#     data_id = save_data(sequence, params, *data)
-#     if kk == 0:
-#         first_data_id = data_id
-#     elif kk == len(rf_frequencies) - 1:
-#         last_data_id = data_id
-# print(f"({first_data_id}, {last_data_id})")
-
-
-# Scan the LF Detunings
 params = default_params.copy()
-lf_frequencies = np.arange(-20, 20, 0.25)
-lf_frequencies *= ureg.kHz
-for kk in tqdm(range(len(lf_frequencies))):
-    params["lf"]["detuning"] = lf_frequencies[kk]
-    sequence = get_sequence(params)
-    data = run_sequence(sequence, params)
-    data_id = save_data(sequence, params, *data)
-    # one second delay between each step to prevent heating issues
-    time.sleep(1)
-    if kk == 0:
-        first_data_id = data_id
-    elif kk == len(lf_frequencies) - 1:
-        last_data_id = data_id
-print(f"({first_data_id}, {last_data_id})")
+data = run_sequence(sequence, params)
