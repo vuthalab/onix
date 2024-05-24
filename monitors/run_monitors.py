@@ -48,9 +48,13 @@ while True:
     try:
         point = Point("wavemeter")
         freq = wm.read_frequency(5)
+        power =  wm.read_laser_power(5)
         if isinstance(freq, str):
             freq = -1
+            power = -1
         point.field("frequency", freq)
+        point.field("power", power)
+
         write_api.write(bucket=bucket_live, org="onix", record=point)
         if send_permanent:
             write_api.write(bucket=bucket_permanent, org="onix", record=point)
