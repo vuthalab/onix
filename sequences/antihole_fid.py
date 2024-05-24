@@ -111,7 +111,7 @@ def fid_detect_segment(
         all_detunings *= pump_detunings.units
         all_detunings[0::2] = pump_detunings - field_plate_parameters["stark_shift"]
         all_detunings[1::2] = pump_detunings + field_plate_parameters["stark_shift"]
-        pump_detunings = all_detunings
+        pump_detunings = all_detunings  # [- field_plate_parameters["stark_shift"], field_plate_parameters["stark_shift"]]
 
     ao_pump_frequencies = (
         ao_parameters["center_frequency"] + pump_detunings / ao_parameters["order"]

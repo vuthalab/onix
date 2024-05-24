@@ -22,14 +22,10 @@ from scipy.optimize import basinhopping
 #     data_identification_to_list
 # )
 
-def get_sequence(params):
-    sequence = LFSpectroscopy(params)
-    return sequence
-
 ## parameters
 default_params = {
     "name": "LF Spectroscopy",
-    "sequence_repeats_per_transfer": 1,
+    "sequence_repeats_per_transfer": 20,
     "data_transfer_repeats": 1,
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
@@ -68,8 +64,8 @@ default_params = {
     "lf": {
         "center_frequency": 168 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "duration": 0 * ureg.ms,
-        "amplitude": 000,
+        "duration": 30 * ureg.ms,
+        "amplitude": 32000,
     },
 }
 default_params = update_parameters_from_shared(default_params)
@@ -86,19 +82,12 @@ setup_digitizer(
 
 ## Analysis functions
 import time
-import traceback
 from onix.data_tools import get_experiment_data
-from functools import partial
 from onix.analysis.fitter import Fitter
 from onix.analysis.helper import group_and_average_data
 import numpy as np
-from matplotlib import colormaps
 import matplotlib.pyplot as plt
-from scipy.integrate import quad
-from scipy.special import voigt_profile
-import allantools
 from tqdm import tqdm
-from onix.analysis.t_violation import TViolation
 from uncertainties import ufloat
 
 def gaussian(f, f_0, a, sigma, b, c):
@@ -220,46 +209,43 @@ def rf_spectroscopy_ah_ratio(data_numbers, method="auto"):
     antihole_backgrounds = {}
     headers = []
     for data_number in data_numbers:
-        try:
-            transmissions_avg, monitors_avg, headers_single = averaged_data_from_number(data_number)
-            if method == "auto":
-                detunings_len = len(headers_single["detunings"])
-                if detunings_len > 4:
-                    method = "fit"
-                else:
-                    method = "ratio"
-            if method == "fit":
-                try:
-                    fits = gaussian_fits_from_data(transmissions_avg, monitors_avg, headers_single)
-                except RuntimeError as e:
-                    print(f"Fitting error for data number #{data_number}:")
-                    raise e
-                for label in fits:
-                    if label not in rf_heights:
-                        rf_heights[label] = []
-                        antihole_heights[label] = []
-                        rf_backgrounds[label] = []
-                        antihole_backgrounds[label] = []
-                    rf_heights[label].append(abs(fits[label]["rf"].results["a"]) / fits[label]["rf"].results["c"])
-                    antihole_heights[label].append(abs(fits[label]["ah"].results["a"]) / fits[label]["ah"].results["c"])
-                    rf_backgrounds[label].append(fits[label]["rf"].results["c"])
-                    antihole_backgrounds[label].append(fits[label]["ah"].results["c"])
-            elif method == "ratio":
-                heights, backgrounds = ah_parameters_from_data(transmissions_avg, monitors_avg, headers_single)
-                # heights, backgrounds = ah_parameters_from_data1(data_number)
-                for label in heights:
-                    if label not in rf_heights:
-                        rf_heights[label] = []
-                        antihole_heights[label] = []
-                        rf_backgrounds[label] = []
-                        antihole_backgrounds[label] = []
-                    rf_heights[label].append(heights[label]["rf"])
-                    antihole_heights[label].append(heights[label]["ah"])
-                    rf_backgrounds[label].append(backgrounds[label]["rf"])
-                    antihole_backgrounds[label].append(backgrounds[label]["ah"])
-            headers.append(headers_single)
-        except:
-            return None
+        transmissions_avg, monitors_avg, headers_single = averaged_data_from_number(data_number)
+        if method == "auto":
+            detunings_len = len(headers_single["detunings"])
+            if detunings_len > 4:
+                method = "fit"
+            else:
+                method = "ratio"
+        if method == "fit":
+            try:
+                fits = gaussian_fits_from_data(transmissions_avg, monitors_avg, headers_single)
+            except RuntimeError as e:
+                print(f"Fitting error for data number #{data_number}:")
+                raise e
+            for label in fits:
+                if label not in rf_heights:
+                    rf_heights[label] = []
+                    antihole_heights[label] = []
+                    rf_backgrounds[label] = []
+                    antihole_backgrounds[label] = []
+                rf_heights[label].append(abs(fits[label]["rf"].results["a"]) / fits[label]["rf"].results["c"])
+                antihole_heights[label].append(abs(fits[label]["ah"].results["a"]) / fits[label]["ah"].results["c"])
+                rf_backgrounds[label].append(fits[label]["rf"].results["c"])
+                antihole_backgrounds[label].append(fits[label]["ah"].results["c"])
+        elif method == "ratio":
+            heights, backgrounds = ah_parameters_from_data(transmissions_avg, monitors_avg, headers_single)
+            # heights, backgrounds = ah_parameters_from_data1(data_number)
+            for label in heights:
+                if label not in rf_heights:
+                    rf_heights[label] = []
+                    antihole_heights[label] = []
+                    rf_backgrounds[label] = []
+                    antihole_backgrounds[label] = []
+                rf_heights[label].append(heights[label]["rf"])
+                antihole_heights[label].append(heights[label]["ah"])
+                rf_backgrounds[label].append(backgrounds[label]["rf"])
+                antihole_backgrounds[label].append(backgrounds[label]["ah"])
+        headers.append(headers_single)
     for label in rf_heights:
         rf_heights[label] = np.array(rf_heights[label])
         antihole_heights[label] = np.array(antihole_heights[label])
@@ -278,37 +264,36 @@ def data_identification_to_list(data_identification):
 
 ## run experiment, analyze data, evaluate merit function
 def run_experiment(params):
-    rf_frequencies = np.arange(-200, 80, 20) # scan the rf center_detunings from -140 kHz to 0 kHz (inclusive) to map out the feature
+    first_data_id = None
+    rf_frequencies = np.arange(-200, 80, 20) # scan the rf center_detunings from -200 kHz to 60 kHz (inclusive) to map out the feature
     rf_frequencies *= ureg.kHz
     for kk in range(len(rf_frequencies)):
         params["rf"]["center_detuning"] = rf_frequencies[kk]
         sequence = LFSpectroscopy(params)
         data = run_sequence(sequence, params)
         data_id = save_data(sequence, params, *data)
-        if kk == 0:
+        if first_data_id == None:
             first_data_id = data_id
-        elif kk == len(rf_frequencies) - 1:
-            last_data_id = data_id
-    return first_data_id, last_data_id
+    return first_data_id, data_id
 
 def analyze_data(first_data_id, last_data_id):
     data_list = data_identification_to_list((first_data_id, last_data_id))
-    try:
-        rf_heights, ah_heights, rf_bgs, ah_bgs, headers = rf_spectroscopy_ah_ratio(data_list)
-    except:
-        return None
+    rf_heights, ah_heights, rf_bgs, ah_bgs, headers = rf_spectroscopy_ah_ratio(data_list)
     xs = [header["params"]["rf"]["center_detuning"].to("kHz").magnitude for header in headers]
     ys = rf_heights[0] / ah_heights[0]
     fitter = Fitter(gaussian)
     fitter.set_data(xs, ys)
-    fitter.set_p0([-70,-0.8,30,0,1])
+    #fitter.set_p0
     fitter.fit()
-    return fitter
+    return xs, ys, fitter
 
 ### Check the code works
 first_data_id, last_data_id = run_experiment(default_params)
-fitter = analyze_data(first_data_id, last_data_id)
-print(is_correct_data(fitter))
+xs, ys, fitter = analyze_data(first_data_id, last_data_id)
+fig, ax = plt.subplots()
+ax.scatter(xs, ys)
+ax.plot(xs, fitter.fitted_value(xs))
+plt.show()
 
 
 ###
@@ -317,11 +302,17 @@ def is_correct_data(fit):
         return False
     if fit.results["f_0"] > -30 or fit.results["f_0"] < -100:
         return False
-    if abs(fit.results["sigma"]) > 50:
+    if abs(fit.results["sigma"]) > 0.6:
         return False
+    # should put some reasonable bounds on background, both constant and linear
+    # if abs(fit.results["c"] - 1) > 0.2:
+    #     return False
+    # if abs(fit.results["b"]) > 0.2:
+    #     return False
     return True
 
 def merit_function(fitter):
+    # we will minimize this function
     return fitter.results["a"] # maximize the height of the feature, perhaps we should account for width in the merit function?
 
 ## Ranges of parameters
@@ -336,7 +327,11 @@ bounds = [
     T_e_range
 ]
 
-current_values = [30e-3,2e-3,1e-3]
+current_values = [
+    default_params["rf"]["T_ch"].to("s").magnitude,
+    default_params["rf"]["T_0"].to("s").magnitude,
+    default_params["rf"]["T_e"].to("s").magnitude
+    ]
 
 def values_to_parameters(values):
     params = default_params.copy()
@@ -353,7 +348,7 @@ def run_and_get_merit_output(values, *args):
     repeat_index = 0
     while not correct_data and repeat_index < max_repeats:
         first_data_id, last_data_id = run_experiment(params)
-        fit = analyze_data(first_data_id, last_data_id)
+        xs, ys, fit = analyze_data(first_data_id, last_data_id)
         correct_data = is_correct_data(fit)
         repeat_index += 1
     if not correct_data:
