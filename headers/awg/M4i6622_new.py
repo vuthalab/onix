@@ -88,29 +88,23 @@ class M4i6622:
             self._reset(hcard)
         self._bytes_per_sample = self._get_bytes_per_sample(self._hcards[0])
 
-        if True:    # new code
-            self._set_clock_mode(self._hcards[0], 'internal_pll')
-            self._set_clock_mode(self._hcards[1], 'external_reference')
-
-            self._enable_clkout(self._hcards[0], int(50e6))
-            clock_freq = pyspcm.dwGetParam_i32(
-                self._hcards[0], pyspcm.SPC_REFERENCECLOCK)
-            self._set_external_clock_frequency(self._hcards[1], clock_freq)
-
-        else:   # old code
-            if external_clock_frequency is not None:
-                for hcard in self._hcards:
-                    self._set_clock_mode(hcard, "external_reference")
-                    self._set_external_clock_frequency(
-                        hcard, external_clock_frequency)
-            else:
-                for hcard in self._hcards:
-                    self._set_clock_mode(hcard, "internal_pll")
-
         for hcard in self._hcards:
             self._set_sample_rate(hcard)
         self._sample_rate = self._get_sample_rate(self._hcards[0])
 
+        # Clock sharing
+        self._set_clock_mode(self._hcards[0], 'internal_pll')
+        self._enable_clkout(self._hcards[0])
+        self._set_clock_mode(self._hcards[1], 'external_reference')
+        
+        clock_freq = pyspcm.int32(0)
+        ret = pyspcm.spcm_dwGetParam_i32(
+            self._hcards[0], pyspcm.SPC_CLOCKOUTFREQUENCY, pyspcm.byref(clock_freq))
+        
+        self._set_clock_mode(self._hcards[1], 'external_reference')
+        self._set_external_clock_frequency(self._hcards[1], clock_freq.value)
+
+        # configuring triggers
         self._set_trigger_or_mask(self._hcards[0], pyspcm.SPC_TMASK_SOFTWARE)
         self._set_trigger_and_mask(self._hcards[0], pyspcm.SPC_TMASK_NONE)
         for hcard in self._hcards[1:]:
@@ -166,28 +160,23 @@ class M4i6622:
 
     # New function
     def _enable_clkout(self, hcard):
-        # Open the device
-
-        if hcard == 0:
-            print("Error opening device")
-            exit(1)
-
-        # Set the CLKOUT frequency - not possible because the
-        """
-        ret = pyspcm.SPCM_dwSetParam_i32(
-            hcard, pyspcm.SPC_CLOCKOUTFREQUENCY, clkout_frequency)
-        if ret != 0:
-            print(f"Error setting CLKOUT frequency: {ret}")
-        """
 
         # Enable the CLKOUT port
-        ret = pyspcm.SPCM_dwSetParam_i32(
-            hcard, pyspcm.SPC_CLOCKOUT, 1)
-        if ret != 0:
+        ret = pyspcm.spcm_dwSetParam_i32(
+            hcard, pyspcm.SPC_CLOCKOUT, pyspcm.int32(1))
+        
+        if ret != 0:    # if error
             print(f"Error enabling CLKOUT: {ret}")
         else:
-            print("CLKOUT enabled with frequency:", pyspcm.SPCM_dwGetParam_i32(
-                hcard, pyspcm.SPC_CLOCKOUTFREQUENCY))
+            clk_freq = pyspcm.int32(0)
+            ret = pyspcm.spcm_dwGetParam_i32(
+                hcard, pyspcm.SPC_CLOCKOUTFREQUENCY, pyspcm.byref(clk_freq)
+            )
+            clkout_status = pyspcm.int32(0)
+            ret = pyspcm.spcm_dwGetParam_i32(
+                hcard, pyspcm.SPC_CLOCKOUT, pyspcm.byref(clkout_status)
+            )
+            print(f"CLKOUT enabled (SPC_CLOCKOUT = {clkout_status.value}) with frequency {clk_freq.value/10**6} MHz.")
 
     # device methods
     def _get_bytes_per_sample(self, hcard) -> int:

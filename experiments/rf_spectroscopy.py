@@ -52,18 +52,18 @@ default_params = {
         "transitions": ["bb"], #, "rf_both"
         "scan": 2.5 * ureg.MHz,
         "durations": 50 * ureg.us,
-        "repeats": 400,
+        "repeats": 600,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
         "durations": [1 * ureg.ms, 1 * ureg.ms],
-        "repeats": 10,
+        "repeats": 40,
         "ao_amplitude": 800,
     },
     "detect": {
-        "detunings": np.linspace(-2.5, 2.5, 10) * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
+        "detunings": np.linspace(-2.5, 2.5, 12) * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
         "on_time": 5 * ureg.us,
         "off_time": 0.5 * ureg.us,
         "cycles": {
@@ -79,7 +79,7 @@ default_params = {
         "ch2_range": 2,
     },
     "field_plate": {
-        "amplitude": 3600,
+        "amplitude": 4500,
         "stark_shift": 2.2 * ureg.MHz,
         "use": True,
     }
@@ -127,7 +127,7 @@ rf_frequencies *= ureg.kHz
 f_check = f_lock_Quarto(location='/dev/ttyACM0')
 field_plate_amplitude = 3800
 
-for _ in tqdm(range(1000)):
+for _ in tqdm(range(2000)):
     for run_n, amplitude in [(1, field_plate_amplitude), (2, -field_plate_amplitude)]:
         print(run_n)
         params["field_plate"]["amplitude"] = amplitude

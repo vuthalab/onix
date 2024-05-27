@@ -95,7 +95,7 @@ class Digitizer:
     ):
         default_acq_config = {
             "Mode": "single",
-            "SampleRate": int(10e8),    # Hz
+            "SampleRate": int(1e8),    # Hz
             "Depth": 8160,
             "SegmentSize": 8160,
             "SegmentCount": 1,
