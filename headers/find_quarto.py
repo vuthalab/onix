@@ -5,13 +5,13 @@ device_list = output_str.split('\n')
 devices = {}
 for i in range(len(device_list)):
     if "ttyACM" in device_list[i]:
-        s = subprocess.getstatusoutput(f'/bin/udevadm info --name=/dev/{device_list[i]} | grep ID_PATH=')
-        devices[device_list[i]] = s[1].split("usb-")[1]
+        s = subprocess.getstatusoutput(f'/bin/udevadm info --name=/dev/{device_list[i]} | grep ID_SERIAL_SHORT')
+        devices[device_list[i]] = s[1].split("=")[1]
 
 quarto_map = {
-    "intensity": '0:7.2.3:1.0',
-    "frequency": '0:7.2.2:1.2',
-    "digitizer": '0:7.2.4:1.2',
+    "intensity": '041D19D76155490C',
+    "frequency": '3F2B19D76155490C',
+    "digitizer": '3C3319D76151B9F0',
 }
 
 def find_quarto(name):
@@ -19,6 +19,6 @@ def find_quarto(name):
     Given one of "intensity", "frequency", or "digitizer", this returns the adress of the quarto as a string
     """
     id = quarto_map[name]
-    tty_address = list(devices.keys())[list(devices.values()).index(id)]
+    tty_address = list(devices.keys())[list(devices.values()).index(id)] # find a way to return the higher tty port
     address = "/dev/" + tty_address
     return address
