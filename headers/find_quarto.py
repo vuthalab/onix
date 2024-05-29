@@ -18,14 +18,20 @@ def find_quarto(name, return_both = False):
     output_str = output.decode("utf-8")
     device_list = output_str.split('\n')
     quarto_ports = []
-    for i in range(len(device_list)): # make this more precise, for quarto only
-        if "ttyACM" in device_list[i] and len(quarto_ports) < 2:
+    for i in range(len(device_list)):
+        a = subprocess.getstatusoutput(f'/bin/udevadm info --name=/dev/{device_list[i]} | grep ID_VENDOR=')
+        if a[0] == 0:
+            id_vendor = a[1].split("=")[1]
+        else:
+            continue
+
+        if "qNimble" == id_vendor and len(quarto_ports) < 2:
             s = subprocess.getstatusoutput(f'/bin/udevadm info --name=/dev/{device_list[i]} | grep ID_SERIAL_SHORT')
             if s[1].split("=")[1] == serial_number:
-                quarto_ports.append(device_list[i])
+                quarto_ports.append("/dev/" + device_list[i])
     if return_both == True:
         return quarto_ports
     return quarto_ports[-1]
 
-
 # return list of ID_SERIAL_SHORT of all quartos connected to computer
+
