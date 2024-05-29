@@ -1,4 +1,5 @@
 import subprocess
+
 output = subprocess.check_output("ls /sys/class/tty", shell = True)
 output_str = output.decode("utf-8")
 device_list = output_str.split('\n')
@@ -19,6 +20,7 @@ def find_quarto(name):
     Given one of "intensity", "frequency", or "digitizer", this returns the adress of the quarto as a string
     """
     id = quarto_map[name]
-    tty_address = list(devices.keys())[list(devices.values()).index(id)] # find a way to return the higher tty port
+    all_ttys = [key for key in devices if devices[key] == id] # returns a list ["ttyACMX", "ttyACMY"] of the two ports connected to this quarto
+    tty_address = devices[all_ttys[-1]]
     address = "/dev/" + tty_address
     return address
