@@ -14,8 +14,7 @@ def find_quarto(name, return_all = False):
     """
     serial_number = quarto_map[name]
 
-    #output = subprocess.check_output("ls /sys/class/tty", shell = True)
-    output = subprocess.check_output("lsusb", shell = True)
+    output = subprocess.check_output("ls /sys/class/tty", shell = True)
     output_str = output.decode("utf-8")
     device_list = output_str.split('\n') # list of connected tty devices to the computer
 
@@ -40,8 +39,7 @@ def quarto_serial_numbers():
     Returns a list of all serial numbers corresponding to Quartos on the computer.
     Useful to determine serial number of a new Quarto.
     """
-    #output = subprocess.check_output("ls /sys/class/tty", shell = True)
-    output = subprocess.check_output("lsusb", shell = True)
+    output = subprocess.check_output("ls /sys/class/tty", shell = True)
     output_str = output.decode("utf-8")
     device_list = output_str.split('\n')
 
@@ -54,4 +52,5 @@ def quarto_serial_numbers():
                 s = subprocess.getstatusoutput(f'/bin/udevadm info --name=/dev/{device_list[i]} | grep ID_SERIAL_SHORT')
                 device_serial_number = s[1].split("=")[1]
                 serial_nums.append(device_serial_number)
+    return serial_nums
 
