@@ -1,13 +1,17 @@
 import os
 import time
 import traceback
+import asyncio
 from datetime import datetime
+
 import influxdb_client
 from influxdb_client import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
+
 from onix.headers.pulse_tube import PulseTube
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.ctc100 import CTC100
+from onix.headers.ruuvi_gateway import RuuviGateway
 
 token = os.environ.get("INFLUXDB_TOKEN")
 org = "onix"
@@ -23,14 +27,19 @@ wm = WM()
 c = CTC100("192.168.0.202")
 channels = c.channels
 
+ruuvi_g = RuuviGateway(ip='192.168.0.225', username='ruuvi1', password='password123')
+ruuvi_dont_save = ['mac', 'tx_power', 'data_format']
+
 high_freq_time = 1
 low_freq_time = 280
 send_permanent = True
+
 while True:
     time_str = datetime.now().strftime("%H:%M:%S")
 
     if send_permanent:
         time_start = time.time()
+    
     try:
         point = Point("pulse_tube")
         state = pt.is_on()
@@ -72,6 +81,23 @@ while True:
             write_api.write(bucket=bucket_permanent, org="onix", record=point)
     except:
         print(time_str + ": CTC100 error.")
+        print(traceback.format_exc())
+
+    try:    # uploading data from temperature sensors
+        ruuvi_data_dict = asyncio.run(ruuvi_g.get_data(ruuvi_dont_save))
+
+        # data is stored in dicts as {sensor_name: {quantity: value}}
+        for sensor_name in ruuvi_data_dict.keys():
+            point = Point(sensor_name)
+
+            for quantity, value in ruuvi_data_dict[sensor_name].items():
+                point.field(quantity, value)
+
+            write_api.write(bucket=bucket_live, org="onix", record=point)
+            if send_permanent:
+                write_api.write(bucket=bucket_permanent, org="onix", record=point)
+    except:
+        print(time_str + ": Ruuvi gateway error.")
         print(traceback.format_exc())
 
     time_end = time.time()
