@@ -8,9 +8,14 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 
 
-app = pg.mkQApp("Filter")
+app = pg.mkQApp("Low Pass Filter")
 q = Quarto("/dev/ttyACM3")
-interval = 3 # ms
+
+adc_interval = 1e-6 # s; sampling time used by the quarto
+interval = 2e-6 # s; how often to ask the quarto for new data
+samples = int(interval // adc_interval) # how many data points to ask the quarto for every time
+total_intervals = 0.5e4 # how many intervals to plot
+
 device_lock = threading.Lock()
 
 ## Start Window
@@ -27,25 +32,26 @@ class KeyPressWindow(pg.GraphicsLayoutWidget):
 win = KeyPressWindow(show=True, title="")
 win.resize(1000,600)
 pg.setConfigOptions(antialias=True)
-total_rows = 4
 
 ## Graphs
-p_error = win.addPlot(title="Quarto Filtered Signal")
-p_error.setMouseEnabled(x=False)
-error = p_error.plot(pen='y')
-def update_p_error(data):
-    global error
-    error.setData(data)
-win.nextRow()
+signal = win.addPlot(title="Quarto Filtered Signal")
+signal.setMouseEnabled(x=False)
+error = signal.plot(pen='y')
 
-def update_all():
+buffer = np.zeros(int(samples* total_intervals))
+
+def update_signal():
+    global buffer
     with device_lock:
-        data = q.data(interval * 1000)
-    update_p_error(data)
+        data = q.data(samples)
+    
+    buffer = np.roll(buffer, -samples)
+    buffer[-samples:] = data
+    error.setData(buffer)
 
 plots_timer = QtCore.QTimer()
-plots_timer.timeout.connect(update_all)
-plots_timer.start(interval)
+plots_timer.timeout.connect(update_signal)
+plots_timer.start(int(interval * 1e3))
 
 if __name__ == '__main__':
     pg.exec()
