@@ -7,7 +7,7 @@ def sine(x, A, omega, phi):
     return A * np.sin(omega*x + phi)
 
 class PulseTubeTracker(Quarto):
-    def __init__(self, address = '/dev/ttyACM3', num_periods = 10, get_data_time = 10e-3):
+    def __init__(self, address = '/dev/ttyACM3', num_periods = 10, get_data_time = 2e-6):
         """
         Class to monitor the noise of the Pulse Tube so that we may keep phase when we run experiments
 
@@ -21,7 +21,8 @@ class PulseTubeTracker(Quarto):
         self.adc_interval = 1e-6
         self.num_periods = num_periods # we only care about the last N periods of PT cycle
         self.buffer = np.zeros(int(10 * 0.8 / self.adc_interval)) # slight overestimation of how many points we will ever need to save
-        self.samples_to_get = get_data_time / self.adc_interval # how many samples to ask the quarto for every time
+        self.samples_to_get = int(get_data_time / self.adc_interval) # how many samples to ask the quarto for every time
+        self.get_data_time = get_data_time
 
         self.t_axis = np.arange(0, len(self.buffer) * self.adc_interval, self.adc_interval)
         self.time_fit = 0

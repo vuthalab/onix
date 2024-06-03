@@ -42,7 +42,7 @@ def update_signal():
 
 plots_timer = QtCore.QTimer()
 plots_timer.timeout.connect(update_signal)
-plots_timer.start(ptt.get_data_time * 1e3)
+plots_timer.start(int(ptt.get_data_time * 1e3))
 
 if __name__ == '__main__':
     pg.exec()
