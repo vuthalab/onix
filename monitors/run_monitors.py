@@ -90,7 +90,7 @@ while True:
         for sensor_name in ruuvi_data_dict.keys():
             point = Point(sensor_name)
 
-            for quantity, value in ruuvi_data_dict[sensor_name]:
+            for quantity, value in ruuvi_data_dict[sensor_name].items():
                 point.field(quantity, value)
 
             write_api.write(bucket=bucket_live, org="onix", record=point)
