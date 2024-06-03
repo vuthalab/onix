@@ -1,5 +1,5 @@
 import numpy as np
-from onix.headers.quarto_filter import Quarto
+from onix.headers.pulse_tube_tracker import Quarto
 from onix.analysis.fitter import Fitter
 import time
 
@@ -7,7 +7,7 @@ def sine(x, A, omega, phi):
     return A * np.sin(omega*x + phi)
 
 class PulseTubeTracker(Quarto):
-    def __init__(self, address = '/dev/ttyACM3', num_periods = 10, get_data_time = 2e-6):
+    def __init__(self, address = '/dev/ttyACM3', num_periods = 1, get_data_time = 1000-6):
         """
         Class to monitor the noise of the Pulse Tube so that we may keep phase when we run experiments
 
@@ -15,12 +15,15 @@ class PulseTubeTracker(Quarto):
             - num_periods: how many past periods of the pulse tube we care about
             - get_data_time: how often to get new data from the quarto
         """
+        try:
+            super().__init__(address) # connect to the quarto
+        except:
+            address = '/dev/ttyACM6'
+            super().__init__(address)
 
-        super().__init__(address) # connect to the quarto
-
-        self.adc_interval = 1e-6
-        self.num_periods = num_periods # we only care about the last N periods of PT cycle
-        self.buffer = np.zeros(int(10 * 0.8 / self.adc_interval)) # slight overestimation of how many points we will ever need to save
+        self.adc_interval = 2e-6
+        self.num_periods = num_periods # we only care about the last num_periods of PT cycle
+        self.buffer = np.zeros(int(num_periods * 0.8 / self.adc_interval)) # slight overestimation of how many points we will ever need to save
         self.samples_to_get = int(get_data_time / self.adc_interval) # how many samples to ask the quarto for every time
         self.get_data_time = get_data_time
 
@@ -40,6 +43,7 @@ class PulseTubeTracker(Quarto):
     def _get_data(self): 
         """
         Get data from Quarto. Keep only the most recent data in self.buffer
+
         """
         data = self.data(self.samples_to_get)
         self.buffer = np.roll(self.buffer, -self.samples_to_get)
@@ -54,19 +58,20 @@ class PulseTubeTracker(Quarto):
         fitter.set_data(self.t_axis, self.buffer)
 
         p0 = {
-            "A": np.average(self.historical_A),
-            "omega": np.average(self.historical_omega),
-            "phi": np.average(self.historical_phi)
+            "A": 2, # np.average(self.historical_A),
+            "omega": 2*np.pi*33, #np.average(self.historical_omega),
+            "phi": 0 # np.average(self.historical_phi)
         }
 
         fitter.set_p0(p0)
         fitter.set_bounds("A", 0, np.inf) # otherwise we could fit a negative A and the phi would change
+        fitter.set_bounds("omega", 0, np.inf)
 
         fitter.fit()
         self.time_fit = time.time_ns()
-        self.A = fitter.fitted_value("A")
-        self.omega = fitter.fitted_value("omega")
-        self.phi = fitter.fitted_value("phi")
+        self.A = fitter.results["A"]
+        self.omega = fitter.results["omega"]
+        self.phi = fitter.results["phi"]
         self._update_history()
 
     def _update_history(self):

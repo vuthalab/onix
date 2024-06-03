@@ -41,7 +41,7 @@ class LFSpectroscopy(SharedSequence):
         self._define_rf()
 
     def _define_lf(self):
-        lf_channel = get_channel_from_name(self._lf_parameters["name"])
+        lf_channel = get_channel_from_name(self._rf_parameters["name"])
         center_frequency =  self._lf_parameters["center_frequency"]
         detuning = self._lf_parameters["detuning"]
         duration = self._lf_parameters["duration"]

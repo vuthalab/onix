@@ -1,18 +1,77 @@
-import os
-import numpy as np
-import threading
-from onix.headers.pulse_tube_tracker import Quarto
 from onix.analysis.pulse_tube_tracker import PulseTubeTracker
-import time
+import matplotlib.pyplot as plt
+import numpy as np
 
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtWidgets
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import Qt
+def sine(x,A,omega,phi):
+    return A * np.sin(omega * x + phi)
 
 ptt = PulseTubeTracker()
-app = pg.mkQApp("Pulse Tube Tracker")
+for i in range(8000):
+    ptt._get_data()
 
+plt.scatter(ptt.t_axis, ptt.buffer, s = 1)
+plt.title("Raw data")
+plt.show()
+
+ptt._get_fit()
+print(ptt.A, ptt.omega, ptt.phi)
+plt.plot(ptt.t_axis, sine(ptt.t_axis, ptt.A, ptt.omega, ptt.phi), alpha = 0.5)
+plt.plot(ptt.t_axis, ptt.buffer, alpha = 0.5)
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+q = Quarto()
+app = pg.mkQApp("Pulse Tube Tracker")
 device_lock = threading.Lock()
 
 ## Start Window
@@ -30,19 +89,22 @@ win = KeyPressWindow(show=True, title="")
 win.resize(1000,600)
 pg.setConfigOptions(antialias=True)
 
-## Graph
+buffer = np.zeros(int(1e6)) # display 1e6 samples = 1 s
 signal = win.addPlot()
-#signal.setMouseEnabled(x=False)
 signal.setMouseEnabled()
 error = signal.plot(pen='y')
 
 def update_signal():
-    ptt._get_data()
-    error.setData(ptt.buffer)
+    global buffer
+    buffer = np.roll(buffer, -5000)
+    buffer[-5000:] = q.data(5000)
+    error.setData(buffer)
 
 plots_timer = QtCore.QTimer()
 plots_timer.timeout.connect(update_signal)
-plots_timer.start(int(ptt.get_data_time * 1e3))
+plots_timer.start(5)
 
 if __name__ == '__main__':
     pg.exec()
+"""
+

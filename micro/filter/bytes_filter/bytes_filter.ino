@@ -3,13 +3,13 @@
 qCommand qC;
 
 // interval in us for ADC data reading
-const uint16_t ADC_INTERVAL = 1;  // related to the scan time in state 0.
+const uint16_t ADC_INTERVAL = 2;
 const uint16_t ADC_DELAY = 0;
-const adc_scale_t ADC_SCALE = BIPOLAR_5V;
+const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
 
-double filter = 10; // Hz, low pass
+double filter = 10;  // Hz, low pass
 double y = tan(PI * filter * ADC_INTERVAL * 1e-6);
-double alpha = 2 * y / (y+1); // calculate alpha for this filter
+double alpha = 2 * y / (y + 1);  // calculate alpha for this filter
 
 // Data saved in Quarto for computer readout
 const int MAX_DATA_LENGTH = 100000;
@@ -22,7 +22,8 @@ float low_pass = 0;
 
 void adc_loop(void) {
   reading = readADC1_from_ISR();
-  low_pass = alpha * reading + (1-alpha) * low_pass;
+  //low_pass = alpha * reading + (1-alpha) * low_pass;
+  low_pass = reading;
   bool local_pause_data = pause_data;
   if (!local_pause_data) {
     data[data_index] = low_pass;
@@ -30,11 +31,11 @@ void adc_loop(void) {
   if (!local_pause_data) {
     if (data_index < MAX_DATA_LENGTH - 1) {
       data_index++;
-    }
-    else {
+    } else {
       data_index = 0;
     }
   }
+  
 }
 
 void serial_print_data(Stream& S, float array[], int next_index, int length) {
@@ -49,25 +50,25 @@ void serial_print_data(Stream& S, float array[], int next_index, int length) {
   if (first_index < 0) {
     first_index += MAX_DATA_LENGTH;
   }
+  
+  int num_bytes = 4 * length;
+  int start_byte = 4 * first_index;
+  int bytes_to_end = 4 * (MAX_DATA_LENGTH - first_index);
+
   if (first_index > last_index) {
-    for (int i = first_index; i < MAX_DATA_LENGTH; i++) {
-      S.printf("%f\n", array[i]);
-    }
-    for (int i = 0; i <= last_index; i++) {
-      S.printf("%f\n", array[i]);
-    }
+    S.write((byte*)array + start_byte, bytes_to_end);
+    //S.write(*array + start_byte, bytes_to_end);
+    S.write((byte*)array, num_bytes - bytes_to_end);
   }
   else {
-    for (int i = first_index; i <= last_index; i++) {
-      S.printf("%f\n", array[i]);
-    }
+    S.write((byte*)array + start_byte, num_bytes);
   }
 }
 
-void cmd_data(qCommand& qC, Stream& S){
-  pause_data = true; // pause data taking during process
+void cmd_data(qCommand& qC, Stream& S) {
+  pause_data = true;  // pause data taking during process
   int get_data_length = MAX_DATA_LENGTH;
-  if ( qC.next() != NULL) {
+  if (qC.next() != NULL) {
     get_data_length = atoi(qC.current());
   }
   serial_print_data(S, data, data_index, get_data_length);
@@ -79,7 +80,7 @@ void setup(void) {
   configureADC(1, ADC_INTERVAL, ADC_DELAY, ADC_SCALE, adc_loop);
 }
 
-void loop(){
+void loop() {
   qC.readSerial(Serial);
   qC.readSerial(Serial2);
 }
