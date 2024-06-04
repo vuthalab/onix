@@ -24,7 +24,7 @@ GET_CAVITY_DATA_LENGTH = 1000
 ## Initialize wavemeter, quarto, laser class
 wm = WM()
 app = pg.mkQApp("Laser control")
-q = Quarto("/dev/ttyACM1")
+q = Quarto("/dev/ttyACM6")
 device_lock = threading.Lock()
 discriminator_slope = 1.5e-5
 laser = LaserLinewidth(GET_CAVITY_DATA_LENGTH, 2e-6, discriminator_slope) 

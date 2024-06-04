@@ -50,7 +50,6 @@ VALID_SAMPLE_RATES = Literal[
 ]
 VALID_CHAN_FULL_RANGES_MV = [200, 400, 1000, 2000, 4000, 10000]
 
-
 class Digitizer:
     """Header for the GaGe CSE8327 Octave Express Digitizer."""
 
@@ -95,14 +94,14 @@ class Digitizer:
     ):
         default_acq_config = {
             "Mode": "single",
-            "SampleRate": int(1e8),    # Hz
+            "SampleRate": 100000000,
             "Depth": 8160,
             "SegmentSize": 8160,
             "SegmentCount": 1,
             "TriggerHoldoff": 0,
             "TriggerDelay": 0,
             "TriggerTimeout": -1,
-            "ExtClk": 1  # was set to 0 before, setting it to 1 now
+            "ExtClk": 0,
         }
 
         self._overflow = (16 - segment_size % 16) % 16
@@ -127,7 +126,7 @@ class Digitizer:
     def set_channel_config(
         self,
         channel: Literal[1, 2],
-        range: float,
+        V_range: float,
         ac_coupled: bool = False,
         high_impedance: bool = False,
         use_filter: bool = True,
@@ -149,10 +148,9 @@ class Digitizer:
         channel = 1 + (channel - 1) * channel_increment
 
         chan_config = default_chan_config.copy()
-        full_range_mV = int(range * 2000)
+        full_range_mV = int(V_range * 2000)
         if full_range_mV not in VALID_CHAN_FULL_RANGES_MV:
-            raise ValueError(f"Channel {channel} range of {
-                             range} V is not valid.")
+            raise ValueError(f"Channel {channel} range of {V_range} V is not valid.")
         chan_config["InputRange"] = full_range_mV
         if ac_coupled:
             chan_config["Coupling"] = gc.CS_COUPLING_AC
@@ -174,8 +172,7 @@ class Digitizer:
     def get_trigger_config(self, trigger_channel: int = 1) -> dict:
         return PyGage.GetTriggerConfig(self._handle, trigger_channel)
 
-    # interop with acquisition parameters.
-    def set_trigger_source_software(self):
+    def set_trigger_source_software(self):  # interop with acquisition parameters.
         default_trigger_config = {
             "Condition": gc.CS_TRIG_COND_POS_SLOPE,
             "Level": 30,
@@ -264,16 +261,13 @@ class Digitizer:
             acq_config["Mode"], self._system_info["ChannelCount"], self._system_info["BoardCount"]
         )
 
-        start_address = acq_config["TriggerDelay"] + \
-            acq_config["Depth"] - acq_config["SegmentSize"]
-        data_length = acq_config["TriggerDelay"] + \
-            acq_config["Depth"] - start_address
+        start_address = acq_config["TriggerDelay"] + acq_config["Depth"] - acq_config["SegmentSize"]
+        data_length = acq_config["TriggerDelay"] + acq_config["Depth"] - start_address
 
         sample_rate = acq_config["SampleRate"]
-        # Don't know what this does
-        """if acq_config["ExtClk"]:
+        if acq_config["ExtClk"]:
             sample_rate /= (acq_config["ExtClkSampleSkip"] * 1000)
-        """
+
         channel_data = []
 
         for channel in range(1, self._system_info["ChannelCount"] + 1, channel_increment):
@@ -298,3 +292,4 @@ class Digitizer:
     def close(self):
         """Release the handle to the Digitizer."""
         PyGage.FreeSystem(self._handle)
+

@@ -59,7 +59,8 @@ class Digitizer:
 
     def _raise_error(self, function_called: str, error_code: int, cleanup: bool = True):
         error_string = PyGage.GetErrorString(error_code)
-        print(function_called, "failed with error: ", error_string, "\n")
+
+        (function_called, "failed with error: ", error_string, "\n")
         if cleanup:
             PyGage.FreeSystem(self._handle)
         raise SystemExit

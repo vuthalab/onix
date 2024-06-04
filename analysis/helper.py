@@ -18,7 +18,7 @@ def group_and_average_data(data, cycles, average: bool = True):
                     remainder_to_label[cycle_n] = label
                     break
     """
-
+    current_label_no = 0
     # makes a dictionary - {cycle number: what was detected in the cycle}
     for label in cycles.keys():
         temp = np.arange(current_label_no, current_label_no+cycles[label])

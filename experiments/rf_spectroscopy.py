@@ -24,7 +24,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 20,
+    "sequence_repeats_per_transfer": 10,
     "data_transfer_repeats": 1,
     "eos": {
         "ac": {
@@ -44,27 +44,28 @@ default_params = {
         },
     },
     "rf": {
-        "amplitude": 4200,  # 4200
+        "amplitude": 0,  # 4200
         "detuning": (65) * ureg.kHz,
         "duration": 0.07 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
-        "scan": 2.5 * ureg.MHz,
+        "scan": 1 * ureg.MHz,
         "durations": 50 * ureg.us,
-        "repeats": 600,
+        "repeats": 2000,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
-        "durations": [1 * ureg.ms, 1 * ureg.ms],
-        "repeats": 40,
-        "ao_amplitude": 800,
+        "durations": [100 * ureg.us, 100 * ureg.us],
+        "repeats": 0,
+        "ao_amplitude": 0,
     },
     "detect": {
-        "detunings": np.linspace(-2.5, 2.5, 12) * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
-        "on_time": 5 * ureg.us,
+        "transition": "bb",
+        "detunings": np.linspace(-10, 10, 50) * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
+        "on_time": 2 * ureg.us, #5
         "off_time": 0.5 * ureg.us,
         "cycles": {
             "chasm": 0,
@@ -72,16 +73,12 @@ default_params = {
             "rf": 64,
         },
         "delay": 8 * ureg.us,
-    },
-    "digitizer": {
-        "sample_rate": 25e6,
-        "ch1_range": 2,
-        "ch2_range": 2,
+        "ao_amplitude": 450,
     },
     "field_plate": {
-        "amplitude": 4500,
+        "amplitude": 3800,
         "stark_shift": 2.2 * ureg.MHz,
-        "use": True,
+        "use": False,
     }
 }
 default_params = update_parameters_from_shared(default_params)
@@ -120,45 +117,45 @@ first_data_id = None
 #         first_data_id = data_id
 
 ## scan freq
-params = default_params.copy()
-first_data_id = None
-rf_frequencies = np.linspace(-150, 150, 21)
-rf_frequencies *= ureg.kHz
-f_check = f_lock_Quarto(location='/dev/ttyACM0')
-field_plate_amplitude = 3800
-
-for _ in tqdm(range(2000)):
-    for run_n, amplitude in [(1, field_plate_amplitude), (2, -field_plate_amplitude)]:
-        print(run_n)
-        params["field_plate"]["amplitude"] = amplitude
-        expt_start_time = time.time()
-        for kk in range(len(rf_frequencies)):
-
-            print_unlock = False
-            while True:
-                if f_check.get_last_transmission_point() > 0.1:
-                    break
-                if print_unlock == False:
-                    print("LASER UNLOCKED")
-                    print_unlock = True
-
-
-
-
-            params["rf"]["detuning"] = rf_frequencies[kk]
-            sequence = get_sequence(params)
-            data = run_sequence(sequence, params)
-            data_id = save_data(sequence, params, *data)
-            if _ == 0:
-                print(data_id)
-            if first_data_id == None:
-                first_data_id = data_id
-
-        expt_end_time = time.time()
-        print(f"time taken for one iteration: {expt_end_time-expt_start_time}")
-
-
-    print(data_id)
+# params = default_params.copy()
+# first_data_id = None
+# rf_frequencies = np.linspace(-250, 250, 41)
+# rf_frequencies *= ureg.kHz
+# f_check = f_lock_Quarto(location='/dev/ttyACM0')
+# field_plate_amplitude = 4500
+#
+# for _ in tqdm(range(1)):
+#     # for run_n, amplitude in [(1, field_plate_amplitude), (2, -field_plate_amplitude)]:
+#     print(run_n)
+#     params["field_plate"]["amplitude"] = amplitude
+#     expt_start_time = time.time()
+#     for kk in range(len(rf_frequencies)):
+#
+#         # print_unlock = False
+#         # while True:
+#         #     if f_check.get_last_transmission_point() > 0.1:
+#         #         break
+#         #     if print_unlock == False:
+#         #         print("LASER UNLOCKED")
+#         #         print_unlock = True
+#         #
+#
+#
+#
+#         params["rf"]["detuning"] = rf_frequencies[kk]
+#         sequence = get_sequence(params)
+#         data = run_sequence(sequence, params)
+#         data_id = save_data(sequence, params, *data)
+#         if _ == 0:
+#             print(data_id)
+#         if first_data_id == None:
+#             first_data_id = data_id
+#
+#     expt_end_time = time.time()
+#     print(f"time taken for one iteration: {expt_end_time-expt_start_time}")
+#
+#
+#     print(data_id)
 
 ## scan inhom broad
 # params = default_params.copy()
@@ -198,33 +195,30 @@ for _ in tqdm(range(2000)):
 #         first_data_id = data_id
 
 ## scan rf duration
-# for amp in [3800, -3800]:
-#     start_time = time.time()
-#     params = default_params.copy()
-#     first_data_id = None
-#
-#     rf_durations = np.linspace(0.01, 0.75, 25)
-#     rf_durations *= ureg.ms
-#     params["field_plate"]["amplitude"] = amp
-#     for kk in range(len(rf_durations)):
-#         params["rf"]["duration"] = rf_durations[kk]
-#         sequence = get_sequence(params)
-#         data = run_sequence(sequence, params)
-#         data_id = save_data(sequence, params, *data)
-#         #print(data_id)
-#         if first_data_id == None:
-#             first_data_id = data_id
-#     end_time = time.time()
-#
-#     print(amp)
-#     print("\n")
-#     print(
-#         f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
-#     )
-#     print(f"data = (first, last)")
-#     print(f"\"\": ({first_data_id}, {data_id}),")
-#
-#
+start_time = time.time()
+params = default_params.copy()
+first_data_id = None
+
+rf_durations = np.linspace(0.01, 1, 30)
+rf_durations *= ureg.ms
+for kk in range(1):#len(rf_durations)):
+    params["rf"]["duration"] = rf_durations[kk]
+    sequence = get_sequence(params)
+    data = run_sequence(sequence, params)
+    data_id = save_data(sequence, params, *data)
+    print(data_id)
+    if first_data_id == None:
+        first_data_id = data_id
+end_time = time.time()
+
+print("\n")
+print(
+    f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
+)
+print(f"data = (first, last)")
+print(f"\"\": ({first_data_id}, {data_id}),")
+
+
 
 ## chasm test
 # params = default_params.copy()

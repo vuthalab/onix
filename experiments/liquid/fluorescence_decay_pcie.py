@@ -85,7 +85,7 @@ def etalon_scan(start_temp, end_temp, step_size, time_box, tolerance):
                 if i > len(temps)-1:
                     break
     except KeyboardInterrupt:
-        return temps[i]
+        return "interrupt"
 
 
 
@@ -174,7 +174,7 @@ dg.set_channel_config(channel=2, range=5, high_impedance=True)
 
 dg.set_trigger_source_edge()
 dg.write_configs_to_device()
-
+m4i.set_sine_output(excitation_aom_channel, excitation_aom_frequency, excitation_aom_amplitude)
 ## new experiment function
 def prepare_new_temp(temp, tolerance):
     set_etalon_temp(temp)
@@ -318,11 +318,12 @@ scope.write(":key:force")
 scope.write(":key:lock disable")
 
 
-
+time_bucket = 0
 while True:
-    time_bucket = 0
-    etalon_scan(60, 80, 3, time_bucket, 0.03)
-    time_bucket+=1
+    if etalon_scan(60, 80, 3, time_bucket, 0.03)== "interrupt":
+        break
+    else:
+        time_bucket+=1
 
 ## save data
 header = {
@@ -340,7 +341,8 @@ header = {
     "time_between_repeat": time_between_repeat,
     "sampling_rate": sample_rate,
     "frequency": frequency,
-    "normalizer": normalizer_power
+    "normalizer": normalizer_voltages
+
 }
 data = {
     "pmt_times": pmt_times,
