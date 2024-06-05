@@ -76,7 +76,7 @@ def update_p_transmission(data):
     transmission.setData(data)
 win.nextRow()
 
-p_cavity_error = win.addPlot(title="Cavity PID Error Signal", colspan = total_rows)
+p_cavity_error = win.addPlot(title="Cavity PDH Error Signal", colspan = total_rows)
 p_cavity_error.setMouseEnabled(x=False)
 cavity_error = p_cavity_error.plot(pen='y')
 def update_p_cavity_error(data):
