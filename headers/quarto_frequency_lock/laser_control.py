@@ -51,7 +51,7 @@ pg.setConfigOptions(antialias=True)
 total_rows = 4
 
 ## Graphs
-p_error = win.addPlot(title="Vescent Output Signal", colspan = total_rows)
+p_error = win.addPlot(title="Vescent Output to AOM", colspan = total_rows)
 p_error.setMouseEnabled(x=False)
 error = p_error.plot(pen='y')
 def update_p_error(data):
@@ -59,7 +59,7 @@ def update_p_error(data):
     error.setData(data)
 win.nextRow()
 
-p_output = win.addPlot(title="Quarto Output Signal", colspan = total_rows)
+p_output = win.addPlot(title="Quarto Output to Piezo", colspan = total_rows)
 p_output.setMouseEnabled(x=False)
 output = p_output.plot(pen='y')
 def update_p_output(data):
@@ -117,7 +117,7 @@ def on_button_pressed():
         with device_lock:
             q.set_state(0)
     elif lock_state.text() == "Lock Off":
-        lock_state.setText("Autorelock On")
+        lock_state.setText("Quarto Autorelock On")
         lock_state.setStyleSheet("background-color: green; color: white;")
         with device_lock:
             q.set_state(2)
@@ -133,7 +133,7 @@ elif initial_lock_state == 0:
     lock_state.setText("Lock Off")
     lock_state.setStyleSheet("background-color: Red; color: white;")
 elif initial_lock_state == 2:
-    lock_state.setText("Autorelock On")
+    lock_state.setText("Quarto Autorelock On")
     lock_state.setStyleSheet("background-color: green; color: white;")
 
 lock_state.clicked.connect(on_button_pressed)
@@ -253,7 +253,7 @@ def _offset():
 with device_lock:
     initial_offset = q.get_output_offset()
 
-offset = QtWidgets.QDoubleSpinBox(prefix = "Offset: ", suffix = " V")
+offset = QtWidgets.QDoubleSpinBox(prefix = "Frequency Scan Center: ", suffix = " V")
 offset.setValue(initial_offset)
 offset.setDecimals(3)
 offset.setSingleStep(0.001)
@@ -269,7 +269,7 @@ def _scan():
     with device_lock:
         q.set_scan(scan.value())
 
-scan = QtWidgets.QDoubleSpinBox(prefix = "Scan: ", suffix = " V")
+scan = QtWidgets.QDoubleSpinBox(prefix = "Frequency Scan Range: ", suffix = " V")
 with device_lock:
     initial_scan = q.get_scan()
 
