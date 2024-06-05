@@ -12,6 +12,7 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 from scipy.signal import find_peaks
 from onix.headers.wavemeter.wavemeter import WM
 from onix.analysis.laser_linewidth import LaserLinewidth
+from onix.headers.find_quarto import find_quarto
 """
 Keyboard Controls:
 Left Arrow: increase offset by 0.01
@@ -24,7 +25,7 @@ GET_CAVITY_DATA_LENGTH = 1000
 ## Initialize wavemeter, quarto, laser class
 wm = WM()
 app = pg.mkQApp("Laser control")
-q = Quarto("/dev/ttyACM6")
+q = Quarto(find_quarto("frequency"))
 device_lock = threading.Lock()
 discriminator_slope = 1.5e-5
 laser = LaserLinewidth(GET_CAVITY_DATA_LENGTH, 2e-6, discriminator_slope) 
