@@ -1,13 +1,13 @@
 import serial
 import numpy as np
 import struct
+from onix.headers.find_quarto import find_quarto
 
-
-DEFAULT_GET_DATA_LENGTH = 30000
+DEFAULT_GET_DATA_LENGTH = 30000 # max data you can transfer from the quarto at one time
 BYTES_PER_FLOAT = 4 
 
 class Quarto:
-    def __init__(self, location='/dev/ttyACM6'):
+    def __init__(self, location=find_quarto("digitizer")):
         self.address = location
         self.device = serial.Serial(
             self.address,
@@ -16,6 +16,14 @@ class Quarto:
         )
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
+
+    def adc_interval(self):
+        self.device.reset_input_buffer()
+        self.device.reset_output_buffer()
+        out = "adc_interval\n"
+        self.device.write(out.encode('utf-8'))
+        response = self.device.readline()
+        response = response.decode('utf-8').strip('\n').split(" ")[-1]
         
     def data(self, val = None):
         if val is None:

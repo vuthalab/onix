@@ -3,7 +3,7 @@
 qCommand qC;
 
 // interval in us for ADC data reading
-const uint16_t ADC_INTERVAL = 2;
+const uint16_t ADC_INTERVAL = 1;
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
 
@@ -22,8 +22,8 @@ float low_pass = 0;
 
 void adc_loop(void) {
   reading = readADC1_from_ISR();
-  //low_pass = alpha * reading + (1-alpha) * low_pass;
-  low_pass = reading;
+  low_pass = alpha * reading + (1-alpha) * low_pass;
+  // low_pass = reading; // useful for testing without low pass
   bool local_pause_data = pause_data;
   if (!local_pause_data) {
     data[data_index] = low_pass;
@@ -35,7 +35,6 @@ void adc_loop(void) {
       data_index = 0;
     }
   }
-  
 }
 
 void serial_print_data(Stream& S, float array[], int next_index, int length) {
@@ -75,8 +74,13 @@ void cmd_data(qCommand& qC, Stream& S) {
   pause_data = false;
 }
 
+void cmd_adc_interval(qCommand& qC, Stream& S) {
+  S.println(ADC_INTERVAL);
+}
+
 void setup(void) {
   qC.addCommand("data", cmd_data);
+  qC.addCommand("adc_interval", cmd_adc_interval);
   configureADC(1, ADC_INTERVAL, ADC_DELAY, ADC_SCALE, adc_loop);
 }
 

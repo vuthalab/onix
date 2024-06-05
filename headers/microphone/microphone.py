@@ -1,8 +1,8 @@
 import os
 import numpy as np
 import threading
-from onix.headers.pulse_tube_tracker import Quarto
-from onix.analysis.pulse_tube_tracker import PulseTubeTracker
+from onix.headers.microphone import Quarto
+from onix.analysis.microphone import Microphone
 import time
 
 import pyqtgraph as pg
@@ -10,8 +10,8 @@ from pyqtgraph.Qt import QtCore, QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 
-ptt = PulseTubeTracker()
-app = pg.mkQApp("Pulse Tube Tracker")
+mic = Microphone()
+app = pg.mkQApp("Microphone")
 
 device_lock = threading.Lock()
 
@@ -37,12 +37,12 @@ signal.setMouseEnabled()
 error = signal.plot(pen='y')
 
 def update_signal():
-    ptt._get_data()
-    error.setData(ptt.buffer)
+    mic._get_data()
+    error.setData(mic.buffer)
 
 plots_timer = QtCore.QTimer()
 plots_timer.timeout.connect(update_signal)
-plots_timer.start(int(ptt.get_data_time * 1e3))
+plots_timer.start(int(mic.get_data_time * 1e3))
 
 if __name__ == '__main__':
     pg.exec()
