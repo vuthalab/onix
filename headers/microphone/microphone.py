@@ -10,7 +10,7 @@ from pyqtgraph.Qt import QtCore, QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 
-mic = Microphone(num_periods_fit=3, num_periods_save=1, get_data_time=0.5e-3)
+mic = Microphone(num_periods_fit=3, num_periods_save=1, get_data_time=10e-3)
 app = pg.mkQApp("Microphone")
 
 device_lock = threading.Lock()

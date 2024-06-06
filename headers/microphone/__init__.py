@@ -24,7 +24,7 @@ class Quarto:
         out = "adc_interval\n"
         self.device.write(out.encode('utf-8'))
         response = self.device.readline()
-        response = int(response.decode('utf-8').strip('\r\n')) * 1e-6
+        #response = int(response.decode('utf-8').strip('\r\n')) * 1e-6
         return response
         
     def data(self, val = None):

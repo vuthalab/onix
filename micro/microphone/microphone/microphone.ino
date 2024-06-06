@@ -3,7 +3,7 @@
 qCommand qC;
 
 // interval in us for ADC data reading
-const uint16_t ADC_INTERVAL = 1;
+const uint16_t ADC_INTERVAL = 100;
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
 
