@@ -503,12 +503,14 @@ def record_data():
             unlock_counter = q.get_unlock_counter()
             transmission = q.get_last_transmission_point()
             error = q.get_error_data() 
+            cavity_error = q.get_cavity_error_data()
         linewidth = laser.linewidth
         point.field("integral", integral)
         point.field("output", output)
         point.field("dc offset", dc_offset)
         point.field("unlock counter", unlock_counter)
         point.field("error", np.average(error))
+        point.field("cavity_error", np.average(cavity_error))
         if transmission > 0.2:
            point.field("linewidth", linewidth)
         else:
