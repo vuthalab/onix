@@ -497,20 +497,23 @@ def record_data():
     try:
         point = Point("laser_controller")
         with device_lock:
+            data = q.get_all_data()
             integral = q.get_integral()
-            output = q.get_last_output_point()
             dc_offset = q.get_dc_offset()
             unlock_counter = q.get_unlock_counter()
-            transmission = q.get_last_transmission_point()
-            error = q.get_error_data() 
-            cavity_error = q.get_cavity_error_data()
+
+        error = np.mean(data["error"])
+        output = np.mean(data["output"])
+        transmission = np.mean(data["transmission"])
+        cavity_error = np.mean(data["cavity_error"])
+            
         linewidth = laser.linewidth
         point.field("integral", integral)
         point.field("output", output)
         point.field("dc offset", dc_offset)
         point.field("unlock counter", unlock_counter)
-        point.field("error", np.average(error))
-        point.field("cavity_error", np.average(cavity_error))
+        point.field("error",error)
+        point.field("cavity_error",cavity_error)
         if transmission > 0.2:
            point.field("linewidth", linewidth)
         else:
