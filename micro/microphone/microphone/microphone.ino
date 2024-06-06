@@ -22,8 +22,8 @@ float low_pass = 0;
 
 void adc_loop(void) {
   reading = readADC1_from_ISR();
-  low_pass = alpha * reading + (1-alpha) * low_pass;
-  // low_pass = reading; // useful for testing without low pass
+  //low_pass = alpha * reading + (1-alpha) * low_pass;
+  low_pass = reading; // useful for testing without low pass
   bool local_pause_data = pause_data;
   if (!local_pause_data) {
     data[data_index] = low_pass;

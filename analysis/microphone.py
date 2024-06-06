@@ -10,7 +10,7 @@ def sine(x, A, omega, phi):
 # fit to the last 10 periods, store the last 100 periods
 
 class Microphone(Quarto, Fitter):
-    def __init__(self, address = find_quarto("digitizer"), num_periods_fit = 10, num_periods_save = 100, get_data_time = 1e-3):
+    def __init__(self, address = find_quarto("digitizer"), num_periods_fit = 10, num_periods_save = 100, get_data_time = "Max"):
         """
         Class to monitor the noise of the Pulse Tube so that we may keep phase when we run experiments
 
@@ -22,17 +22,20 @@ class Microphone(Quarto, Fitter):
         Quarto.__init__(self, address)
         Fitter.__init__(self, sine)
 
-        self.adc_interval = int(self.adc_interval)
+        max_get_data_time = DEFAULT_GET_DATA_LENGTH * self.adc_interval
+
+        if get_data_time == "Max":
+            get_data_time = max_get_data_time
+        elif get_data_time > max_get_data_time:
+            get_data_time = max_get_data_time
+            print(f"get_data_time is too large. Setting to maximal {max_get_data_time} s")
+
         self.get_data_time = get_data_time
         self.num_periods_fit = num_periods_fit # we only care about the last num_periods_fit of PT cycle
         self.num_periods_save = num_periods_save
         
         self.buffer = np.zeros(int(self.num_periods_fit * 0.8 / self.adc_interval)) # slight overestimation of how many points we will need to save
         self.samples_to_get = int(self.get_data_time / self.adc_interval) # how many samples to ask the quarto for every time
-
-        if self.samples_to_get > DEFAULT_GET_DATA_LENGTH:
-            print("Asking Quarto for too much data at once. Decrease get_data_time.")
-            raise Exception # TODO: format this properly
 
         self.t_axis = np.arange(0, len(self.buffer) * self.adc_interval, self.adc_interval)
         self.time_fit = 0
@@ -53,8 +56,11 @@ class Microphone(Quarto, Fitter):
 
         """
         data = self.data(self.samples_to_get)
-        self.buffer = np.roll(self.buffer, -self.samples_to_get)
-        self.buffer[-self.samples_to_get:] = data
+        if self.samples_to_get <= len(self.buffer):
+            self.buffer = np.roll(self.buffer, -self.samples_to_get)
+            self.buffer[-self.samples_to_get:] = data
+        else:
+            self.buffer = data[-len(self.buffer):]
 
     def get_fit(self): # every average period we need to run this again
         """
@@ -65,8 +71,8 @@ class Microphone(Quarto, Fitter):
         # TODO: if it is the first time we fit, there should be some manually given p0. After this we can use average of most recent fits
         # also possible that the initial fit will still work with guesses of zero
         p0 = {
-            "A": 2, # np.average(self.historical_A),
-            "omega": 2*np.pi*33, #np.average(self.historical_omega),
+            "A": 0.3, # np.average(self.historical_A),
+            "omega": 2*np.pi, #np.average(self.historical_omega),
             "phi": 0 # np.average(self.historical_phi)
         }
 
@@ -111,8 +117,7 @@ class Microphone(Quarto, Fitter):
     @property
     def period(self): # wait, approx. num_periods_save * 0.8 s at the start before doing the first fit. After this, the (n-1)th fit determines how long to wait before doing the nth
         """
-        Average period over the last num_periods_save. If we have no fits, or all fitted omegas are zero, this returns None. 
-        If we have some number of fitted periods, but have not yet reached num_periods_save, this returns the average of the periods we have 
+        Average period over however many fits we have. If we have no fits, or all fitted omegas are zero, this returns None. 
         """
         not_enough_data_yet = np.isin(0, self.historical_omega)
         if not_enough_data_yet == False: 
