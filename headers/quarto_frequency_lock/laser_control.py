@@ -112,7 +112,7 @@ plots_timer.start(50)
 
 ## Lock On / Off Button (Not EXTREME Autorelock)
 def on_button_pressed():
-    if lock_state.text() == "Lock On" or lock_state.text() == "Autorelock On":
+    if lock_state.text() == "Lock On" or lock_state.text() == "Quarto Autorelock On":
         lock_state.setText("Lock Off")
         lock_state.setStyleSheet("background-color: Red; color: white;")
         with device_lock:
