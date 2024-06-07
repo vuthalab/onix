@@ -8,8 +8,9 @@ class FRG730:
     def __init__(self, address = '/dev/ttyUSB0'):
         self._gauge = serial.Serial(address,baudrate=9600,stopbits=1,parity='N',timeout=0.1)
         self._last_reading = (None, None)
-
         self.set_torr()
+        self.units = 'torr'
+        # units is one of these three strings: "torr", "mbar". "Pa"
 
     def read(self, Nbyte):
         return self._gauge.read(Nbyte) #Reads Nbyte bytes from values being streamed by ion gauge
@@ -64,16 +65,19 @@ class FRG730:
         #Sets units on gauge to torr
         command = bytes([3]) + bytes([16]) + bytes([142]) + bytes([1]) + bytes([159]) #From manual
         self._gauge.write(command)
+        self.units = 'torr'
 
     def set_mbar(self):
         #Sets units on gauge to mbar
         command = bytes([3]) + bytes([16]) + bytes([142]) + bytes([0]) + bytes([158]) #From manual
         self._gauge.write(command)
+        self.units = 'mbar'
 
     def set_Pa(self):
         #Sets units on gauge to mbar
         command = bytes([3]) + bytes([16]) + bytes([142]) + bytes([1]) + bytes([159]) #From manual
         self._gauge.write(command)
+        self.units = 'Pa'
 
     def degas_on(self):
         #Turns on degas minute for 3 minutes, should only be turned on for pressures below <3e-6 torr

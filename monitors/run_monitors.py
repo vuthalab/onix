@@ -105,7 +105,15 @@ while True:
     
     try:
         point = Point("pressure_gauge")
-        point.field("pressure (torr)", pressure_gauge.pressure)
+
+        if pressure_gauge.units == 'torr':
+            point.field("pressure (torr)", pressure_gauge.pressure)
+
+        elif pressure_gauge.units == 'mbar':
+            point.field('pressure (torr)', pressure_gauge.pressure*0.750062)    # 1mbar = 0.750062 torr
+
+        elif pressure_gauge.units == 'Pa':
+            point.field('pressure (torr)', pressure_gauge.pressure*0.00750062) # 1 Pa = 0.00750062 torr
 
         write_api.write(bucket=bucket_live, org="onix", record=point)
         if send_permanent:
