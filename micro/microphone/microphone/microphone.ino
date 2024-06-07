@@ -7,9 +7,6 @@ const uint16_t ADC_INTERVAL = 10;
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
 
-double filter = 10;  // Hz, low pass
-double y = tan(PI * filter * ADC_INTERVAL * 1e-6);
-double alpha = 2 * y / (y + 1);  // calculate alpha for this filter
 
 // Data saved in Quarto for computer readout
 const int MAX_DATA_LENGTH = 100000;
@@ -22,11 +19,9 @@ float low_pass = 0;
 
 void adc_loop(void) {
   reading = readADC1_from_ISR();
-  //low_pass = alpha * reading + (1-alpha) * low_pass;
-  low_pass = reading; // useful for testing without low pass
   bool local_pause_data = pause_data;
   if (!local_pause_data) {
-    data[data_index] = low_pass;
+    data[data_index] = reading;
   }
   if (!local_pause_data) {
     if (data_index < MAX_DATA_LENGTH - 1) {

@@ -11,18 +11,12 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from scipy.signal import butter, sosfilt
 
-
-
-def sine(x, A, omega, phi):
-    return A * np.sin(omega*x + phi)
-
+#method = "low_pass" # data, low pass, band pass, FFT, IFFT
 
 mic = Microphone(num_periods_fit=3, num_periods_save=1, get_data_time=10e-3) # Must be above 8ms
+
+
 app = pg.mkQApp("Microphone")
-
-device_lock = threading.Lock()
-
-## Start Window
 class KeyPressWindow(pg.GraphicsLayoutWidget):
     sigKeyPress = QtCore.pyqtSignal(object)
 
@@ -36,31 +30,41 @@ class KeyPressWindow(pg.GraphicsLayoutWidget):
 win = KeyPressWindow(show=True, title="")
 win.resize(1000,600)
 pg.setConfigOptions(antialias=True)
-start_time = time.time()
+
 ## Graph
 signal = win.addPlot()
+
+# if method == "FFT":
+#     signal.setLabel('left', 'Relative Voltage Noise Density (1/sqrt(Hz))')
+#     signal.setLabel('bottom', 'Frequency (Hz)')
+# else:
 signal.setLabel('left', 'microphone signal (V)')
 signal.setLabel('bottom', 'time (s)')
-signal.setMouseEnabled(y=False)
+signal.setMouseEnabled()
 error = signal.plot(pen='y')
-
 def update_signal():
-    current_time = time.time()
     mic.get_data()
+    #mic.windowed_average(N = 5000)
     x_axis = np.linspace(0,len(mic.buffer) * mic.adc_interval,len(mic.buffer))
-
-    data = mic.buffer - np.ones(len(mic.buffer)) * np.mean(mic.buffer)
-    sos2 = butter(10, 100, 'bandpass', fs=1000, output='sos')
-    filtered2 = sosfilt(sos2, data)
+    error.setData(x_axis, mic.buffer)
+    #data = mic.buffer - np.ones(len(mic.buffer)) * np.mean(mic.buffer)
+    #sos2 = butter(10, 100, 'bandpass', fs=1000, output='sos')
+    #filtered2 = sosfilt(sos2, data)
 
     #error.setData(x_axis, np.abs(filtered2))
     #error.setData(x_axis, np.abs(mic.buffer - np.mean(mic.buffer)))
-    error.setData(x_axis, mic.buffer)
+    #error.setData(mic.buffer)
+    #error.setData(mic.f, mic.relative_voltage_spectrum)
+    #error.setData(mic.inverse_fft)
+    #mic.fill_buffer()
+    #error.setData(mic.voltage_spectrum)
 
 plots_timer = QtCore.QTimer()
 plots_timer.timeout.connect(update_signal)
 plots_timer.start(int(mic.get_data_time * 1e3))
+#plots_timer.start(int(2.4e3))
 
 
 if __name__ == '__main__':
     pg.exec()
+

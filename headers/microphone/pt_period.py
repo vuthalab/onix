@@ -13,6 +13,8 @@ sequence = get_sequence(params)
 
 """
 
+# TODO: mostly in correct, feel free to delete everything
+
 get_data_time = 1e-3
 pt_period = 0.7
 num_periods_fit = 10

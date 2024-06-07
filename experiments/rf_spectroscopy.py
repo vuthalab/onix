@@ -24,7 +24,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 10,
+    "sequence_repeats_per_transfer": 20,
     "data_transfer_repeats": 1,
     "eos": {
         "ac": {
@@ -44,14 +44,14 @@ default_params = {
         },
     },
     "rf": {
-        "amplitude": 0,  # 4200
+        "amplitude": 4000,  # 4200
         "detuning": (65) * ureg.kHz,
-        "duration": 0.07 * ureg.ms,
+        "duration": 0.1 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
-        "scan": 1 * ureg.MHz,
-        "durations": 50 * ureg.us,
+        "scan": 2 * ureg.MHz,
+        "durations": 100 * ureg.us,
         "repeats": 2000,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
@@ -59,21 +59,21 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
         "durations": [100 * ureg.us, 100 * ureg.us],
-        "repeats": 0,
-        "ao_amplitude": 0,
+        "repeats": 1000,
+        "ao_amplitude": 2000,
     },
     "detect": {
         "transition": "bb",
-        "detunings": np.linspace(-10, 10, 50) * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
+        "detunings": np.linspace(-2.2, 2.2, 20) * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
         "on_time": 2 * ureg.us, #5
-        "off_time": 0.5 * ureg.us,
+        "off_time": 1 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 64,
-            "rf": 64,
+            "antihole": 32,
+            "rf": 32,
         },
         "delay": 8 * ureg.us,
-        "ao_amplitude": 450,
+        "ao_amplitude": 400,
     },
     "field_plate": {
         "amplitude": 3800,
@@ -126,9 +126,9 @@ first_data_id = None
 #
 # for _ in tqdm(range(1)):
 #     # for run_n, amplitude in [(1, field_plate_amplitude), (2, -field_plate_amplitude)]:
-#     print(run_n)
-#     params["field_plate"]["amplitude"] = amplitude
-#     expt_start_time = time.time()
+#     # print(run_n)
+#     # params["field_plate"]["amplitude"] = amplitude
+#     # expt_start_time = time.time()
 #     for kk in range(len(rf_frequencies)):
 #
 #         # print_unlock = False
@@ -195,28 +195,28 @@ first_data_id = None
 #         first_data_id = data_id
 
 ## scan rf duration
-start_time = time.time()
-params = default_params.copy()
-first_data_id = None
-
-rf_durations = np.linspace(0.01, 1, 30)
-rf_durations *= ureg.ms
-for kk in range(1):#len(rf_durations)):
-    params["rf"]["duration"] = rf_durations[kk]
-    sequence = get_sequence(params)
-    data = run_sequence(sequence, params)
-    data_id = save_data(sequence, params, *data)
-    print(data_id)
-    if first_data_id == None:
-        first_data_id = data_id
-end_time = time.time()
-
-print("\n")
-print(
-    f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
-)
-print(f"data = (first, last)")
-print(f"\"\": ({first_data_id}, {data_id}),")
+# start_time = time.time()
+# params = default_params.copy()
+# first_data_id = None
+#
+# rf_durations = np.linspace(0.0001, 0.1, 40)
+# rf_durations *= ureg.ms
+# for kk in range(len(rf_durations)):
+#     params["rf"]["duration"] = rf_durations[kk]
+#     sequence = get_sequence(params)
+#     data = run_sequence(sequence, params)
+#     data_id = save_data(sequence, params, *data)
+#     print(data_id)
+#     if first_data_id == None:
+#         first_data_id = data_id
+# end_time = time.time()
+#
+# print("\n")
+# print(
+#     f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
+# )
+# print(f"data = (first, last)")
+# print(f"\"\": ({first_data_id}, {data_id}),")
 
 
 

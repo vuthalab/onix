@@ -18,7 +18,7 @@ class Quarto:
         self.device.reset_output_buffer()
 
     @property
-    def adc_interval(self):
+    def adc_interval(self): # TODO: does not return the actual adc rate
         self.device.reset_input_buffer()
         self.device.reset_output_buffer()
         out = "adc_interval\n"

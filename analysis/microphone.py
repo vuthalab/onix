@@ -51,8 +51,8 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
         self.historical_phi = np.zeros(self.num_periods_save)
         self.average_period = 0
 
-        PowerSpectrum.__init__(self, num_of_samples=self.samples_to_get, time_resolution=self.adc_interval)
-        
+        #PowerSpectrum.__init__(self, num_of_samples=self.samples_to_get, time_resolution=self.adc_interval)
+        PowerSpectrum.__init__(self, num_of_samples=len(self.buffer), time_resolution=self.adc_interval)
 
     def get_data(self): 
         """
@@ -66,13 +66,25 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
         else:
             self.buffer = data[-len(self.buffer):]
 
-        ## add or update data to the PowerSpectrum
-        #not_enough_data_yet = np.isin(0, self.buffer)
-        #if not_enough_data_yet == True:
-        #    self.add_data(data)
-        #else:
-        #    self.update_data(data)  
-        self.add_data(data)  
+        #get data, compute FFT, take only the 1.4 Hz, and IFFT this
+        #self.add_data(self.buffer)  
+
+    def fill_buffer(self):
+        for i in range(len(self.buffer) // self.samples_to_get):
+            self.get_data()
+        
+        self.add_data(self.buffer)
+        #print(self._power_spectrums) # the list of amplitudes from our power spectrum
+        #lower_freq_index = np.argwhere(self.f>1).min() # locate where self.f hits 1 Hz
+        #higher_freq_index = np.argwhere(self.f<10).max()# locate where self.f hits 10 Hz
+        #lower_freq_index = 0
+        #higher_freq_index = len(self.f)
+        #print(lower_freq_index, higher_freq_index)
+        #filtered_power_spectrum = self._power_spectrums[-1][lower_freq_index : higher_freq_index]
+        #filtered_power_spectrum = np.sqrt(self._power_spectrums[-1])
+        #print(filtered_power_spectrum)
+        #self.inverse_fft = np.abs(np.fft.ifft(filtered_power_spectrum))
+
 
     def check_vals(self):
         print(np.isinf(self.t_axis), np.isnan(self.t_axis), np.isinf(self.buffer), np.isnan(self.buffer))
@@ -119,6 +131,11 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
             self.average_period = 2 * np.pi / np.mean(self.historical_omega)
         else:
             self.average_period = 0
+
+    def windowed_average(self, N):
+        stack = np.array([ np.roll(self.buffer,s) for s in range(N)])
+        stack_avg = np.average(stack,axis=0)
+        self.avg = stack_avg
 
     @property
     def phase(self):
