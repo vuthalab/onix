@@ -12,6 +12,7 @@ from onix.headers.pulse_tube import PulseTube
 from onix.headers.wavemeter.wavemeter import WM
 from onix.headers.ctc100 import CTC100
 from onix.headers.ruuvi_gateway import RuuviGateway
+from onix.headers.frg730 import FRG730
 
 token = os.environ.get("INFLUXDB_TOKEN")
 org = "onix"
@@ -29,6 +30,8 @@ channels = c.channels
 
 ruuvi_g = RuuviGateway(ip='192.168.0.225', username='ruuvi1', password='password123')
 ruuvi_dont_save = ['mac', 'tx_power', 'data_format']
+
+pressure_gauge = FRG730()
 
 high_freq_time = 1
 low_freq_time = 280
@@ -98,6 +101,17 @@ while True:
                 write_api.write(bucket=bucket_permanent, org="onix", record=point)
     except:
         print(time_str + ": Ruuvi gateway error.")
+        print(traceback.format_exc())
+    
+    try:
+        point = Point("pressure_gauge")
+        point.field("pressure (torr)", pressure_gauge.pressure)
+
+        write_api.write(bucket=bucket_live, org="onix", record=point)
+        if send_permanent:
+            write_api.write(bucket=bucket_permanent, org="onix", record=point)
+    except:
+        print(time_str + ": Pressure gauge error.")
         print(traceback.format_exc())
 
     time_end = time.time()
