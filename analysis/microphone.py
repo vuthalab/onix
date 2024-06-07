@@ -20,10 +20,19 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
             - num_periods_save: how many of the past fitted periods we should save, for determinatin of experiment repetition rate
             - get_data_time: how often to get new data from the quarto
         """
+<<<<<<< Updated upstream
          
         Quarto.__init__(self, address)
         Fitter.__init__(self, sine)       
         
+=======
+        
+        Quarto.__init__(self, address)
+        Fitter.__init__(self, sine)
+        len_buffer = int(num_periods_fit * 0.8 / self.adc_interval) # slight overestimation of how many points we will need to save
+        PowerSpectrum.__init__(self, num_of_samples=len_buffer, time_resolution=self.adc_interval)
+
+>>>>>>> Stashed changes
         max_get_data_time = DEFAULT_GET_DATA_LENGTH * self.adc_interval
 
         if get_data_time == "Max":

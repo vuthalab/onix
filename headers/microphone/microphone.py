@@ -53,11 +53,16 @@ def update_signal():
 
     #error.setData(x_axis, np.abs(filtered2))
     #error.setData(x_axis, np.abs(mic.buffer - np.mean(mic.buffer)))
+<<<<<<< Updated upstream
     #error.setData(mic.buffer)
     #error.setData(mic.f, mic.relative_voltage_spectrum)
     #error.setData(mic.inverse_fft)
     #mic.fill_buffer()
     #error.setData(mic.voltage_spectrum)
+=======
+    #error.setData(x_axis, mic.buffer)
+    error.setData(mic.f, mic.voltage_spectrum)
+>>>>>>> Stashed changes
 
 plots_timer = QtCore.QTimer()
 plots_timer.timeout.connect(update_signal)
