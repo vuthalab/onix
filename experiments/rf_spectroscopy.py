@@ -24,7 +24,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 20,
+    "sequence_repeats_per_transfer": 2,
     "data_transfer_repeats": 1,
     "eos": {
         "ac": {
@@ -44,36 +44,36 @@ default_params = {
         },
     },
     "rf": {
-        "amplitude": 4000,  # 4200
+        "amplitude": 0,  # 4200
         "detuning": (65) * ureg.kHz,
-        "duration": 0.1 * ureg.ms,
+        "duration": 0 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
-        "scan": 2 * ureg.MHz,
+        "scan": 3 * ureg.MHz,
         "durations": 100 * ureg.us,
-        "repeats": 2000,
+        "repeats": 4000,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
         "durations": [100 * ureg.us, 100 * ureg.us],
-        "repeats": 1000,
+        "repeats": 2000,
         "ao_amplitude": 2000,
     },
     "detect": {
         "transition": "bb",
-        "detunings": np.linspace(-2.2, 2.2, 20) * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
-        "on_time": 2 * ureg.us, #5
+        "detunings": (np.linspace(-2.5, 2.5, 20)) * ureg.MHz, #np.array([-2, 0]) * ureg.MHz, #  # np.array([-2, 0]) * ureg.MHz,
+        "on_time": 5 * ureg.us, #5
         "off_time": 1 * ureg.us,
         "cycles": {
-            "chasm": 0,
+            "chasm": 1,
             "antihole": 32,
             "rf": 32,
         },
-        "delay": 8 * ureg.us,
-        "ao_amplitude": 400,
+        "delay": 10 * ureg.us,
+        "ao_amplitude": 450,
     },
     "field_plate": {
         "amplitude": 3800,
@@ -98,11 +98,11 @@ start_time = time.time()
 first_data_id = None
 
 ## test
-# params = default_params.copy()
-# sequence = get_sequence(params)
-# data = run_sequence(sequence, params)
-# data_id = save_data(sequence, params, *data)
-# print(data_id)
+params = default_params.copy()
+sequence = get_sequence(params)
+data = run_sequence(sequence, params)
+data_id = save_data(sequence, params, *data)
+print(data_id)
 
 ## antihole test
 # params = default_params.copy()
@@ -217,8 +217,8 @@ first_data_id = None
 # )
 # print(f"data = (first, last)")
 # print(f"\"\": ({first_data_id}, {data_id}),")
-
-
+#
+#
 
 ## chasm test
 # params = default_params.copy()

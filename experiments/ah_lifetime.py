@@ -22,29 +22,49 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "AH Lifetime",
+    "sequence_repeats_per_transfer": 1,
+    "data_transfer_repeats": 1,
+    "eos": {
+        "ac": {
+            "name": "eo_ac",
+            "amplitude": 4500,  # 4500
+            "offset": -300.0 * ureg.MHz,
+        },
+        "bb": {
+            "name": "eo_bb",
+            "amplitude": 1900,  # 1900
+            "offset": -300 * ureg.MHz,
+        },
+        "ca": {
+            "name": "eo_ca",
+            "amplitude": 1400,  # 1400
+            "offset": -300 * ureg.MHz,
+        },
+    },
     "chasm": {
-        "transitions": ["bb"], #, "rf_both"
-        "scan": 2.5 * ureg.MHz,
-        "durations": 500 * ureg.us,
-        "repeats": 500,
+        "transitions": ["bb"],
+        "scan": 2 * ureg.MHz,
+        "durations": 50 * ureg.us,
+        "repeats": 2000,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "antihole": {
-        "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
-        "durations": [1 * ureg.ms, 1 * ureg.ms],
-        "repeats": 20,
-        "ao_amplitude": 800,
+        "transitions": ["ac", "ca"],
+        "durations": [100 * ureg.us, 100 * ureg.us],
+        "repeats": 2500,
+        "ao_amplitude": 2000,
     },
     "detect": {
-        "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
-        "on_time": 5 * ureg.us,
+        "detunings": np.linspace(-2, 2, 12) * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
+        "on_time": 2.5 * ureg.us, #5
         "off_time": 0.5 * ureg.us,
         "delta_detect_time": 0 * ureg.s,
+        "ao_amplitude": 400,
         "cycles": {
             "chasm": 0,
-            "antihole": 32,
-            "antihole_delay": 32,
+            "antihole": 64,
+            "antihole_delay": 64,
             "rf": 0,
         },
     },
@@ -67,7 +87,7 @@ start_time = time.time()
 params = default_params.copy()
 first_data_id = None
 
-delta_detect_times = np.logspace(-3, 4, num = 50) * ureg.s
+delta_detect_times = np.logspace(0, 4, num = 20) * ureg.s
 #delta_detect_times = [3600 * ureg.s]
 for delta_detect_time in delta_detect_times:
     params["detect"]["delta_detect_time"] = delta_detect_time
