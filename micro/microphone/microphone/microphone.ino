@@ -3,7 +3,7 @@
 qCommand qC;
 
 // interval in us for ADC data reading
-const uint16_t ADC_INTERVAL = 100;
+const uint16_t ADC_INTERVAL = 10;
 const uint16_t ADC_DELAY = 0;
 const adc_scale_t ADC_SCALE = BIPOLAR_2500mV;
 
@@ -75,6 +75,7 @@ void cmd_data(qCommand& qC, Stream& S) {
 }
 
 void cmd_adc_interval(qCommand& qC, Stream& S) {
+  S.print("ADC Interval: ");
   S.println(ADC_INTERVAL);
 }
 

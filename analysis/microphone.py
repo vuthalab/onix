@@ -37,7 +37,7 @@ class Microphone(Quarto, Fitter):
         self.buffer = np.zeros(int(self.num_periods_fit * 0.8 / self.adc_interval)) # slight overestimation of how many points we will need to save
         self.samples_to_get = int(self.get_data_time / self.adc_interval) # how many samples to ask the quarto for every time
 
-        self.t_axis = np.arange(0, len(self.buffer) * self.adc_interval, self.adc_interval)
+        self.t_axis = np.linspace(0,len(self.buffer) * self.adc_interval,len(self.buffer))
         self.time_fit = 0
 
         self.A = 0
@@ -61,6 +61,9 @@ class Microphone(Quarto, Fitter):
             self.buffer[-self.samples_to_get:] = data
         else:
             self.buffer = data[-len(self.buffer):]
+
+    def check_vals(self):
+        print(np.isinf(self.t_axis), np.isnan(self.t_axis), np.isinf(self.buffer), np.isnan(self.buffer))
 
     def get_fit(self): # every average period we need to run this again
         """

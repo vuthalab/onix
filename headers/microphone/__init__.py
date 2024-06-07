@@ -23,9 +23,10 @@ class Quarto:
         self.device.reset_output_buffer()
         out = "adc_interval\n"
         self.device.write(out.encode('utf-8'))
-        response = self.device.readline()
+        response = self.device.readline().decode('utf-8')
+        #response = response.decode('utf-8').strip('\n').split(" ")[-1]
         #response = int(response.decode('utf-8').strip('\r\n')) * 1e-6
-        return response
+        return 10e-6
         
     def data(self, val = None):
         if val is None:
