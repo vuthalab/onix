@@ -20,11 +20,10 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
             - num_periods_save: how many of the past fitted periods we should save, for determinatin of experiment repetition rate
             - get_data_time: how often to get new data from the quarto
         """
-        len_buffer = int(self.num_periods_fit * 0.8 / self.adc_interval) # slight overestimation of how many points we will need to save
+         
         Quarto.__init__(self, address)
-        Fitter.__init__(self, sine)
-        PowerSpectrum.__init__(self, num_of_samples=len_buffer, time_resolution=self.adc_interval)
-
+        Fitter.__init__(self, sine)       
+        
         max_get_data_time = DEFAULT_GET_DATA_LENGTH * self.adc_interval
 
         if get_data_time == "Max":
@@ -37,7 +36,7 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
         self.num_periods_fit = num_periods_fit # we only care about the last num_periods_fit of PT cycle
         self.num_periods_save = num_periods_save
         
-        self.buffer = np.zeros(len_buffer) 
+        self.buffer = np.zeros(int(num_periods_fit * 0.8 / self.adc_interval)) # slight overestimation of how many points we will need to save) 
         self.samples_to_get = int(self.get_data_time / self.adc_interval) # how many samples to ask the quarto for every time
 
         self.t_axis = np.linspace(0,len(self.buffer) * self.adc_interval,len(self.buffer))
@@ -51,6 +50,8 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
         self.historical_omega = np.zeros(self.num_periods_save)
         self.historical_phi = np.zeros(self.num_periods_save)
         self.average_period = 0
+
+        PowerSpectrum.__init__(self, num_of_samples=self.samples_to_get, time_resolution=self.adc_interval)
         
 
     def get_data(self): 
@@ -66,11 +67,12 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
             self.buffer = data[-len(self.buffer):]
 
         ## add or update data to the PowerSpectrum
-        not_enough_data_yet = np.isin(0, self.buffer)
-        if not_enough_data_yet == True:
-            self.add_data(data)
-        else:
-            self.update_data(data)    
+        #not_enough_data_yet = np.isin(0, self.buffer)
+        #if not_enough_data_yet == True:
+        #    self.add_data(data)
+        #else:
+        #    self.update_data(data)  
+        self.add_data(data)  
 
     def check_vals(self):
         print(np.isinf(self.t_axis), np.isnan(self.t_axis), np.isinf(self.buffer), np.isnan(self.buffer))
