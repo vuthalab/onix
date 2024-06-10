@@ -11,6 +11,9 @@ def sin(t, f, A, phi, c):
     return A*np.sin(2*np.pi*f*t+phi)+c
 
 q = Quarto()
+adc_interval = q.adc_interval   # [s]
+sample_rate = 1/adc_interval    # [samples per second]
+
 data = np.array([])
 fig, (ax1, ax2) = plt.subplots(2, 1)
 
@@ -28,8 +31,11 @@ avgs = avgs[times>0.5]
 avgs -= np.mean(avgs)
 times = times[times>0.5]
 
-peaks, properties = find_peaks(avgs, height=np.max(avgs)-0.001, distance=int(1e4))
-freq_estimate_from_peaks = 1/np.mean(np.abs(times[peaks] - np.roll(times[peaks], 1))[1:])
+max_noise_freq = 5  # [Hz]
+peak_distance = int(sample_rate/max_noise_freq)    # checking for peaks with frequency <= 5 Hz
+peaks, properties = find_peaks(avgs, height=np.max(avgs)-0.001, distance=peak_distance)
+average_time_dif_bw_peaks =  np.mean(np.abs(times[peaks] - np.roll(times[peaks], 1))[1:])
+freq_estimate_from_peaks = 1/average_time_dif_bw_peaks
 
 ax1.plot(times, avgs, label='avg', color='black')
 ax1.set_xlabel('time (us)')
