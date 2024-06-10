@@ -3,30 +3,61 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import butter, sosfilt
 from scipy.signal.windows import boxcar
+import time
+from scipy.signal import find_peaks
+from scipy.optimize import curve_fit
+
+def sin(t, f, A, phi, c):
+    return A*np.sin(2*np.pi*f*t+phi)+c
 
 q = Quarto()
+data = np.array([])
+fig, (ax1, ax2) = plt.subplots(2, 1)
 
-data = []
+for i in range(20): 
+    data = np.append(data, q.data())
 
-for i in range(7): data.append(q.data())
-
-data = np.array(data)
-data = data.flatten()
-
+## windowed average
 N = 5000
-stack = np.array([ np.roll(data,s) for s in range(N)])
+avgs = np.zeros_like(data)
+for i in range(data.size):
+    avgs[i] = np.mean(data[max(i-N, 0):i+1])
 
-stack_avg = np.average(stack,axis=0)
+times = np.linspace(0, len(data)*10e-6, len(data))
+avgs = avgs[times>0.5]
+avgs -= np.mean(avgs)
+times = times[times>0.5]
 
-# data_averaged = [ np.mean(data[num-4:num+4]) for num, point in enumerate(data[4:-5], 4)]
+peaks, properties = find_peaks(avgs, height=np.max(avgs)-0.001, distance=int(1e4))
+freq_estimate_from_peaks = 1/np.mean(np.abs(times[peaks] - np.roll(times[peaks], 1))[1:])
 
-xaxis = np.linspace(0, len(data)*10e-6, len(data))
+ax1.plot(times, avgs, label='avg', color='black')
+ax1.set_xlabel('time (us)')
+ax1.set_ylabel('signal with mean set to 0 (V)')
+ax1.scatter(times[peaks], avgs[peaks], color='red')
+ax1.set_title('averaged signal')
 
-# sos2 = butter(10, 50, 'lowpass', fs=100000, output='sos')
+## FFT
 
-filtered2 = sosfilt(sos2, data)
+avgs_fft = np.fft.rfft(avgs)
+fft_freqs = np.fft.rfftfreq(avgs.size, 10e-6)
 
-# plt.plot(xaxis, data)
-plt.plot(stack_avg - 0.3)
+freq_peak = fft_freqs[np.argmax(avgs_fft)]
+
+ax2.plot(fft_freqs, np.abs(avgs_fft), label='fft')
+ax2.set_title('Fourier Transform of averaged signal')
+ax2.set_xlabel('frequency (Hz)')
+ax2.set_ylabel('signal with time domain \n mean set to 0 (V)')
+
+## curvefit
+print(f'FFT peak frequency = {freq_peak} Hz')
+print(f'Frequency estimate from peaks = {freq_estimate_from_peaks} Hz')
+p0=(freq_estimate_from_peaks, np.max(avgs), np.pi/2 - 2*np.pi*freq_estimate_from_peaks*times[peaks[0]], np.mean(avgs))
+
+phi_pred = np.pi/2 - 2*np.pi*freq_estimate_from_peaks*times[peaks[0]]
+
+popt, pcov = curve_fit(sin, times, avgs, p0=p0)
+print(f"(f, A, phi, c)= {popt}")
+ax1.plot(times, sin(times, *p0), label='curvefit')
+
 plt.show()
-

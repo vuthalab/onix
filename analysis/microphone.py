@@ -20,19 +20,10 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
             - num_periods_save: how many of the past fitted periods we should save, for determinatin of experiment repetition rate
             - get_data_time: how often to get new data from the quarto
         """
-<<<<<<< Updated upstream
          
         Quarto.__init__(self, address)
         Fitter.__init__(self, sine)       
         
-=======
-        
-        Quarto.__init__(self, address)
-        Fitter.__init__(self, sine)
-        len_buffer = int(num_periods_fit * 0.8 / self.adc_interval) # slight overestimation of how many points we will need to save
-        PowerSpectrum.__init__(self, num_of_samples=len_buffer, time_resolution=self.adc_interval)
-
->>>>>>> Stashed changes
         max_get_data_time = DEFAULT_GET_DATA_LENGTH * self.adc_interval
 
         if get_data_time == "Max":
@@ -59,6 +50,8 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
         self.historical_omega = np.zeros(self.num_periods_save)
         self.historical_phi = np.zeros(self.num_periods_save)
         self.average_period = 0
+
+        self.moving_avg = []
 
         #PowerSpectrum.__init__(self, num_of_samples=self.samples_to_get, time_resolution=self.adc_interval)
         PowerSpectrum.__init__(self, num_of_samples=len(self.buffer), time_resolution=self.adc_interval)
@@ -142,9 +135,18 @@ class Microphone(Quarto, Fitter, PowerSpectrum):
             self.average_period = 0
 
     def windowed_average(self, N):
+        """# old code
         stack = np.array([ np.roll(self.buffer,s) for s in range(N)])
         stack_avg = np.average(stack,axis=0)
         self.avg = stack_avg
+        """
+
+        avgs = np.zeros_like(self.buffer)
+        for i in range(self.buffer.size):
+            avgs[i] = np.mean(self.buffer[max(i-N, 0):i+1])
+
+        self.moving_avg = avgs
+
 
     @property
     def phase(self):

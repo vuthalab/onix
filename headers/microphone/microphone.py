@@ -44,25 +44,22 @@ signal.setMouseEnabled()
 error = signal.plot(pen='y')
 def update_signal():
     mic.get_data()
-    #mic.windowed_average(N = 5000)
+    # mic.windowed_average(N = 5000)
+    
     x_axis = np.linspace(0,len(mic.buffer) * mic.adc_interval,len(mic.buffer))
     error.setData(x_axis, mic.buffer)
+    
     #data = mic.buffer - np.ones(len(mic.buffer)) * np.mean(mic.buffer)
     #sos2 = butter(10, 100, 'bandpass', fs=1000, output='sos')
     #filtered2 = sosfilt(sos2, data)
 
     #error.setData(x_axis, np.abs(filtered2))
     #error.setData(x_axis, np.abs(mic.buffer - np.mean(mic.buffer)))
-<<<<<<< Updated upstream
     #error.setData(mic.buffer)
     #error.setData(mic.f, mic.relative_voltage_spectrum)
     #error.setData(mic.inverse_fft)
     #mic.fill_buffer()
     #error.setData(mic.voltage_spectrum)
-=======
-    #error.setData(x_axis, mic.buffer)
-    error.setData(mic.f, mic.voltage_spectrum)
->>>>>>> Stashed changes
 
 plots_timer = QtCore.QTimer()
 plots_timer.timeout.connect(update_signal)
