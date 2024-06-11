@@ -1,5 +1,6 @@
 from onix.headers.microphone import Quarto
 from onix.analysis.fitter import Fitter
+from onix.data_tools import save_experiment_data
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,22 +17,42 @@ def sin(t, f, A, phi, c):
 q = Quarto()
 adc_interval = q.adc_interval   # [s]
 sample_rate = 1/adc_interval    # [samples per second]
+get_data_length = 30000
+n_times_data = 50
+
+headers = {'adc_interval': adc_interval, 
+           'sample_rate': sample_rate, 
+           'get_data_length': get_data_length,
+           'n_times_data': n_times_data}
+
 
 data = np.array([])
+data_dict = {}
+
+start = time.perf_counter()
+for i in range(n_times_data): 
+    data_dict[f'{i}'] = q.data()
+    data = np.append(data, data_dict[f'{i}'])
+    time.sleep(adc_interval*get_data_length)
+end = time.perf_counter()
+
+print(f'Time taken to get data: {end-start} sec. Expected time = {(n_times_data*get_data_length)/sample_rate} sec.')
+
+name = 'PulseTubeNoise'
+data_id = save_experiment_data(data_name=name, data=data_dict, headers=headers)
+print(data_id)
 
 
-# TODO: does this transfer duplicate values?
-for i in range(10): 
-    data = np.append(data, q.data())
-    time.sleep(1e-6*30000)
+# fft_dict = {i: (np.fft.rfftfreq(sample.size, 10e-6), np.fft.rfft(sample)) for i, sample in data_dict.items()}
 
-# np.abs(data)
-
+"""
 plt.plot(data)
 plt.show()
 print(data.size)
+"""
 
 ## windowed average
+"""
 N = 5000
 avgs = np.zeros_like(data)
 for i in range(data.size):
@@ -40,8 +61,10 @@ for i in range(data.size):
 times = np.linspace(0, len(data)*10e-6, len(data))
 avgs = avgs[times>0.5]
 avgs -= np.mean(avgs)
-times = times[times>0.5]
+times = times[times>0.5]    # cutting out transients
+"""
 
+"""
 max_noise_freq = 5  # [Hz]
 peak_distance = int(sample_rate/max_noise_freq)    # checking for peaks with frequency <= 5 Hz
 peaks, properties = find_peaks(avgs, height=np.max(avgs)-0.001, distance=peak_distance)
@@ -55,8 +78,10 @@ ax1.set_xlabel('time (s)')
 ax1.set_ylabel('signal with mean set to 0 (V)')
 ax1.scatter(times[peaks], avgs[peaks], color='red')
 ax1.set_title('averaged signal')
+"""
 
 ## FFT
+"""
 fig, (ax1, ax2) = plt.subplots(2, 1)
 avgs_fft = np.fft.rfft(avgs)
 fft_freqs = np.fft.rfftfreq(avgs.size, 10e-6)
@@ -64,14 +89,16 @@ fft_freqs = np.fft.rfftfreq(avgs.size, 10e-6)
 freq_peak = fft_freqs[np.argmax(avgs_fft)]
 print(f'FFT peak frequency = {freq_peak} Hz')
 
-ax2.loglog(fft_freqs, np.abs(avgs_fft), label='fft')
+ax2.plot(fft_freqs, np.abs(avgs_fft), label='fft')
 ax2.set_title('Fourier Transform of averaged signal')
 ax2.set_xlabel('frequency (Hz)')
 ax2.set_ylabel('signal with time domain \n mean set to 0 (V)')
 
 plt.show()
+"""
 
 ## curvefit
+"""
 phi_pred0 = np.pi/2 - 2*np.pi*freq_estimate_from_peaks*times[peaks[0]]
 phi_pred_acc = np.angle(np.exp(1j*phi_pred0))
 p0= {'f': freq_estimate_from_peaks, 'A': np.max(avgs), 'phi':  phi_pred_acc, 'c': np.mean(avgs)}
@@ -103,3 +130,4 @@ if time_dif_bw_peaks.size >= 5: #TODO: remove magic number
     ax1.legend()
 
     plt.show()
+"""
