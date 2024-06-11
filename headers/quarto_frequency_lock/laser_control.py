@@ -217,7 +217,7 @@ def lock_param_update():
                                 step_size = max(scan.value()** 3, 0.05)
                                 scan.setValue(max(scan.value() - step_size, 0.1))
                             else:
-                                lock_state.setText("Autorelock On")
+                                lock_state.setText("Quarto Autorelock On")
                                 lock_state.setStyleSheet("background-color: green; color: white;")
                                 with device_lock:
                                     q.set_state(2)
