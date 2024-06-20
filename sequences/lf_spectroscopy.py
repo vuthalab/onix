@@ -98,6 +98,7 @@ class LFSpectroscopy(SharedSequence):
             segment_steps.append(("rf", 1))
         segment_steps.append(("lf", 1))
         segment_steps.append(("rf", 1))
+        segment_steps.append(("shutter_break", int(self._rf_parameters["cool_down_time"] / (10 * ureg.us))))
         if self._shutter_off_after_antihole:
             segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["rf"]

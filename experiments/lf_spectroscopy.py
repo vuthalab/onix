@@ -26,10 +26,10 @@ default_params = {
     "sequence_repeats_per_transfer": 10,
     "data_transfer_repeats": 1,
     "chasm": {
-        "transitions": ["bb", "rf_both"], #, "rf_both"
+        "transitions": ["bb"], #, "rf_both"
         "scan": 2.5 * ureg.MHz,
-        "durations": [2 * ureg.ms, 10 * ureg.ms],
-        "repeats": 20,
+        "durations": [2 * ureg.ms],
+        "repeats": 50,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
@@ -53,20 +53,21 @@ default_params = {
         "ao_amplitude": 450,
     },
     "rf": {
-        "amplitude": 10000,
+        "amplitude": 6000,
         "T_0": 2 * ureg.ms,
         "T_e": 1 * ureg.ms,
-        "T_ch": 5 * ureg.ms,
+        "T_ch": 15 * ureg.ms,
         "center_detuning": -60 * ureg.kHz,
         "scan_range": 50 * ureg.kHz,
+        "cool_down_time": 500 * ureg.ms,
         "use_hsh": True,
         "pre_lf": False,
     },
     "lf": {
-        "center_frequency": 302 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
+        "center_frequency": 168 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
         "detuning": 0 * ureg.kHz,
-        "duration": 1 * ureg.ms,
-        "amplitude": 0, #32000
+        "duration": 0.2 * ureg.ms,
+        "amplitude": 6000, #32000
         "wait_time": 0 * ureg.ms,
         "phase_diff": 0,
         # "center_frequency": 119.23 * ureg.MHz,
@@ -126,38 +127,38 @@ setup_digitizer(
 #         print(f"{ll}: {first_data_id}, {last_data_id}")
 
 ## Scan the LF Detunings
-params = default_params.copy()
-lf_frequencies = np.flip(np.arange(-15, 15, 1))
-lf_frequencies *= ureg.kHz
-for kk in tqdm(range(len(lf_frequencies))):
-    params["lf"]["detuning"] = lf_frequencies[kk]
-    sequence = get_sequence(params)
-    data = run_sequence(sequence, params)
-    data_id = save_data(sequence, params, *data)
-    time.sleep(10) # one second delay between each step to prevent heating issues
-    if kk == 0:
-        first_data_id = data_id
-        print(first_data_id)
-    elif kk == len(lf_frequencies) - 1:
-        last_data_id = data_id
-print(f"({first_data_id}, {last_data_id})")
-
-## Scan the LF Durations
 # params = default_params.copy()
-# lf_durations = np.linspace(0, 10, 30)
-# lf_durations *= ureg.ms
-# for kk in tqdm(range(len(lf_durations))):
-#     params["lf"]["duration"] = lf_durations[kk]
+# lf_frequencies = np.flip(np.arange(-10, 12, 2))
+# lf_frequencies *= ureg.kHz
+# for kk in tqdm(range(len(lf_frequencies))):
+#     params["lf"]["detuning"] = lf_frequencies[kk]
 #     sequence = get_sequence(params)
 #     data = run_sequence(sequence, params)
 #     data_id = save_data(sequence, params, *data)
-#     time.sleep(1) # one second delay between each step to prevent heating issues
+#     #time.sleep(5) # one second delay between each step to prevent heating issues
 #     if kk == 0:
 #         first_data_id = data_id
 #         print(first_data_id)
-#     elif kk == len(lf_durations) - 1:
+#     elif kk == len(lf_frequencies) - 1:
 #         last_data_id = data_id
 # print(f"({first_data_id}, {last_data_id})")
+
+## Scan the LF Durations
+params = default_params.copy()
+lf_durations = np.arange(0, 0.5, 0.002)
+lf_durations *= ureg.ms
+for kk in tqdm(range(len(lf_durations))):
+    params["lf"]["duration"] = lf_durations[kk]
+    sequence = get_sequence(params)
+    data = run_sequence(sequence, params)
+    data_id = save_data(sequence, params, *data)
+    time.sleep(20)
+    if kk == 0:
+        first_data_id = data_id
+        print(first_data_id)
+    elif kk == len(lf_durations) - 1:
+        last_data_id = data_id
+print(f"({first_data_id}, {last_data_id})")
 
 ## Scan the Ramsey phases
 # params = default_params.copy()
