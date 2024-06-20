@@ -1,4 +1,5 @@
 import numpy as np
+import time
 from onix.sequences.rf_spectroscopy import RFSpectroscopy
 from onix.units import ureg
 from onix.experiments.shared import (
@@ -10,6 +11,8 @@ from onix.experiments.shared import (
     run_sequence,
     save_data,
 )
+from onix.experiments.liquid.VALOControlUnit import VALOControlUnit
+
 
 ## function to run the experiment
 def get_sequence(params):
@@ -49,7 +52,7 @@ default_params = {
     "detect": {
         "transition": "bb",
         "detunings": [0] * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
-        "on_time": 2 * ureg.us, #5
+        "on_time": 5 * ureg.us, #5
         "off_time": 0.5 * ureg.us,
         "cycles": {
             "chasm": 0,
@@ -57,7 +60,7 @@ default_params = {
             "rf": 64,
         },
         "delay": 8 * ureg.us,
-        "ao_amplitude": 450,
+        "ao_amplitude": 500,
     },
     "field_plate": {
         "use": False,
@@ -78,8 +81,19 @@ setup_digitizer(
     ch1_range=default_params["digitizer"]["ch1_range"],
     ch2_range=default_params["digitizer"]["ch2_range"],
 )
+valo = VALOControlUnit()
+print(f"Current Etalon temperature is {valo.get_TEC_temperature(5)} C")
+start_temperature = 50
+end_temperature = 65
 
-while True:
+for kk in range(1000):
+    print()
+    print(kk)
+    #valo.set_TEC_temperature_setpoint(5, start_temperature)
+    #while abs(valo.get_TEC_temperature(5) - start_temperature) > 0.1:
+    #    time.sleep(1)
+    #valo.set_TEC_temperature_setpoint(5, end_temperature)
+    #while abs(valo.get_TEC_temperature(5) - end_temperature) > 0.1:
     params = default_params.copy()
     sequence = get_sequence(params)
     freq = wm.read_frequency(5)
@@ -87,3 +101,4 @@ while True:
     data = run_sequence(sequence, params)
     data_id = save_data(sequence, params, *data)
     print(data_id)
+    #valo.set_TEC_temperature_setpoint(5, start_temperature)

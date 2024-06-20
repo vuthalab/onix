@@ -51,7 +51,7 @@ _shared_parameters = {
     "ao": {
         "name": "ao_dp",
         "order": 2,
-        "center_frequency": 71 * ureg.MHz,
+        "center_frequency": 78 * ureg.MHz,
         "rise_delay": 1.1 * ureg.us,
         "fall_delay": 0.6 * ureg.us,
     },
@@ -78,7 +78,7 @@ _shared_parameters = {
         "offset": 30 * ureg.kHz,
     },
     "lf": {
-        "name": "lf_coil",
+        "name": "rf_coil",
         "rf_hsh_duration": None,
     },
     "field_plate": {
@@ -98,11 +98,11 @@ _shared_parameters = {
     },
     "rf_pump": {
         "use": False,
-        "into": "b",
+        "into": "bbar",
         "amplitude": 4000,
         "scan_detunings": {
-            "bbar": np.array([-130, 0]) * ureg.kHz,
-            "b": np.array([0, 130]) * ureg.kHz,
+            "b": np.array([-130, 0]) * ureg.kHz, # to prepare into b scans -130 to 0 (abar-bbar transition)
+            "bbar": np.array([0, 130]) * ureg.kHz, # to prepare into bbar scans 0 to 130 (a-b transition)
             "both": np.array([-130, 130]) * ureg.kHz,
         },
     },
@@ -131,7 +131,7 @@ _shared_parameters = {
     "digitizer": {
         "sample_rate": 25e6,
         "ch1_range": 2,
-        "ch2_range": 0.5,
+        "ch2_range": 2,
     },
     "shutter": {
         "channel": 1,
@@ -172,7 +172,7 @@ def setup_digitizer(
     sequence_repeats: int,
     num_channels: Literal[1, 2] = 2,
     ch1_range: float = 2,
-    ch2_range: float = 0.5,
+    ch2_range: float = 2,
     sample_rate: int = 25e6,
 ):
     digitizer_time_s = segment_time.to("s").magnitude

@@ -6,6 +6,7 @@ from onix.sequences.sequence import (
     TTLOn,
 )
 from onix.sequences.shared import SharedSequence
+from onix.sequences.sequence import AWGSinePulse
 from onix.units import ureg
 
 
@@ -17,6 +18,7 @@ class AHLifetime(SharedSequence):
     def _define_long_break(self):
         self.long_break_time = 20 * ureg.ms
         segment = Segment("long_break", self.long_break_time)
+        segment.add_awg_function(6, AWGSinePulse(121.25e6, self._rf_parameters["amplitude"]))
         self.add_segment(segment)
 
     def get_antihole_sequence(self):

@@ -37,7 +37,7 @@ awg_channels = {
     6 : {
         "name" : "rf_coil",
         "desc" : "rf to the coil",
-        "max_allowed_amplitude" : 16000,
+        "max_allowed_amplitude" : 10000,
     },
     7 : {
         "name" : "field_plate",

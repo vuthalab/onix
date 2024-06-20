@@ -24,48 +24,51 @@ def get_sequence(params):
 
 ## parameters
 default_params = {
-    "name": "RF Spectroscopy",
+    "name": "Hole Spectroscopy",
+    "ao": {
+        "center_frequency": 85 * ureg.MHz,
+    },
     "sequence_repeats_per_transfer": 20,
     "data_transfer_repeats": 1,
     "eos": {
         "ac": {
             "name": "eo_ac",
-            "amplitude": 4500,  # 4500
+            "amplitude": 0,  # 4500
             "offset": -300.0 * ureg.MHz,
         },
         "bb": {
             "name": "eo_bb",
-            "amplitude": 1900,  # 1900
+            "amplitude": 0,  # 1900
             "offset": -300 * ureg.MHz,
         },
         "ca": {
             "name": "eo_ca",
-            "amplitude": 1400,  # 1400
+            "amplitude": 0,  # 1400
             "offset": -300 * ureg.MHz,
         },
     },
     "rf": {
-        "amplitude": 8000,  # 4200
+        "amplitude": 0,  # 4200
         "detuning": (65) * ureg.kHz,
-        "duration": 0.1 * ureg.ms,
+        "duration": 0 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
         "scan": 3 * ureg.MHz,
         "durations": 100 * ureg.us,
-        "repeats": 2000,
+        "repeats": 0,
         "detunings": 0 * ureg.MHz,
-        "ao_amplitude": 2000,
+        "ao_amplitude": 0,
     },
     "antihole": {
-        "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
-        "durations": [100 * ureg.us, 100 * ureg.us],
-        "repeats": 2000,
+        "transitions": ["ac"], #, "rf_b" (for rf assist)
+        "durations": 10 * ureg.ms,
+        "repeats": 1000,
         "ao_amplitude": 2000,
     },
     "detect": {
-        "transition": "bb",
-        "detunings": (np.linspace(-2.5, 2.5, 20)) * ureg.MHz, #np.array([-2, 0]) * ureg.MHz, #  # np.array([-2, 0]) * ureg.MHz,
+        "transition": "ac",
+        "detunings": (np.linspace(-5, 5, 20)) * ureg.MHz, #np.array([-2, 0]) * ureg.MHz, #  # np.array([-2, 0]) * ureg.MHz,
         "on_time": 5 * ureg.us, #5
         "off_time": 1 * ureg.us,
         "cycles": {
@@ -99,12 +102,12 @@ start_time = time.time()
 first_data_id = None
 
 ## test
-# params = default_params.copy()
-# for ii in range(1):
-#     sequence = get_sequence(params)
-#     data = run_sequence(sequence, params)
-#     data_id = save_data(sequence, params, *data)
-#     print(data_id)
+params = default_params.copy()
+for ii in range(1):
+    sequence = get_sequence(params)
+    data = run_sequence(sequence, params)
+    data_id = save_data(sequence, params, *data)
+    print(data_id)
 
 ## antihole test
 # params = default_params.copy()
@@ -119,43 +122,45 @@ first_data_id = None
 #         first_data_id = data_id
 
 ## scan freq
-params = default_params.copy()
-first_data_id = None
-rf_frequencies = np.linspace(-300, 300, 51)
-rf_frequencies *= ureg.kHz
+# params = default_params.copy()
+# first_data_id = None
+# rf_frequencies = np.linspace(-250, 250, 41)
+# rf_frequencies *= ureg.kHz
 # f_check = f_lock_Quarto(location='/dev/ttyACM0')
 # field_plate_amplitude = 4500
-
-for _ in tqdm(range(1)):
-    # for run_n, amplitude in [(1, field_plate_amplitude), (2, -field_plate_amplitude)]:
-    # print(run_n)
-    # params["field_plate"]["amplitude"] = amplitude
-    # expt_start_time = time.time()
-    for kk in range(len(rf_frequencies)):
-
-        # print_unlock = False
-        # while True:
-        #     if f_check.get_last_transmission_point() > 0.1:
-        #         break
-        #     if print_unlock == False:
-        #         print("LASER UNLOCKED")
-        #         print_unlock = True
-        #
-
-
-
-        params["rf"]["detuning"] = rf_frequencies[kk]
-        sequence = get_sequence(params)
-        data = run_sequence(sequence, params)
-        data_id = save_data(sequence, params, *data)
-        if _ == 0:
-            print(data_id)
-        if first_data_id == None:
-            first_data_id = data_id
-
-    expt_end_time = time.time()
-    print(f"time taken for one iteration: {expt_end_time-expt_start_time}")
-    print(data_id)
+#
+# for _ in tqdm(range(1)):
+#     # for run_n, amplitude in [(1, field_plate_amplitude), (2, -field_plate_amplitude)]:
+#     # print(run_n)
+#     # params["field_plate"]["amplitude"] = amplitude
+#     # expt_start_time = time.time()
+#     for kk in range(len(rf_frequencies)):
+#
+#         # print_unlock = False
+#         # while True:
+#         #     if f_check.get_last_transmission_point() > 0.1:
+#         #         break
+#         #     if print_unlock == False:
+#         #         print("LASER UNLOCKED")
+#         #         print_unlock = True
+#         #
+#
+#
+#
+#         params["rf"]["detuning"] = rf_frequencies[kk]
+#         sequence = get_sequence(params)
+#         data = run_sequence(sequence, params)
+#         data_id = save_data(sequence, params, *data)
+#         if _ == 0:
+#             print(data_id)
+#         if first_data_id == None:
+#             first_data_id = data_id
+#
+#     expt_end_time = time.time()
+#     print(f"time taken for one iteration: {expt_end_time-expt_start_time}")
+#
+#
+#     print(data_id)
 
 ## scan inhom broad
 # params = default_params.copy()

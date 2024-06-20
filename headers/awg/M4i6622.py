@@ -142,7 +142,7 @@ class M4i6622:
         self._ttl_parameters = []
         for channel in self._ttl_channels:
             self._ttl_parameters.append(False)
-        self._sine_segment_duration = 1 * ureg.ms
+        self._sine_segment_duration = 4 * ureg.ms
         self._sine_segments = {
             "__sine_0": Segment("__sine_0", duration=self._sine_segment_duration),
             "__sine_1": Segment("__sine_1", duration=self._sine_segment_duration),

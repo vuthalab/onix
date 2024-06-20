@@ -257,7 +257,7 @@ with device_lock:
 offset = QtWidgets.QDoubleSpinBox(prefix = "Frequency Scan Center: ", suffix = " V")
 offset.setValue(initial_offset)
 offset.setDecimals(3)
-offset.setSingleStep(0.001)
+offset.setSingleStep(0.1)
 offset.valueChanged.connect(_offset)
 offset.setMinimum(0)
 offset.setMaximum(10)
