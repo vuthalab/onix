@@ -812,7 +812,69 @@ class AWGHSHPulse(AWGFunction):
     @property
     def min_duration(self) -> Q_:
         return self.T_ch + 2*self.T_0
-    
+
+class AWGSpinEcho(AWGFunction):
+    def __init__(
+        self,
+        piov2_time: Union[float, Q_],
+        pi_time: Union[float, Q_],
+        delay_time: Union[float, Q_],
+        frequency: Union[float, Q_],
+        amplitude: float,
+        phase: float = 0,
+        phase_pi: float = 0,
+    ):
+        super().__init__()
+        if isinstance(piov2_time, numbers.Number):
+            piov2_time = piov2_time * ureg.s
+        if isinstance(pi_time, numbers.Number):
+            pi_time = pi_time * ureg.s
+        if isinstance(delay_time, numbers.Number):
+            delay_time = delay_time * ureg.s
+        if isinstance(frequency, numbers.Number):
+            frequency = frequency * ureg.Hz
+        self._piov2_time = piov2_time
+        self._pi_time = pi_time
+        self._delay_time = delay_time
+        self._frequency = frequency
+        self._amplitude = amplitude
+        self._phase = phase
+        self._phase_pi = phase_pi
+
+    def output(self, times):
+        def sine(frequency, amplitude, phase, times):
+            return amplitude* np.sin(2 * np.pi * frequency * times + phase)
+
+        def zero(times):
+            return np.zeros(len(times))
+
+        piov2_time = self._piov2_time.to("s").magnitude
+        pi_time = self._pi_time.to("s").magnitude
+        delay_time = self._delay_time.to("s").magnitude
+        condlist = [
+            times < piov2_time,
+            np.logical_and(times >= piov2_time, times < piov2_time + delay_time),
+            np.logical_and(times >= piov2_time + delay_time, times < piov2_time + delay_time + pi_time),
+            np.logical_and(times >= piov2_time + delay_time + pi_time, times < piov2_time + 2 * delay_time + pi_time),
+            times >= piov2_time + 2 * delay_time + pi_time,
+        ]
+        funclist = [
+            partial(sine, self._frequency.to("Hz").magnitude, self._amplitude, 0),
+            zero,
+            partial(sine, self._frequency.to("Hz").magnitude, self._amplitude, self._phase_pi),
+            zero,
+            partial(sine, self._frequency.to("Hz").magnitude, self._amplitude, self._phase),
+        ]
+        return np.piecewise(times, condlist, funclist)
+
+    @property
+    def min_duration(self) -> Q_:
+        return 2 * self._piov2_time + 2 * self._delay_time + self._pi_time
+
+    @property
+    def max_amplitude(self):
+        return self._amplitude
+
 class TTLFunction:
     def output(self, times):
         raise NotImplementedError()
