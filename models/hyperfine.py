@@ -57,6 +57,7 @@ class HyperfineStates:
         self._I_x = qutip.jmat(self.I, "x")
         self._I_y = qutip.jmat(self.I, "y")
         self._I_z = qutip.jmat(self.I, "z")
+        self._mu_N = 7.6225932188  # MHz / T
         self._I_axes = [self._I_x, self._I_y, self._I_z]
         self._quadrupole_tensor = quadrupole_tensor
         self._Zeeman_tensor = Zeeman_tensor
@@ -84,14 +85,26 @@ class HyperfineStates:
     def energies_and_eigenstates(self):
         return self._Hamiltonian.eigenstates()
 
+    @property
+    def _mu_x(self):
+        return -(self._Zeeman_tensor[0][0] * self._I_x + self._Zeeman_tensor[0][1] * self._I_y + self._Zeeman_tensor[0][2] * self._I_z) / self._mu_N
+
+    @property
+    def _mu_y(self):
+        return -(self._Zeeman_tensor[1][0] * self._I_x + self._Zeeman_tensor[1][1] * self._I_y + self._Zeeman_tensor[1][2] * self._I_z) / self._mu_N
+
+    @property
+    def _mu_z(self):
+        return -(self._Zeeman_tensor[2][0] * self._I_x + self._Zeeman_tensor[2][1] * self._I_y + self._Zeeman_tensor[2][2] * self._I_z) / self._mu_N
+
     def m_Ix(self, eigenvector: qutip.Qobj):
-        return (eigenvector.dag() * self._I_x * eigenvector).tr()
+        return (eigenvector.dag() * self._mu_x * eigenvector).tr()
 
     def m_Iy(self, eigenvector: qutip.Qobj):
-        return (eigenvector.dag() * self._I_y * eigenvector).tr()
+        return (eigenvector.dag() * self._mu_y * eigenvector).tr()
 
     def m_Iz(self, eigenvector: qutip.Qobj):
-        return (eigenvector.dag() * self._I_z * eigenvector).tr()
+        return (eigenvector.dag() * self._mu_z * eigenvector).tr()
 
     def magnetic_field_sensitivity(self, eigenvector: qutip.Qobj):
         """Magnetic field sensitivity on (D1, D2, b) axes in MHz / T."""
