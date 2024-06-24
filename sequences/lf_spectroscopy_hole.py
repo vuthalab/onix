@@ -6,11 +6,12 @@ from onix.sequences.sequence import (
     AWGSineSweepEnveloped,
     AWGSineTrain,
     MultiSegments,
+    AWGConstant,
     Segment,
     TTLOn,
 )
 from onix.models.hyperfine import energies
-from onix.sequences.shared import SharedSequence, _rf_pump_segment, _scan_segment
+from onix.sequences.shared import SharedSequence, _rf_pump_segment, _scan_segment, chasm_segment
 from onix.awg_maps import get_channel_from_name
 import numpy as np
 from onix.units import ureg
@@ -22,7 +23,7 @@ class LFSpectroscopyHole(SharedSequence):
     HSH  https://doi.org/10.1364/AO.50.006548
     Parameters:
     "rf": {
-        "amplitude": rabi frequency of transition, 
+        "amplitude": rabi frequency of transition,
         "T_0": time at which to start frequency chirping,
         "T_e": width of edge function,
         "T_ch": time spent chirping,
@@ -31,13 +32,14 @@ class LFSpectroscopyHole(SharedSequence):
         }
     "lf": {
         "center_frequency": ,
-        "detuning": , 
+        "detuning": ,
         "duration": ,
         "amplitude": ,
     }
-    
+
     """
     def __init__(self, parameters: dict[str, Any]):
+        self._pre_chasm_parameters = parameters["pre_chasm"]
         super().__init__(parameters, shutter_off_after_antihole=True)
         self._lf_parameters = parameters["lf"]
         self._define_lf()
@@ -76,9 +78,39 @@ class LFSpectroscopyHole(SharedSequence):
                 "rf_b", self._rf_parameters, parameters, self._chasm_parameters["rf_duration"]
             )
         )
+        if self._field_plate_parameters["use"]:
+            for segment in segments:
+                field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
+
+                fp_channel = get_channel_from_name(self._field_plate_parameters["name"])
+                segment.add_awg_function(fp_channel, field_plate)
         segment = MultiSegments("chasm", segments)
         self._chasm_repeats = self._chasm_parameters["repeats"]
         self.add_segment(segment)
+
+        segment, self._pre_chasm_repeats = chasm_segment(
+            "pre_chasm",
+            self._ao_parameters,
+            self._eos_parameters,
+            self._field_plate_parameters,
+            self._pre_chasm_parameters,
+            self._rf_parameters,
+            self._rf_pump_parameters,
+        )
+        self.add_segment(segment)
+
+    def _define_antihole(self):
+        return
+
+    def get_chasm_sequence(self):
+        segment_steps = []
+        segment_steps.append(("pre_chasm", self._pre_chasm_repeats))
+        segment_steps.append(("field_plate_break", self._field_plate_break_repeats))
+        segment_steps.append(("chasm", self._chasm_repeats))
+        # waiting for the field plate to go low
+        segment_steps.append(("break", self._field_plate_break_repeats))
+        detect_cycles = self._detect_parameters["cycles"]["chasm"]
+        return segment_steps
 
     def get_antihole_sequence(self):
         segment_steps = []

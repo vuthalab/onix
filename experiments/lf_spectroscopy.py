@@ -66,8 +66,8 @@ default_params = {
     "lf": {
         "center_frequency": 168 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
         "detuning": 0 * ureg.kHz,
-        "duration": 0.2 * ureg.ms,
-        "amplitude": 6000, #32000
+        "duration": 1 * ureg.ms,
+        "amplitude": 60, #32000
         "wait_time": 0 * ureg.ms,
         "phase_diff": 0,
         # "center_frequency": 119.23 * ureg.MHz,
@@ -127,38 +127,39 @@ setup_digitizer(
 #         print(f"{ll}: {first_data_id}, {last_data_id}")
 
 ## Scan the LF Detunings
+for ll in range(5):
+    params = default_params.copy()
+    lf_frequencies = np.flip(np.arange(-15, 15, 0.1))
+    lf_frequencies *= ureg.kHz
+    for kk in tqdm(range(len(lf_frequencies))):
+        params["lf"]["detuning"] = lf_frequencies[kk]
+        sequence = get_sequence(params)
+        data = run_sequence(sequence, params)
+        data_id = save_data(sequence, params, *data)
+        #time.sleep(5) # one second delay between each step to prevent heating issues
+        if kk == 0:
+            first_data_id = data_id
+            print(first_data_id)
+        elif kk == len(lf_frequencies) - 1:
+            last_data_id = data_id
+    print(f"({first_data_id}, {last_data_id})")
+
+## Scan the LF Durations
 # params = default_params.copy()
-# lf_frequencies = np.flip(np.arange(-10, 12, 2))
-# lf_frequencies *= ureg.kHz
-# for kk in tqdm(range(len(lf_frequencies))):
-#     params["lf"]["detuning"] = lf_frequencies[kk]
+# lf_durations = np.arange(0, 0.5, 0.002)
+# lf_durations *= ureg.ms
+# for kk in tqdm(range(len(lf_durations))):
+#     params["lf"]["duration"] = lf_durations[kk]
 #     sequence = get_sequence(params)
 #     data = run_sequence(sequence, params)
 #     data_id = save_data(sequence, params, *data)
-#     #time.sleep(5) # one second delay between each step to prevent heating issues
+#     time.sleep(20)
 #     if kk == 0:
 #         first_data_id = data_id
 #         print(first_data_id)
-#     elif kk == len(lf_frequencies) - 1:
+#     elif kk == len(lf_durations) - 1:
 #         last_data_id = data_id
 # print(f"({first_data_id}, {last_data_id})")
-
-## Scan the LF Durations
-params = default_params.copy()
-lf_durations = np.arange(0, 0.5, 0.002)
-lf_durations *= ureg.ms
-for kk in tqdm(range(len(lf_durations))):
-    params["lf"]["duration"] = lf_durations[kk]
-    sequence = get_sequence(params)
-    data = run_sequence(sequence, params)
-    data_id = save_data(sequence, params, *data)
-    time.sleep(20)
-    if kk == 0:
-        first_data_id = data_id
-        print(first_data_id)
-    elif kk == len(lf_durations) - 1:
-        last_data_id = data_id
-print(f"({first_data_id}, {last_data_id})")
 
 ## Scan the Ramsey phases
 # params = default_params.copy()

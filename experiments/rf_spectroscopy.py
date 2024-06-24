@@ -25,7 +25,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 20,
+    "sequence_repeats_per_transfer": 10,
     "data_transfer_repeats": 1,
     "eos": {
         "ac": {
@@ -45,22 +45,22 @@ default_params = {
         },
     },
     "rf": {
-        "amplitude": 8000,  # 4200
+        "amplitude": 0,  # 4200
         "detuning": (65) * ureg.kHz,
         "duration": 0.1 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
         "scan": 3 * ureg.MHz,
-        "durations": 100 * ureg.us,
-        "repeats": 2000,
+        "durations": 1000 * ureg.us,
+        "repeats": 50,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
-        "durations": [100 * ureg.us, 100 * ureg.us],
-        "repeats": 2000,
+        "durations": [1000 * ureg.us, 1000 * ureg.us],
+        "repeats": 50,
         "ao_amplitude": 2000,
     },
     "detect": {
@@ -77,9 +77,9 @@ default_params = {
         "ao_amplitude": 450,
     },
     "field_plate": {
-        "amplitude": 3800,
-        "stark_shift": 2.2 * ureg.MHz,
-        "use": False,
+        "amplitude": 4500 * 3.,
+        "stark_shift": 2 * ureg.MHz * 3.,
+        "use": True,
     }
 }
 default_params = update_parameters_from_shared(default_params)
@@ -119,43 +119,43 @@ first_data_id = None
 #         first_data_id = data_id
 
 ## scan freq
-params = default_params.copy()
-first_data_id = None
-rf_frequencies = np.linspace(-300, 300, 51)
-rf_frequencies *= ureg.kHz
-# f_check = f_lock_Quarto(location='/dev/ttyACM0')
-# field_plate_amplitude = 4500
-
-for _ in tqdm(range(1)):
-    # for run_n, amplitude in [(1, field_plate_amplitude), (2, -field_plate_amplitude)]:
-    # print(run_n)
-    # params["field_plate"]["amplitude"] = amplitude
-    # expt_start_time = time.time()
-    for kk in range(len(rf_frequencies)):
-
-        # print_unlock = False
-        # while True:
-        #     if f_check.get_last_transmission_point() > 0.1:
-        #         break
-        #     if print_unlock == False:
-        #         print("LASER UNLOCKED")
-        #         print_unlock = True
-        #
-
-
-
-        params["rf"]["detuning"] = rf_frequencies[kk]
-        sequence = get_sequence(params)
-        data = run_sequence(sequence, params)
-        data_id = save_data(sequence, params, *data)
-        if _ == 0:
-            print(data_id)
-        if first_data_id == None:
-            first_data_id = data_id
-
-    expt_end_time = time.time()
-    print(f"time taken for one iteration: {expt_end_time-expt_start_time}")
-    print(data_id)
+# params = default_params.copy()
+# first_data_id = None
+# rf_frequencies = np.linspace(-300, 300, 51)
+# rf_frequencies *= ureg.kHz
+# # f_check = f_lock_Quarto(location='/dev/ttyACM0')
+# # field_plate_amplitude = 4500
+#
+# for _ in tqdm(range(1)):
+#     # for run_n, amplitude in [(1, field_plate_amplitude), (2, -field_plate_amplitude)]:
+#     # print(run_n)
+#     # params["field_plate"]["amplitude"] = amplitude
+#     # expt_start_time = time.time()
+#     for kk in range(len(rf_frequencies)):
+#
+#         # print_unlock = False
+#         # while True:
+#         #     if f_check.get_last_transmission_point() > 0.1:
+#         #         break
+#         #     if print_unlock == False:
+#         #         print("LASER UNLOCKED")
+#         #         print_unlock = True
+#         #
+#
+#
+#
+#         params["rf"]["detuning"] = rf_frequencies[kk]
+#         sequence = get_sequence(params)
+#         data = run_sequence(sequence, params)
+#         data_id = save_data(sequence, params, *data)
+#         if _ == 0:
+#             print(data_id)
+#         if first_data_id == None:
+#             first_data_id = data_id
+#
+#     expt_end_time = time.time()
+#     print(f"time taken for one iteration: {expt_end_time-expt_start_time}")
+#     print(data_id)
 
 ## scan inhom broad
 # params = default_params.copy()
@@ -195,30 +195,30 @@ for _ in tqdm(range(1)):
 #         first_data_id = data_id
 
 ## scan rf duration
-# start_time = time.time()
-# params = default_params.copy()
-# first_data_id = None
-#
-# for _ in range(100):
-#     rf_durations = np.linspace(0.0001, 0.3, 25)
-#     rf_durations *= ureg.ms
-#     for kk in range(len(rf_durations)):
-#         params["rf"]["duration"] = rf_durations[kk]
-#         sequence = get_sequence(params)
-#         data = run_sequence(sequence, params)
-#         data_id = save_data(sequence, params, *data)
-#         print(data_id)
-#         if first_data_id == None:
-#             first_data_id = data_id
-#     end_time = time.time()
-#
-#     print("\n")
-#     print(
-#         f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
-#     )
-#     print(f"data = (first, last)")
-#     print(f"\"\": ({first_data_id}, {data_id}),")
-#
+start_time = time.time()
+params = default_params.copy()
+first_data_id = None
+
+for _ in range(1):
+    rf_durations = np.linspace(0.01, 5, 200)
+    rf_durations *= ureg.ms
+    for kk in range(len(rf_durations)):
+        params["rf"]["duration"] = rf_durations[kk]
+        sequence = get_sequence(params)
+        data = run_sequence(sequence, params)
+        data_id = save_data(sequence, params, *data)
+        print(data_id)
+        if first_data_id == None:
+            first_data_id = data_id
+    end_time = time.time()
+
+    print("\n")
+    print(
+        f"Took {(end_time-start_time):.2f} s = {(end_time-start_time) / 60:.2f} min = {(end_time-start_time) / 3600:.2f} h"
+    )
+    print(f"data = (first, last)")
+    print(f"\"\": ({first_data_id}, {data_id}),")
+
 
 
 ## chasm test
