@@ -184,6 +184,70 @@ class AWGConstant(AWGFunction):
     def max_amplitude(self):
         return self._amplitude
 
+class AWGRamp(AWGFunction):
+    def __init__(
+        self,
+        start_amplitude: float,
+        end_amplitude: float,
+        start_time: Union[float, Q_],
+        end_time: Union[float, Q_],
+    ):
+        super().__init__()
+        self._start_amplitude = start_amplitude
+        self._end_amplitude = end_amplitude
+        self._start_time = start_time
+        self._end_time = end_time
+
+    def output(self, times):
+        def constant(amplitude, times):
+            return np.ones(len(times)) * amplitude
+
+        def ramp(times):
+            slope = (self._end_amplitude - self._start_amplitude) / (self._end_time - self._start_time)
+            return self._start_amplitude + slope * (times - self._start_time)
+
+        funclist = []
+        condlist = []
+        start_time = self._start_time.to("s").magnitude
+        end_time = self._end_time.to("s").magnitude
+        funclist.append(partial(constant, self._start_amplitude))
+        condlist.append(times <= start_time)
+        funclist.append(partial(constant, self._end_amplitude))
+        condlist.append(times > end_time)
+        funclist.append(ramp)
+        return np.piecewise(times, condlist, funclist)
+
+    @property
+    def min_duration(self) -> Q_:
+        return self._end_time
+
+    @property
+    def max_amplitude(self):
+        return np.max([self._start_amplitude, self._end_amplitude])
+
+
+class AWGHalfSineRamp(AWGRamp):
+    def output(self, times):
+        def constant(amplitude, times):
+            return np.ones(len(times)) * amplitude
+
+        def ramp(times):
+            ramp_time = self._end_time - self._start_time
+            ramp_amplitude = self._end_amplitude - self._start_amplitude
+            return np.sin(np.pi * (times - self._start_time) / (2 * ramp_time)) * ramp_amplitude + self._start_amplitude
+
+        funclist = []
+        condlist = []
+        start_time = self._start_time.to("s").magnitude
+        end_time = self._end_time.to("s").magnitude
+        funclist.append(partial(constant, self._start_amplitude))
+        condlist.append(times <= start_time)
+        funclist.append(partial(constant, self._end_amplitude))
+        condlist.append(times > end_time)
+        funclist.append(ramp)
+        return np.piecewise(times, condlist, funclist)
+
+
 class AWGSinePulse(AWGFunction):
     def __init__(
         self,

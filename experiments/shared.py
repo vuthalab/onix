@@ -86,7 +86,8 @@ _shared_parameters = {
         "use": False,
         "amplitude": 3800,
         "stark_shift": 2 * ureg.MHz,
-        "padding_time": 5 * ureg.ms,
+        "ramp_time": 10 * ureg.ms,
+        "padding_time": 1 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
@@ -109,6 +110,7 @@ _shared_parameters = {
     "antihole": {
         "transitions": ["ac", "ca"],
         "durations": 10 * ureg.us,
+        "scan": 0 * ureg.MHz,
         "repeats": 5000,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,

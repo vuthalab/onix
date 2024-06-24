@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 from onix.models.hyperfine import energies
 from onix.sequences.sequence import (
+    AWGHalfSineRamp,
     AWGSinePulse,
     AWGConstant,
     AWGSineSweep,
@@ -25,7 +26,7 @@ from onix.awg_maps import get_channel_from_name
 def chasm_segment(
     name: str,
     ao_parameters: dict[str, Any],
-    eos_parameters: dict[str, Any],
+    eos_parameters: dict[str, Any] | None,
     field_plate_parameters: dict[str, Any],
     chasm_parameters: dict[str, Any],
     rf_parameters: dict[str, Any],
@@ -81,13 +82,14 @@ def chasm_segment(
 def antihole_segment(
     name: str,
     ao_parameters: dict[str, Any],
-    eos_parameters: dict[str, Any],
+    eos_parameters: dict[str, Any] | None,
     field_plate_parameters: dict[str, Any],
     antihole_parameters: dict[str, Any],
     rf_parameters: dict[str, Any],
     rf_pump_parameters: dict[str, Any],
 ):
     transitions: list[str] = antihole_parameters["transitions"]
+    scan = antihole_parameters["scan"]
     detunings = antihole_parameters["detunings"]
     ao_amplitudes = antihole_parameters["ao_amplitude"]
     durations = antihole_parameters["durations"]
@@ -125,24 +127,22 @@ def antihole_segment(
                     transition,
                     ao_amplitude,
                     duration,
-                    0 * ureg.Hz,
+                    scan,
                     detuning,
                 )
             )
-    if field_plate_parameters["use"]:
-        for segment in segments:
-            field_plate = AWGConstant(field_plate_parameters["amplitude"])
-
-            fp_channel = get_channel_from_name(field_plate_parameters["name"])
-            segment.add_awg_function(fp_channel, field_plate)
     segment = MultiSegments(name, segments)
+    if field_plate_parameters["use"]:
+        field_plate = AWGConstant(field_plate_parameters["amplitude"])
+        fp_channel = get_channel_from_name(field_plate_parameters["name"])
+        segment.add_awg_function(fp_channel, field_plate)
     return (segment, repeats)
 
 
 def detect_segment(
     name: str,
     ao_parameters: dict[str, Any],
-    eos_parameters: dict[str, Any],
+    eos_parameters: dict[str, Any] | None,
     field_plate_parameters: dict[str, Any],
     shutter_parameters: dict[str, Any],
     detect_parameters: dict[str, Any],
@@ -156,15 +156,21 @@ def detect_segment(
     segment.add_ttl_function(detect_parameters["trigger_channel"], ttl_function)
 
     transition = detect_parameters["transition"]
-    eo_parameters = eos_parameters[transition]
-    if transition is not None:  # TODO: use a shared transition name conversion function.
-        F_state = transition[0]
-        D_state = transition[1]
-        frequency = (
-            energies["5D0"][D_state]
-            - energies["7F0"][F_state]
-            + eo_parameters["offset"]
-        )
+    if eo_parameters is not None:
+        eo_parameters = eos_parameters[transition]
+        if transition is not None:  # TODO: use a shared transition name conversion function.
+            F_state = transition[0]
+            D_state = transition[1]
+            frequency = (
+                energies["5D0"][D_state]
+                - energies["7F0"][F_state]
+                + eo_parameters["offset"]
+            )
+        eo_amplitude = eo_parameters["amplitude"]
+        eo_pulse = AWGSinePulse(frequency, eo_amplitude)
+        eo_channel = get_channel_from_name(eo_parameters["name"])
+        segment.add_awg_function(eo_channel, eo_pulse)
+
     detect_detunings = detect_parameters["detunings"]
     if field_plate_parameters["use"]:
         all_detunings = np.empty(
@@ -183,10 +189,6 @@ def detect_segment(
     start_time = ttl_start_time + detect_padding_time
     on_time = detect_parameters["on_time"]
     off_time = detect_parameters["off_time"]
-    eo_amplitude = eo_parameters["amplitude"]
-    eo_pulse = AWGSinePulse(frequency, eo_amplitude)
-    eo_channel = get_channel_from_name(eo_parameters["name"])
-    segment.add_awg_function(eo_channel, eo_pulse)
 
     ao_frequencies = (
         ao_parameters["center_frequency"] + detect_detunings / ao_parameters["order"]
@@ -254,28 +256,29 @@ def _rf_pump_segment(
 def _scan_segment(
     name: str,
     ao_parameters: dict[str, Any],
-    eos_parameters: dict[str, Any],
+    eos_parameters: dict[str, Any] | None,
     transition: str,
     ao_amplitude: float,
     duration: Q_,
     scan: Q_,
     detuning: Q_ = 0 * ureg.Hz,
 ):
-    eo_parameters = eos_parameters[transition]
-    F_state = transition[0]  # TODO: use a shared conversion function.
-    D_state = transition[1]
-    frequency = (
-        energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
-    )
     segment = Segment(name, duration)
+    if eos_parameters is not None:
+        eo_parameters = eos_parameters[transition]
+        F_state = transition[0]  # TODO: use a shared conversion function.
+        D_state = transition[1]
+        frequency = (
+            energies["5D0"][D_state] - energies["7F0"][F_state] + eo_parameters["offset"]
+        )
+        eo_pulse = AWGSinePulse(frequency, eo_parameters["amplitude"])
+        eo_channel = get_channel_from_name(eo_parameters["name"])
+        segment.add_awg_function(eo_channel, eo_pulse)
     start = ao_parameters["center_frequency"] + (detuning - scan) / ao_parameters["order"]
     end = ao_parameters["center_frequency"] + (detuning + scan) / ao_parameters["order"]
     ao_pulse = AWGSineSweep(start, end, ao_amplitude, 0, duration)
     ao_channel = get_channel_from_name(ao_parameters["name"])
     segment.add_awg_function(ao_channel, ao_pulse)
-    eo_pulse = AWGSinePulse(frequency, eo_parameters["amplitude"])
-    eo_channel = get_channel_from_name(eo_parameters["name"])
-    segment.add_awg_function(eo_channel, eo_pulse)
     return segment
 
 
@@ -342,15 +345,27 @@ class SharedSequence(Sequence):
         segment = SegmentEmpty("break", break_time)
         self.add_segment(segment)
 
-        segment = Segment("field_plate_break", break_time)
+        total_field_plate_time = self._field_plate_parameters["ramp_time"] + self._field_plate_parameters["padding_time"]
+        segment_up = Segment("field_plate_ramp_up", total_field_plate_time)
+        segment_down = Segment("field_plate_ramp_down", total_field_plate_time)
         if self._field_plate_parameters["use"]:
-            field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
             field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
-            segment.add_awg_function(field_plate_channel, field_plate)
-        self.add_segment(segment)
-        self._field_plate_break_repeats = int(
-            self._field_plate_parameters["padding_time"] / break_time
-        )
+            field_plate_up = AWGHalfSineRamp(
+                0,
+                self._field_plate_parameters["amplitude"],
+                0,
+                self._field_plate_parameters["ramp_time"],
+            )
+            field_plate_down = AWGHalfSineRamp(
+                self._field_plate_parameters["amplitude"],
+                0,
+                0,
+                self._field_plate_parameters["ramp_time"],
+            )
+            segment_up.add_awg_function(field_plate_channel, field_plate_up)
+            segment_down.add_awg_function(field_plate_channel, field_plate_down)
+        self.add_segment(segment_up)
+        self.add_segment(segment_down)
 
         segment = Segment("shutter_break", break_time)
         segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
@@ -386,11 +401,9 @@ class SharedSequence(Sequence):
 
     def get_antihole_sequence(self):
         segment_steps = []
-        # waiting for the field plate to go high
-        segment_steps.append(("field_plate_break", self._field_plate_break_repeats))
+        segment_steps.append(("field_plate_ramp_up", 1))
         segment_steps.append(("antihole", self._antihole_repeats))
-        # waiting for the field plate to go low
-        segment_steps.append(("break", self._field_plate_break_repeats))
+        segment_steps.append(("field_plate_ramp_down", 1))
         segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["antihole"]
         segment_steps.extend(self.get_detect_sequence(detect_cycles))

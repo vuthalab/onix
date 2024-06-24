@@ -26,42 +26,26 @@ default_params = {
     "sequence_repeats_per_transfer": 5,
     "data_transfer_repeats": 1,
     "ao": {
-        "name": "ao_dp",
-        "order": 2,
         "center_frequency": 75 * ureg.MHz,
-        "rise_delay": 1.1 * ureg.us,
-        "fall_delay": 0.6 * ureg.us,
     },
-    "eos": {
-        "ac": {
-            "amplitude": 0,  # 4500
-        },
-        "bb": {
-            "amplitude": 0,  # 1900
-        },
-        "ca": {
-            "amplitude": 0,  # 1400
-        },
-    },
-    "pre_chasm": {
-        "transitions": ["bb"],
+    "chasm": {
+        "transitions": ["ac"],
         "scan": 2. * ureg.MHz,
         "durations": [5 * ureg.ms],
         "repeats": 10,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
-    "chasm": {
+    "antihole": {
+        "transitions": ["ac", "cb", "rf_b"],
         "scan": 1 * ureg.MHz,
-        "ac_duration": 10 * ureg.ms,
-        "ca_duration": 5 * ureg.ms,  # actually cb
-        "rf_duration": 3 * ureg.ms,
+        "durations": [10 * ureg.ms, 5 * ureg.ms, 3 * ureg.ms],
         "repeats": 20,
-        "detunings": 0 * ureg.MHz,
+        "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
         "ao_amplitude": 2000,
     },
     "detect": {
-        "transition": "bb",
+        "transition": "ac",
         "detunings": (np.linspace(-0.2, 0.2, 5)) * ureg.MHz,
         "on_time": 5 * ureg.us,
         "off_time": 1 * ureg.us,
