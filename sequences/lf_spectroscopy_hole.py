@@ -37,7 +37,6 @@ class LFSpectroscopyHole(SharedSequence):
 
     """
     def __init__(self, parameters: dict[str, Any]):
-        self._pre_chasm_parameters = parameters["pre_chasm"]
         parameters["eos"] = None
         super().__init__(parameters, shutter_off_after_antihole=True)
         self._lf_parameters = parameters["lf"]

@@ -86,7 +86,7 @@ _shared_parameters = {
         "use": False,
         "amplitude": 3800,
         "stark_shift": 2 * ureg.MHz,
-        "ramp_time": 10 * ureg.ms,
+        "ramp_time": 30 * ureg.ms,
         "padding_time": 1 * ureg.ms,
     },
     "chasm": {
@@ -192,8 +192,8 @@ def setup_digitizer(
 
 
 def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, skip_setup = False):
-    sequence.setup_sequence()
     if not skip_setup:
+        sequence.setup_sequence()
         m4i.setup_sequence(sequence)
 
     dg.start_capture()

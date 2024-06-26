@@ -106,6 +106,7 @@ start_time = time.time()
 params = default_params.copy()
 first_data_id = None
 
+time.sleep(3000)
 delta_detect_times = np.logspace(0, 3, num = 15) * ureg.s
 #delta_detect_times = [3600 * ureg.s]
 for kk in np.linspace(0, 1000, 10):

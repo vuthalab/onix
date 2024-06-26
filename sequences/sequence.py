@@ -202,14 +202,14 @@ class AWGRamp(AWGFunction):
         def constant(amplitude, times):
             return np.ones(len(times)) * amplitude
 
+        start_time = float(self._start_time.to("s").magnitude)
+        end_time = float(self._end_time.to("s").magnitude)
         def ramp(times):
-            slope = (self._end_amplitude - self._start_amplitude) / (self._end_time - self._start_time)
+            slope = (self._end_amplitude - self._start_amplitude) / (end_time - start_time)
             return self._start_amplitude + slope * (times - self._start_time)
 
         funclist = []
         condlist = []
-        start_time = self._start_time.to("s").magnitude
-        end_time = self._end_time.to("s").magnitude
         funclist.append(partial(constant, self._start_amplitude))
         condlist.append(times <= start_time)
         funclist.append(partial(constant, self._end_amplitude))
@@ -231,15 +231,16 @@ class AWGHalfSineRamp(AWGRamp):
         def constant(amplitude, times):
             return np.ones(len(times)) * amplitude
 
+        start_time = float(self._start_time.to("s").magnitude)
+        end_time = float(self._end_time.to("s").magnitude)
+
         def ramp(times):
-            ramp_time = self._end_time - self._start_time
+            ramp_time = end_time - start_time
             ramp_amplitude = self._end_amplitude - self._start_amplitude
-            return np.sin(np.pi * (times - self._start_time) / (2 * ramp_time)) * ramp_amplitude + self._start_amplitude
+            return np.sin(np.pi * (times - start_time) / (2 * ramp_time)) * ramp_amplitude + self._start_amplitude
 
         funclist = []
         condlist = []
-        start_time = self._start_time.to("s").magnitude
-        end_time = self._end_time.to("s").magnitude
         funclist.append(partial(constant, self._start_amplitude))
         condlist.append(times <= start_time)
         funclist.append(partial(constant, self._end_amplitude))

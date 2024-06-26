@@ -74,11 +74,11 @@ default_params = {
             "rf": 32,
         },
         "delay": 8 * ureg.us,
-        "ao_amplitude": 450,
+        "ao_amplitude": 350,
     },
     "field_plate": {
-        "amplitude": 4500 * 3.,
-        "stark_shift": 2 * ureg.MHz * 3.,
+        "amplitude": 4500 * 1.,
+        "stark_shift": 2 * ureg.MHz * 1.,
         "use": True,
     }
 }
