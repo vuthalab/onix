@@ -61,13 +61,13 @@ default_params = {
         "scan_range": 50 * ureg.kHz,
         "cool_down_time": 500 * ureg.ms,
         "use_hsh": True,
-        "pre_lf": False,
+        "pre_lf": True,
     },
     "lf": {
-        "center_frequency": 168 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
+        "center_frequency": 302 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
         "detuning": 0 * ureg.kHz,
         "duration": 1 * ureg.ms,
-        "amplitude": 60, #32000
+        "amplitude": 800, #32000
         "wait_time": 0 * ureg.ms,
         "phase_diff": 0,
         # "center_frequency": 119.23 * ureg.MHz,
@@ -136,7 +136,7 @@ for ll in range(5):
         sequence = get_sequence(params)
         data = run_sequence(sequence, params)
         data_id = save_data(sequence, params, *data)
-        #time.sleep(5) # one second delay between each step to prevent heating issues
+        time.sleep(5) # one second de/tlay between each step to prevent heating issues
         if kk == 0:
             first_data_id = data_id
             print(first_data_id)

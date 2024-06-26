@@ -156,7 +156,7 @@ def detect_segment(
     segment.add_ttl_function(detect_parameters["trigger_channel"], ttl_function)
 
     transition = detect_parameters["transition"]
-    if eo_parameters is not None:
+    if eos_parameters is not None:
         eo_parameters = eos_parameters[transition]
         if transition is not None:  # TODO: use a shared transition name conversion function.
             F_state = transition[0]
@@ -353,13 +353,13 @@ class SharedSequence(Sequence):
             field_plate_up = AWGHalfSineRamp(
                 0,
                 self._field_plate_parameters["amplitude"],
-                0,
+                0 * ureg.s,
                 self._field_plate_parameters["ramp_time"],
             )
             field_plate_down = AWGHalfSineRamp(
                 self._field_plate_parameters["amplitude"],
                 0,
-                0,
+                0 * ureg.s,
                 self._field_plate_parameters["ramp_time"],
             )
             segment_up.add_awg_function(field_plate_channel, field_plate_up)

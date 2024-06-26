@@ -52,14 +52,14 @@ default_params = {
         "transitions": ["bb"], #, "rf_both"
         "scan": 2.5 * ureg.MHz,
         "durations": 100 * ureg.us,
-        "repeats": 2000,
+        "repeats": 1000,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
         "durations": [100 * ureg.us, 100 * ureg.us],
-        "repeats": 2000,
+        "repeats": 1000,
         "ao_amplitude": 2000,
     },
     "detect": {
@@ -140,7 +140,8 @@ while True:
     # PLOT
     x, y = antihole_data(data_id)
     if first_data == True:
-        line1, = ax.plot(x, y, 'r.') # Returns a tuple of line objects, thus the comma
+        line1, = ax.plot(x, y, markersize=20, marker="o", ls="none") # Returns a tuple of line objects, thus the comma
+    ax.tick_params(labelsize=30)
     line1.set_xdata(x)
     line1.set_ydata(y)
     fig.canvas.draw()
