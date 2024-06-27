@@ -49,6 +49,8 @@ class LFSpectroscopyHole(SharedSequence):
         detuning = self._lf_parameters["detuning"]
         duration = self._lf_parameters["duration"]
         amplitude = self._lf_parameters["amplitude"]
+        print(detuning)
+        print(self._lf_parameters["phase_diff"])
         try:
             len(detuning)
             for kk, number in enumerate(detuning):
@@ -57,6 +59,9 @@ class LFSpectroscopyHole(SharedSequence):
                     # pulse = AWGSineSweepEnveloped(center_frequency + detuning, center_frequency + detuning, amplitude, 0, duration)
                     pulse = AWGSinePulse(center_frequency + number, amplitude)
                     segment.add_awg_function(lf_channel, pulse)
+                    if not self._shutter_off_after_antihole:
+                        segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
+                    self.add_segment(segment)
                 else:
                     try:
                         len(self._lf_parameters["phase_diff"])
@@ -66,6 +71,9 @@ class LFSpectroscopyHole(SharedSequence):
                         segment = Segment(f"lf{kk * len(self._lf_parameters["phase_diff"]) + ll}")
                         pulse = AWGSineTrain(duration, self._lf_parameters["wait_time"], center_frequency + number, amplitude, [0, phase])
                         segment.add_awg_function(lf_channel, pulse)
+                        if not self._shutter_off_after_antihole:
+                            segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
+                        self.add_segment(segment)
         except:
             if "wait_time" not in self._lf_parameters or self._lf_parameters["wait_time"] <= 0 * ureg.s:
                 segment = Segment("lf", duration=duration)
@@ -76,9 +84,9 @@ class LFSpectroscopyHole(SharedSequence):
                 segment = Segment("lf")
                 pulse = AWGSineTrain(duration, self._lf_parameters["wait_time"], center_frequency + detuning, amplitude, [0, self._lf_parameters["phase_diff"]])
                 segment.add_awg_function(lf_channel, pulse)
-        if not self._shutter_off_after_antihole:
-            segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
-        self.add_segment(segment)
+            if not self._shutter_off_after_antihole:
+                segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
+            self.add_segment(segment)
 
 
     def _define_rf(self):

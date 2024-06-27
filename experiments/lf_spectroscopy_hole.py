@@ -38,8 +38,8 @@ default_params = {
     },
     "antihole": {
         "transitions": ["ac", "cb", "rf_b"], #, "rf_b"
-        "scan": 0.5 * ureg.MHz,
-        "durations": [1 * ureg.ms, 1 * ureg.ms, 3 * ureg.ms], # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
+        "scan": 2 * ureg.MHz,
+        "durations": [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms], # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
         "repeats": 400, #5
         "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
         "ao_amplitude": 2000, # 2000
@@ -47,7 +47,7 @@ default_params = {
     },
     "detect": {
         "transition": "ac",
-        "detunings": np.array([0]) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz, #np.flip(np.linspace(-3, 3, 30)) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz
+        "detunings": np.linspace(-0.5, 0.5, 5) * ureg.MHz, ##np.flip(np.linspace(-3, 3, 30)) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz
         "on_time": 5 * ureg.us,
         "off_time": 1 * ureg.us,
         "cycles": {

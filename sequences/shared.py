@@ -445,7 +445,7 @@ class SharedSequence(Sequence):
             segment_steps.append(("field_plate_ramp_up_opposite", 1))
             segment_steps.append(("antihole_opposite", self._antihole_repeats))
             segment_steps.append(("field_plate_ramp_down_opposite", 1))
-        segment_steps.append("break", int(self._antihole_parameters["detect_delay"]/(10 * ureg.us)))
+        segment_steps.append(("break", int(self._antihole_parameters["detect_delay"]/(10 * ureg.us))))
         segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["antihole"]
         segment_steps.extend(self.get_detect_sequence(detect_cycles))
