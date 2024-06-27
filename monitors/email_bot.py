@@ -1,44 +1,70 @@
 import numpy as np
 import time
 import influxdb_client
-from influxdb_client import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 import datetime
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import datetime
+
 
 """
-A side project for anyone if they have time. Query cavity transmission from influxDB every 5 seconds. Write 1 to recent_lock_history if the lock is on. Write 0 if lock is off.
+Query cavity transmission from influxDB every 5 seconds. Write 1 to recent_lock_history if the lock is on. Write 0 if lock is off.
 Do this in a rolling manner, so that the list always contains the 60 most recent numbers (i.e. the list considers the lock behavior for past five minutes).
 Take the mean of recent_lock_history to determine the state of the lock over the last 5 minutes. 
-If the lock goes from locked to unlocked, i.e. mean from 1/60 to 0, the element bot should send a message.
-If the lock goes from unlocked to locked, i.e. mean from 59/60 to 1, the element bot should send a message.
+If the lock goes from locked to unlocked, i.e. mean from 1/60 to 0, the bot should send a message.
+If the lock goes from unlocked to locked, i.e. mean from 59/60 to 1, the bot should send a message.
 
-Set up the element bot to message in a new channel. Call the channel something liek ''ONIX bot''. 
-
-
+One day we should make this an element bot.
 Relevant Links: 
 https://simple-matrix-bot-lib.readthedocs.io/en/latest/quickstart.html
 https://influxdb-client.readthedocs.io/en/latest/api.html
 """
 
-high_transmission_level = 0.1 # V; what transmission level indicates the lock is on
+recipients = ["alek.radak@mail.utoronto.ca", "amar.vutha@utoronto.ca", "mingyufan212@gmail.com", "bassam.nima@mail.utoronto.ca"]
+
+def send_email(lockstate):
+    time = datetime.datetime.now().replace(microsecond=0)
+    if lockstate == "broke":
+        subject = f"[Lock Alert] Lock Broke at {time}"
+        message = f"Lock Broke at {time}"
+    elif lockstate == "relock":
+        subject = f"[Lock Alert] Relock at {time}"
+        message = f"Relock at {time}"
+
+    msg = MIMEMultipart()
+    msg['From'] = 'onix.toronto@gmail.com'
+    msg['To'] = 'onix.toronto@gmail.com'
+    msg['Subject'] = subject
+    message = message
+    msg.attach(MIMEText(message))
+    mailserver = smtplib.SMTP('smtp.gmail.com',587)
+    mailserver.ehlo()
+    mailserver.starttls()
+    mailserver.ehlo()
+    mailserver.login('onix.toronto@gmail.com', 'pmnk chkz ptdx rnlv')
+    mailserver.sendmail('onix.toronto@gmail.com',recipients ,msg.as_string())
+    mailserver.quit()
+
+
+high_transmission_level = 0.3 # V; what transmission level indicates the lock is on
 instantaneous_lock_delta_t = 5 # check the lock every 5 seconds
 long_term_lock_delta_t = 60 * 5 # long term behavior of the lock is determined by its lock state over the last 5 minutes
 N = long_term_lock_delta_t // instantaneous_lock_delta_t
 
-def check_instantaneous_lock(): # should get the most recent influxDB point and return 1 if transmission is high, zero otherwise
-    query_client = influxdb_client
-    token = "" # get token
+def check_instantaneous_lock(): 
+    """
+    Query indluxdb for the most recent transmission point. Returns 1 if high and 0 is low.
+    """
+    token = os.environ.get("INFLUXDB_TOKEN")
     org = "onix"
     url = "http://onix-pc:8086"
 
     query_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
     query_api = query_client.query_api()
-    # p = {"_start": datetime.timedelta(hours=-24),
-    #     "_location": "Toronto",
-    #     "_desc": True,
-    #     "_floatParam": 25.1,
-    #     "_every": datetime.timedelta(seconds=0.1)
-    #     }
+
     tables = query_api.query(
     (
         'from(bucket:"week") |> range(start: -5s) '
@@ -82,10 +108,9 @@ while True:
 
     if start_lock_state != None and end_lock_state != None:
         if start_lock_state != end_lock_state and end_lock_state == 0:
-            # Lock broke
-            pass
+            send_email("broke")
         elif start_lock_state != end_lock_state and end_lock_state == 1:
-            # lock came back
+            send_email("relock")
             pass
 
     if i < N-1:
@@ -93,4 +118,4 @@ while True:
     else:
         i = 0
     
-    time.sleep(5)
+    time.sleep(instantaneous_lock_delta_t)
