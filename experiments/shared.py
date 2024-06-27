@@ -114,6 +114,7 @@ _shared_parameters = {
         "repeats": 5000,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
+        "detect_delay": 0 * ureg.us,
     },
     "detect": {
         "transition": "bb",

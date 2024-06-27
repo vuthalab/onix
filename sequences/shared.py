@@ -193,13 +193,16 @@ def detect_segment(
     ao_frequencies = (
         ao_parameters["center_frequency"] + detect_detunings / ao_parameters["order"]
     )
-    ao_pulse = AWGSineTrain(
-        on_time,
-        off_time,
-        ao_frequencies,
-        detect_parameters["ao_amplitude"],
-        start_time=start_time + off_time / 2,
-    )
+    if detect_parameters["simultaneous"]:
+        ao_pulse = AWG
+    else:
+        ao_pulse = AWGSineTrain(
+            on_time,
+            off_time,
+            ao_frequencies,
+            detect_parameters["ao_amplitude"],
+            start_time=start_time + off_time / 2,
+        )
     ao_channel = get_channel_from_name(ao_parameters["name"])
     segment.add_awg_function(ao_channel, ao_pulse)
 
@@ -404,6 +407,7 @@ class SharedSequence(Sequence):
         segment_steps.append(("field_plate_ramp_up", 1))
         segment_steps.append(("antihole", self._antihole_repeats))
         segment_steps.append(("field_plate_ramp_down", 1))
+        segment_steps.append("break", int(self._antihole_parameters["detect_delay"]/(10 * ureg.us)))
         segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["antihole"]
         segment_steps.extend(self.get_detect_sequence(detect_cycles))
