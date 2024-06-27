@@ -16,6 +16,8 @@ import onix.headers.pcie_digitizer.GageSupport as gs
 import onix.headers.pcie_digitizer.GageConstants as gc
 import platform
 
+from pprint import pprint
+
 
 os_name = platform.system()
 
@@ -56,6 +58,13 @@ class Digitizer:
     def __init__(self):
         self._handle = self.initialize()
         self._system_info = self.get_system_info()
+
+        x = PyGage.GetSystemCaps(self._handle, gc.CAPS_CLOCK_OUT)
+        print(x, type(x))
+        y = self.get_acquisition_config()
+
+        pprint(y)
+        print(type(y))
 
     def _raise_error(self, function_called: str, error_code: int, cleanup: bool = True):
         error_string = PyGage.GetErrorString(error_code)

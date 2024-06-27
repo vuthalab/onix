@@ -93,16 +93,24 @@ class M4i6622:
         self._sample_rate = self._get_sample_rate(self._hcards[0])
 
         # Clock sharing
-        self._set_clock_mode(self._hcards[0], 'internal_pll')
-        self._enable_clkout(self._hcards[0])
-        self._set_clock_mode(self._hcards[1], 'external_reference')
+        """
+        digitizer_clk_freq = int(1e8)
+
+        self._set_clock_mode(self._hcards[0], 'external_reference')
+        self._set_external_clock_frequency(self._hcards[0], digitizer_clk_freq)
         
+        self._enable_clkout(self._hcards[0])
         clock_freq = pyspcm.int32(0)
         ret = pyspcm.spcm_dwGetParam_i32(
             self._hcards[0], pyspcm.SPC_CLOCKOUTFREQUENCY, pyspcm.byref(clock_freq))
         
+
         self._set_clock_mode(self._hcards[1], 'external_reference')
         self._set_external_clock_frequency(self._hcards[1], clock_freq.value)
+        """
+        self._set_clock_mode(self._hcards[1], 'internal_pll')
+        self._set_clock_mode(self._hcards[0], 'internal_pll')
+
 
         # configuring triggers
         self._set_trigger_or_mask(self._hcards[0], pyspcm.SPC_TMASK_SOFTWARE)

@@ -17,26 +17,28 @@ def sin(t, f, A, phi, c):
 q = Quarto()
 adc_interval = q.adc_interval   # [s]
 sample_rate = 1/adc_interval    # [samples per second]
-get_data_length = 30000
-n_times_data = 50
+data_length = 30000
+data_time = 5*60                # [s]
+repeats = int(data_time*sample_rate/data_length)+1
 
 headers = {'adc_interval': adc_interval, 
            'sample_rate': sample_rate, 
-           'get_data_length': get_data_length,
-           'n_times_data': n_times_data}
+           'data_length': data_length,
+           'data_time': data_time,
+           'repeats': repeats}
 
 
 data = np.array([])
 data_dict = {}
 
 start = time.perf_counter()
-for i in range(n_times_data): 
+for i in range(repeats): 
     data_dict[f'{i}'] = q.data()
     data = np.append(data, data_dict[f'{i}'])
-    time.sleep(adc_interval*get_data_length)
+    time.sleep(adc_interval*data_length)
 end = time.perf_counter()
 
-print(f'Time taken to get data: {end-start} sec. Expected time = {(n_times_data*get_data_length)/sample_rate} sec.')
+print(f'Time taken to get data: {end-start} sec. Expected time = {(repeats*data_length)/sample_rate} sec.')
 
 name = 'PulseTubeNoise'
 data_id = save_experiment_data(data_name=name, data=data_dict, headers=headers)
