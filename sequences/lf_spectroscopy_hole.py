@@ -54,10 +54,10 @@ class LFSpectroscopyHole(SharedSequence):
 
         segment = Segment("lf1")
         composite_piov2 = AWGCompositePulse(
-            np.array([2, 4, 2, 3, 1]) * duration,
+            np.array([1]) * duration,
             center_frequency,
             amplitude,
-            np.array([0, np.pi, 0, np.pi, np.pi / 2]),
+            np.array([0]),
         )
         segment.add_awg_function(lf_channel, composite_piov2)
         if not self._shutter_off_after_antihole:

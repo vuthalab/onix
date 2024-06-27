@@ -77,7 +77,7 @@ default_params = {
         # "duration": 0.2 * ureg.ms,
         # "amplitude": 6000,
         "center_frequency": 168 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
-        "duration": 0.014 * ureg.ms, # 0.013 * ureg.ms
+        "duration": 0.0145 * ureg.ms, # 0.013 * ureg.ms
         "amplitude": 6000, # 6000
         "detuning": 0 * ureg.kHz,
         "wait_time": 0.05 * ureg.ms,
