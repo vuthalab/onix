@@ -87,39 +87,39 @@ setup_digitizer(
 start_time = time.time()
 
 ## scan delta detect times
-# params = default_params.copy()
-# first_data_id = None
-#
-# delta_detect_times = np.logspace(0, 4, num = 21) * ureg.s
-# #delta_detect_times = [3600 * ureg.s]
-# for delta_detect_time in delta_detect_times:
-#     params["detect"]["delta_detect_time"] = delta_detect_time
-#
-#     sequence = get_sequence(params)
-#     data = run_sequence(sequence, params)
-#     data_id = save_data(sequence, params, *data)
-#     print(data_id)
-#     if first_data_id == None:
-#         first_data_id = data_id
-
-## scan delta detect times and rf power
 params = default_params.copy()
 first_data_id = None
 
-time.sleep(3000)
-delta_detect_times = np.logspace(0, 3, num = 15) * ureg.s
+delta_detect_times = np.logspace(2, 4.2, num = 12)  * ureg.s
 #delta_detect_times = [3600 * ureg.s]
-for kk in np.linspace(0, 1000, 10):
-    params["rf"]["amplitude"] = kk
-    for delta_detect_time in delta_detect_times:
-        params["detect"]["delta_detect_time"] = delta_detect_time
+for delta_detect_time in delta_detect_times:
+    params["detect"]["delta_detect_time"] = delta_detect_time
 
-        sequence = get_sequence(params)
-        data = run_sequence(sequence, params)
-        data_id = save_data(sequence, params, *data)
-        print(data_id)
-        if first_data_id == None:
-            first_data_id = data_id
+    sequence = get_sequence(params)
+    data = run_sequence(sequence, params)
+    data_id = save_data(sequence, params, *data)
+    print(data_id)
+    if first_data_id == None:
+        first_data_id = data_id
+
+## scan delta detect times and rf power
+# params = default_params.copy()
+# first_data_id = None
+#
+# time.sleep(3000)
+# delta_detect_times = np.logspace(0, 3, num = 15) * ureg.s
+# #delta_detect_times = [3600 * ureg.s]
+# for kk in np.linspace(0, 1000, 10):
+#     params["rf"]["amplitude"] = kk
+#     for delta_detect_time in delta_detect_times:
+#         params["detect"]["delta_detect_time"] = delta_detect_time
+#
+#         sequence = get_sequence(params)
+#         data = run_sequence(sequence, params)
+#         data_id = save_data(sequence, params, *data)
+#         print(data_id)
+#         if first_data_id == None:
+#             first_data_id = data_id
 
 ## print info
 end_time = time.time()
