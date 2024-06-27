@@ -49,6 +49,13 @@ class LFSpectroscopyHole(SharedSequence):
         detuning = self._lf_parameters["detuning"]
         duration = self._lf_parameters["duration"]
         amplitude = self._lf_parameters["amplitude"]
+
+        segment = Segment("lf1", duration=duration)
+        pulse = AWGSinePulse(center_frequency + detuning, amplitude)
+        segment.add_awg_function(lf_channel, pulse)
+        if not self._shutter_off_after_antihole:
+            segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
+        self.add_segment(segment)
         if "wait_time" not in self._lf_parameters or self._lf_parameters["wait_time"] <= 0 * ureg.s:
             segment = Segment("lf", duration=duration)
             # pulse = AWGSineSweepEnveloped(center_frequency + detuning, center_frequency + detuning, amplitude, 0, duration)
@@ -98,8 +105,9 @@ class LFSpectroscopyHole(SharedSequence):
         if self._rf_parameters["pre_lf"]:
             segment_steps.append(("rf", 1))
             segment_steps.append(("break", 1))
-        segment_steps.append(("lf", 1))
-        segment_steps.append(("break", 1))
+        segment_steps.append(("lf1", 1))
+        #segment_steps.append(("lf", 1))
+        segment_steps.append(("break", 100000))
         segment_steps.append(("rf", 1))
         segment_steps.append(("break", 1))
         segment_steps.append(("shutter_break", int(self._rf_parameters["cool_down_time"] / (10 * ureg.us))))

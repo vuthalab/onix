@@ -105,6 +105,7 @@ _shared_parameters = {
             "b": np.array([-130, 0]) * ureg.kHz, # to prepare into b scans -130 to 0 (abar-bbar transition)
             "bbar": np.array([0, 130]) * ureg.kHz, # to prepare into bbar scans 0 to 130 (a-b transition)
             "both": np.array([-130, 130]) * ureg.kHz,
+            "bviac": np.array([-29.335, -29.225]) * ureg.MHz, # to prepare into b using the bbar -> cbar transition
         },
     },
     "antihole": {

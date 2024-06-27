@@ -39,15 +39,15 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "cb", "rf_b"], #, "rf_b"
         "scan": 2 * ureg.MHz,
-        "durations": [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms], # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
-        "repeats": 400, #5
+        "durations": [6 * ureg.ms, 6 * ureg.ms, 5 * ureg.ms], # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
+        "repeats": 50, #5
         "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
         "ao_amplitude": 2000, # 2000
         "detect_delay": 0 * ureg.ms,
     },
     "detect": {
         "transition": "ac",
-        "detunings": np.linspace(-0.5, 0.5, 5) * ureg.MHz, ##np.flip(np.linspace(-3, 3, 30)) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz
+        "detunings": np.linspace(-0.5, 0.5, 5) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz, #np.flip(np.linspace(-3, 3, 30)) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz
         "on_time": 5 * ureg.us,
         "off_time": 1 * ureg.us,
         "cycles": {
@@ -57,13 +57,14 @@ default_params = {
         },
         "delay": 8 * ureg.us,
         "ao_amplitude": 350,
+        "simultaneous": False,
     },
     "rf": {
         "amplitude": 6000, # 6000
         "T_0": 1 * ureg.ms, # 1 * ureg.ms
         "T_e": 0.5 * ureg.ms, # 0.5 * ureg.ms
         "T_ch": 30 * ureg.ms, # 30 * ureg.ms
-        "center_detuning": -60 * ureg.kHz,
+        "center_detuning": 60 * ureg.kHz,
         "scan_range": 50 * ureg.kHz,
         "cool_down_time": 0 * ureg.ms,
         "use_hsh": False,
@@ -75,7 +76,7 @@ default_params = {
         # "amplitude": 6000,
         "center_frequency": 168 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
         "duration": 0.013 * ureg.ms, # 0.013 * ureg.ms
-        "amplitude": 6000, # 6000
+        "amplitude": 0, # 6000
         "detuning": 0 * ureg.kHz,
         "wait_time": 0.05 * ureg.ms,
         "phase_diff": np.pi / 2,
@@ -234,48 +235,21 @@ setup_digitizer(
 #                 last_data_id = data_id
 #         print(f"({first_data_id}, {last_data_id})")
 
-## Scan the LF Detunings, bbar, time series (T-violation), fast AWG setup
+## ***NOT T-violation***: single LF detuning time series to measure fluctuations
 params = default_params.copy()
-lf_frequencies = np.array([1, -1]) + 0.5
-lf_frequencies *= ureg.kHz
-params["lf"]["detuning"] = lf_frequencies
-lf_phases = np.array([np.pi, -np.pi])
-params["lf"]["phase_diff"] = lf_phases
+# params["lf"]["detuning"] = -0.5 * ureg.kHz
+# params["lf"]["phase_diff"] = np.pi / 2
 
 sequence = get_sequence(params)
-sequence.setup_sequence(use_opposite_field=False, use_rf_index=0)
-m4i.setup_sequence(sequence)
+start_time = time.time()
+data = run_sequence(sequence, params)
+first_data_id = save_data(sequence, params, *data)
 
-opposite_field_plates = [False, True]
-lf_indices = list(range(4))
-for kk in range(1000000):
-    for ll in opposite_field_plates:
-        for mm in lf_indices:
-            sequence.setup_sequence(ll, mm)
-            m4i.setup_sequence_steps_only()
-            data = run_sequence(sequence, params, skip_setup=True)
-            data_id = save_data(sequence, params, *data)
-            if ll == False and mm == 0:
-                first_data_id = data_id
-            if ll == True and mm == 3:
-                last_data_id = data_id
-    print(f"({first_data_id}, {last_data_id})")
+for ll in range(1000):
+    # while abs(int((time.time()-start_time)/0.713) - (time.time()-start_time)/0.713) > 0.01:
+    #     pass
+    data = run_sequence(sequence, params, skip_setup=True)
+    data_id = save_data(sequence, params, *data)
+    print(data_id)
 
-## ***NOT T-violation***: single LF detuning time series to measure fluctuations
-# params = default_params.copy()
-# # params["lf"]["detuning"] = -0.5 * ureg.kHz
-# # params["lf"]["phase_diff"] = np.pi / 2
-#
-# sequence = get_sequence(params)
-# start_time = time.time()
-# data = run_sequence(sequence, params)
-# first_data_id = save_data(sequence, params, *data)
-#
-# for ll in range(1000):
-#     # while abs(int((time.time()-start_time)/0.713) - (time.time()-start_time)/0.713) > 0.01:
-#     #     pass
-#     data = run_sequence(sequence, params, skip_setup=True)
-#     data_id = save_data(sequence, params, *data)
-#     print(data_id)
-#
-# print(f"({first_data_id}, {data_id})")
+print(f"({first_data_id}, {data_id})")
