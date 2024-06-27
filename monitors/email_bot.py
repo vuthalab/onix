@@ -24,6 +24,11 @@ https://influxdb-client.readthedocs.io/en/latest/api.html
 """
 
 recipients = ["alek.radak@mail.utoronto.ca", "amar.vutha@utoronto.ca", "mingyufan212@gmail.com", "bassam.nima@mail.utoronto.ca"]
+high_transmission_level = 0.3 # V; what transmission level indicates the lock is on
+instantaneous_lock_delta_t = 5 # check the lock every 5 seconds
+long_term_lock_delta_t = 60 * 5 # long term behavior of the lock is determined by its lock state over the last 5 minutes
+N = long_term_lock_delta_t // instantaneous_lock_delta_t
+
 
 def send_email(lockstate):
     time = datetime.datetime.now().replace(microsecond=0)
@@ -47,12 +52,6 @@ def send_email(lockstate):
     mailserver.login('onix.toronto@gmail.com', 'pmnk chkz ptdx rnlv')
     mailserver.sendmail('onix.toronto@gmail.com',recipients ,msg.as_string())
     mailserver.quit()
-
-
-high_transmission_level = 0.3 # V; what transmission level indicates the lock is on
-instantaneous_lock_delta_t = 5 # check the lock every 5 seconds
-long_term_lock_delta_t = 60 * 5 # long term behavior of the lock is determined by its lock state over the last 5 minutes
-N = long_term_lock_delta_t // instantaneous_lock_delta_t
 
 def check_instantaneous_lock(): 
     """
