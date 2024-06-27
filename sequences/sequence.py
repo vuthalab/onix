@@ -676,7 +676,7 @@ class AWGCompositePulse(AWGFunction):
         start_time = self._start_time.to("s").magnitude
         frequencies = self._frequencies.to("Hz").magnitude
         for kk in range(len(frequencies)):
-            end_time = start_time + self._durations[kk]
+            end_time = start_time + self._durations[kk].to("s").magnitude
             funclist.append(
                 partial(sine, frequencies[kk], self._amplitudes[kk], self._phases[kk])
             )
