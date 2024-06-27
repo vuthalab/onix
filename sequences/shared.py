@@ -327,6 +327,18 @@ class SharedSequence(Sequence):
             self._rf_pump_parameters,
         )
         self.add_segment(segment)
+        opposite_field_plate_params = self._field_plate_parameters.copy()
+        opposite_field_plate_params["amplitude"] = -opposite_field_plate_params["amplitude"]
+        segment, self._antihole_repeats = antihole_segment(
+            "antihole_opposite",
+            self._ao_parameters,
+            self._eos_parameters,
+            opposite_field_plate_params,
+            self._antihole_parameters,
+            self._rf_parameters,
+            self._rf_pump_parameters,
+        )
+        self.add_segment(segment)
 
     def _define_detect(self):
         segment, self.analysis_parameters = detect_segment(
@@ -348,6 +360,8 @@ class SharedSequence(Sequence):
         total_field_plate_time = self._field_plate_parameters["ramp_time"] + self._field_plate_parameters["padding_time"]
         segment_up = Segment("field_plate_ramp_up", total_field_plate_time)
         segment_down = Segment("field_plate_ramp_down", total_field_plate_time)
+        segment_up_opposite = Segment("field_plate_ramp_up_opposite", total_field_plate_time)
+        segment_down_opposite = Segment("field_plate_ramp_down_opposite", total_field_plate_time)
         if self._field_plate_parameters["use"]:
             field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
             field_plate_up = AWGHalfSineRamp(
@@ -364,8 +378,25 @@ class SharedSequence(Sequence):
             )
             segment_up.add_awg_function(field_plate_channel, field_plate_up)
             segment_down.add_awg_function(field_plate_channel, field_plate_down)
+
+            field_plate_up_opposite = AWGHalfSineRamp(
+                0,
+                -self._field_plate_parameters["amplitude"],
+                0 * ureg.s,
+                self._field_plate_parameters["ramp_time"],
+            )
+            field_plate_down_opposite = AWGHalfSineRamp(
+                -self._field_plate_parameters["amplitude"],
+                0,
+                0 * ureg.s,
+                self._field_plate_parameters["ramp_time"],
+            )
+            segment_up_opposite.add_awg_function(field_plate_channel, field_plate_up_opposite)
+            segment_down_opposite.add_awg_function(field_plate_channel, field_plate_down_opposite)
         self.add_segment(segment_up)
         self.add_segment(segment_down)
+        self.add_segment(segment_up_opposite)
+        self.add_segment(segment_down_opposite)
 
         segment = Segment("shutter_break", break_time)
         segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
@@ -399,11 +430,16 @@ class SharedSequence(Sequence):
             segment_steps.append(("break", self._shutter_fall_delay_repeats))
         return segment_steps
 
-    def get_antihole_sequence(self):
+    def get_antihole_sequence(self, use_opposite_field):
         segment_steps = []
-        segment_steps.append(("field_plate_ramp_up", 1))
-        segment_steps.append(("antihole", self._antihole_repeats))
-        segment_steps.append(("field_plate_ramp_down", 1))
+        if not use_opposite_field:
+            segment_steps.append(("field_plate_ramp_up", 1))
+            segment_steps.append(("antihole", self._antihole_repeats))
+            segment_steps.append(("field_plate_ramp_down", 1))
+        else:
+            segment_steps.append(("field_plate_ramp_up_opposite", 1))
+            segment_steps.append(("antihole_opposite", self._antihole_repeats))
+            segment_steps.append(("field_plate_ramp_down_opposite", 1))
         segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["antihole"]
         segment_steps.extend(self.get_detect_sequence(detect_cycles))
@@ -413,15 +449,15 @@ class SharedSequence(Sequence):
             segment_steps.append(("break", self._shutter_fall_delay_repeats))
         return segment_steps
 
-    def get_rf_sequence(self):
+    def get_rf_sequence(self, use_rf_index=None):
         """This must be defined in derived classes."""
         raise NotImplementedError()
 
-    def setup_sequence(self):
+    def setup_sequence(self, use_opposite_field=False, use_rf_index=None):
         segment_steps = []
         segment_steps.extend(self.get_chasm_sequence())
-        segment_steps.extend(self.get_antihole_sequence())
-        segment_steps.extend(self.get_rf_sequence())
+        segment_steps.extend(self.get_antihole_sequence(use_opposite_field))
+        segment_steps.extend(self.get_rf_sequence(use_rf_index))
         return super().setup_sequence(segment_steps)
 
     def num_of_record_cycles(self):
