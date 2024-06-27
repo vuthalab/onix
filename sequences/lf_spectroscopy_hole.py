@@ -1,5 +1,6 @@
 from typing import Any
 from onix.sequences.sequence import (
+    AWGCompositePulse,
     AWGHSHPulse,
     AWGSinePulse,
     AWGSineSweep,
@@ -9,6 +10,7 @@ from onix.sequences.sequence import (
     Segment,
     TTLOn,
 )
+import numpy as np
 from onix.models.hyperfine import energies
 from onix.sequences.shared import SharedSequence, _rf_pump_segment, _scan_segment, chasm_segment
 from onix.awg_maps import get_channel_from_name
@@ -50,9 +52,14 @@ class LFSpectroscopyHole(SharedSequence):
         duration = self._lf_parameters["duration"]
         amplitude = self._lf_parameters["amplitude"]
 
-        segment = Segment("lf1", duration=duration)
-        pulse = AWGSinePulse(center_frequency + detuning, amplitude)
-        segment.add_awg_function(lf_channel, pulse)
+        segment = Segment("lf1")
+        composite_piov2 = AWGCompositePulse(
+            np.array([2, 4, 2, 3, 1]) * duration,
+            center_frequency,
+            amplitude,
+            np.array([0, np.pi, 0, np.pi, np.pi / 2]),
+        )
+        segment.add_awg_function(lf_channel, composite_piov2)
         if not self._shutter_off_after_antihole:
             segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
         self.add_segment(segment)
