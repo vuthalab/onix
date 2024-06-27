@@ -194,7 +194,6 @@ def detect_segment(
     ao_frequencies = (
         ao_parameters["center_frequency"] + detect_detunings / ao_parameters["order"]
     )
-    print(detect_parameters["simultaneous"])
     if detect_parameters["simultaneous"]:
         # ao_pulse = AWGSimultaneousSinePulses(
 
@@ -208,9 +207,6 @@ def detect_segment(
             detect_parameters["ao_amplitude"],
             start_time = start_time + off_time / 2
         )
-    print(ao_frequencies)
-    print(start_time)
-    print(off_time)
     
     ao_channel = get_channel_from_name(ao_parameters["name"])
     segment.add_awg_function(ao_channel, ao_pulse)
