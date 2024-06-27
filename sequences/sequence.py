@@ -587,6 +587,112 @@ class AWGSineTrain(AWGFunction):
     def max_amplitude(self):
         return np.max(self._amplitudes)
 
+class AWGCompositePulse(AWGFunction):
+    def __init__(
+        self,
+        durations: Union[float, List[float], Q_, List[Q_]],
+        frequencies: Union[float, List[float], Q_, List[Q_]],
+        amplitudes: Union[float, List[float]],
+        phases: Union[float, List[float]] = 0,
+        start_time: Union[float, Q_] = 0,
+    ):
+        super().__init__()
+        if isinstance(durations, numbers.Number):
+            durations = durations * ureg.s
+        elif not isinstance(durations, Q_):
+            for kk in range(len(durations)):
+                if isinstance(durations[kk], numbers.Number):
+                    durations[kk] = durations[kk] * ureg.s
+            durations = Q_.from_list(durations, "s")
+        self._durations: Q_ = durations
+        if isinstance(frequencies, numbers.Number):
+            frequencies = frequencies * ureg.Hz
+        elif not isinstance(frequencies, Q_):
+            for kk in range(len(frequencies)):
+                if isinstance(frequencies[kk], numbers.Number):
+                    frequencies[kk] = frequencies[kk] * ureg.Hz
+            frequencies = Q_.from_list(frequencies, "Hz")
+        self._frequencies: Q_ = frequencies
+        self._amplitudes = amplitudes
+        self._phases = phases
+        if isinstance(start_time, numbers.Number):
+            start_time = start_time * ureg.s
+        self._start_time: Q_ = start_time
+        self._unify_lists()
+
+    def _unify_lists(self):
+        """Makes sure that frequencies, amplitudes, and phases are lists of the same length."""
+        length = None
+        try:
+            self._frequencies[0]
+            is_list_freq = True
+            length = len(self._frequencies)
+        except Exception:
+            is_list_freq = False
+
+        try:
+            self._amplitudes[0]
+            is_list_amp = True
+            length = len(self._amplitudes)
+        except Exception:
+            is_list_amp = False
+
+        try:
+            self._phases[0]
+            is_list_phase = True
+            length = len(self._phases)
+        except Exception:
+            is_list_phase = False
+
+        if length is None:
+            raise ValueError(
+                "At least one of the frequencies, amplitudes, and phases must be a list"
+            )
+
+        if not is_list_freq:
+            frequency_value = self._frequencies.to("Hz").magnitude
+            self._frequencies = np.repeat(frequency_value, length) * ureg.Hz
+        if not is_list_amp:
+            self._amplitudes = np.repeat(self._amplitudes, length)
+        if not is_list_phase:
+            self._phases = np.repeat(self._phases, length)
+
+        if len(self._frequencies) != len(self._amplitudes) or len(
+            self._frequencies
+        ) != len(self._phases):
+            raise ValueError(
+                "Frequencies, amplitudes, and phases must be of the same length."
+            )
+
+    def output(self, times):
+        def sine(frequency, amplitude, phase, times):
+            return amplitude * np.sin(2 * np.pi * frequency * times + phase)
+
+        def zero(times):
+            return np.zeros(len(times))
+
+        funclist = []
+        condlist = []
+        start_time = self._start_time.to("s").magnitude
+        frequencies = self._frequencies.to("Hz").magnitude
+        for kk in range(len(frequencies)):
+            end_time = start_time + self._durations[kk].to("s").magnitude
+            funclist.append(
+                partial(sine, frequencies[kk], self._amplitudes[kk], self._phases[kk])
+            )
+            condlist.append(np.logical_and(times > start_time, times <= end_time))
+            start_time = end_time
+        funclist.append(zero)
+        return np.piecewise(times, condlist, funclist)
+
+    @property
+    def min_duration(self) -> Q_:
+        return self._start_time + np.sum(self._durations)
+
+    @property
+    def max_amplitude(self):
+        return np.max(self._amplitudes)
+
 class AWGMultiFunctions(AWGFunction):
     def __init__(self, functions: List[AWGFunction], start_times: Q_, end_times: Q_):
         super().__init__()
