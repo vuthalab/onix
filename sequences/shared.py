@@ -6,6 +6,7 @@ from onix.models.hyperfine import energies
 from onix.sequences.sequence import (
     AWGHalfSineRamp,
     AWGSinePulse,
+    AWGSimultaneousSinePulses,
     AWGConstant,
     AWGSineSweep,
     AWGSineTrain,
@@ -194,7 +195,13 @@ def detect_segment(
         ao_parameters["center_frequency"] + detect_detunings / ao_parameters["order"]
     )
     if detect_parameters["simultaneous"]:
-        ao_pulse = AWG
+        ao_pulse = AWGSimultaneousSinePulses(
+            on_time,
+            off_time,
+            ao_frequencies,
+            detect_parameters["ao_amplitude"],
+            start_time=start_time + off_time / 2,
+        )
     else:
         ao_pulse = AWGSineTrain(
             on_time,

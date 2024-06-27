@@ -298,19 +298,24 @@ class AWGSinePulse(AWGFunction):
     def max_amplitude(self):
         return self._amplitude
 
-class AWGSimultaneousSinePulse(AWGFunction):
+class AWGSimultaneousSinePulses(AWGFunction):
     def __init__(
         self,
-        frequencies: Union[float, Q_],
+        frequencies: Union[float, List[float], Q_, List[Q_]],
         amplitude: float,
         phase: float = 0,
         start_time: Optional[Union[float, Q_]] = None,
         end_time: Optional[Union[float, Q_]] = None,
     ):
         super().__init__()
-        if isinstance(frequency, numbers.Number):
-            frequency = frequency * ureg.Hz
-        self._frequency: Q_ = frequency
+        if isinstance(frequencies, numbers.Number):
+            frequencies = frequencies * ureg.Hz
+        elif not isinstance(frequencies, Q_):
+            for kk in range(len(frequencies)):
+                if isinstance(frequencies[kk], numbers.Number):
+                    frequencies[kk] = frequencies[kk] * ureg.Hz
+            frequencies = Q_.from_list(frequencies, "Hz")
+        self._frequencies: Q_ = frequencies
         self._amplitude = amplitude
         self._phase = phase
         if isinstance(start_time, numbers.Number):
@@ -321,8 +326,8 @@ class AWGSimultaneousSinePulse(AWGFunction):
         self._end_time: Union[Q_, None] = end_time
 
     def output(self, times):
-        frequency = self._frequency.to("Hz").magnitude
-        sine = self._amplitude * np.sin(2 * np.pi * frequency * times + self._phase)
+        frequencies = self._frequencies.to("Hz").magnitude
+        sine = np.sum([self._amplitude * np.sin(2 * np.pi * frequency * times + self._phase) for frequency in frequencies], axis=1)
         if self._start_time is not None:
             start_time = self._start_time.to("s").magnitude
             mask_start = np.heaviside(times - start_time, 0)
@@ -345,7 +350,7 @@ class AWGSimultaneousSinePulse(AWGFunction):
 
     @property
     def max_amplitude(self):
-        return self._amplitude
+        return self._amplitude*len(self._frequencies)
 
 
 

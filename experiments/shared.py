@@ -121,6 +121,7 @@ _shared_parameters = {
         "trigger_channel": 2,
         "ao_amplitude": 450,
         "detunings": np.array([0, 1]) * ureg.MHz,
+        "simultaneous": False,
         "randomize": False,
         "on_time": 5 * ureg.us,
         "off_time": 1 * ureg.us,
