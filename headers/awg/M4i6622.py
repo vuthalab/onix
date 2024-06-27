@@ -712,6 +712,12 @@ class M4i6622:
         for hcard in self._hcards:
             self._write_setup(hcard)
 
+    def setup_sequence_steps_only(self):
+        """Only sets ups the steps of a sequence."""
+        self._set_sequence_steps()
+        for hcard in self._hcards:
+            self._write_setup(hcard)
+
     def start_sequence(self):
         """Starts the sequence."""
         if self._sine_segment_running:

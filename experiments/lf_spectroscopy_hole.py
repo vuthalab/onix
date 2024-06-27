@@ -203,36 +203,63 @@ setup_digitizer(
 # print(f"({first_data_id}, {last_data_id})")
 
 ## Scan the LF Detunings, bbar, time series (T-violation)
+# params = default_params.copy()
+# lf_frequencies = np.array([1, -1]) + 0.5
+# lf_frequencies *= ureg.kHz
+# field_plates = [4500 * 1.5, -4500 * 1.5]
+# for ll in range(1000):
+#     for mm in field_plates:
+#         params["field_plate"]["amplitude"] = mm
+#         params["lf"]["phase_diff"] = np.pi / 2
+#         for kk in range(len(lf_frequencies)):
+#             params["lf"]["detuning"] = lf_frequencies[kk]
+#             sequence = get_sequence(params)
+#             data = run_sequence(sequence, params)
+#             data_id = save_data(sequence, params, *data)
+#             print(data_id)
+#             if kk == 0:
+#                 first_data_id = data_id
+#             elif kk == len(lf_frequencies) - 1:
+#                 last_data_id = data_id
+#         print(f"({first_data_id}, {last_data_id})")
+#         params["lf"]["phase_diff"] = -np.pi / 2
+#         for kk in range(len(lf_frequencies)):
+#             params["lf"]["detuning"] = lf_frequencies[kk]
+#             sequence = get_sequence(params)
+#             data = run_sequence(sequence, params)
+#             data_id = save_data(sequence, params, *data)
+#             if kk == 0:
+#                 first_data_id = data_id
+#             elif kk == len(lf_frequencies) - 1:
+#                 last_data_id = data_id
+#         print(f"({first_data_id}, {last_data_id})")
+
+## Scan the LF Detunings, bbar, time series (T-violation), fast AWG setup
 params = default_params.copy()
 lf_frequencies = np.array([1, -1]) + 0.5
 lf_frequencies *= ureg.kHz
-field_plates = [4500 * 1.5, -4500 * 1.5]
-for ll in range(1000):
-    for mm in field_plates:
-        params["field_plate"]["amplitude"] = mm
-        params["lf"]["phase_diff"] = np.pi / 2
-        for kk in range(len(lf_frequencies)):
-            params["lf"]["detuning"] = lf_frequencies[kk]
-            sequence = get_sequence(params)
-            data = run_sequence(sequence, params)
+params["lf"]["detuning"] = lf_frequencies
+lf_phases = np.array([np.pi, -np.pi])
+params["lf"]["phase_diff"] = lf_phases
+
+sequence = get_sequence(params)
+sequence.setup_sequence(use_opposite_field=False, use_rf_index=0)
+m4i.setup_sequence(sequence)
+
+opposite_field_plates = [False, True]
+lf_indices = list(range(4))
+for kk in range(1000000):
+    for ll in opposite_field_plates:
+        for mm in lf_indices:
+            sequence.setup_sequence(ll, mm)
+            m4i.setup_sequence_steps_only()
+            data = run_sequence(sequence, params, skip_setup=True)
             data_id = save_data(sequence, params, *data)
-            print(data_id)
-            if kk == 0:
+            if ll == False and mm == 0:
                 first_data_id = data_id
-            elif kk == len(lf_frequencies) - 1:
+            if ll == True and mm == 3:
                 last_data_id = data_id
-        print(f"({first_data_id}, {last_data_id})")
-        params["lf"]["phase_diff"] = -np.pi / 2
-        for kk in range(len(lf_frequencies)):
-            params["lf"]["detuning"] = lf_frequencies[kk]
-            sequence = get_sequence(params)
-            data = run_sequence(sequence, params)
-            data_id = save_data(sequence, params, *data)
-            if kk == 0:
-                first_data_id = data_id
-            elif kk == len(lf_frequencies) - 1:
-                last_data_id = data_id
-        print(f"({first_data_id}, {last_data_id})")
+    print(f"({first_data_id}, {last_data_id})")
 
 ## ***NOT T-violation***: single LF detuning time series to measure fluctuations
 # params = default_params.copy()

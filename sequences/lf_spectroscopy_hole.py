@@ -58,9 +58,14 @@ class LFSpectroscopyHole(SharedSequence):
                     pulse = AWGSinePulse(center_frequency + number, amplitude)
                     segment.add_awg_function(lf_channel, pulse)
                 else:
-                    segment = Segment(f"lf{kk}")
-                    pulse = AWGSineTrain(duration, self._lf_parameters["wait_time"], center_frequency + number, amplitude, [0, self._lf_parameters["phase_diff"]])
-                    segment.add_awg_function(lf_channel, pulse)
+                    try:
+                        len(self._lf_parameters["phase_diff"])
+                    except:
+                        self._lf_parameters["phase_diff"] = [self._lf_parameters["phase_diff"]]
+                    for ll, phase in enumerate(self._lf_parameters["phase_diff"]):
+                        segment = Segment(f"lf{kk * len(self._lf_parameters["phase_diff"]) + ll}")
+                        pulse = AWGSineTrain(duration, self._lf_parameters["wait_time"], center_frequency + number, amplitude, [0, phase])
+                        segment.add_awg_function(lf_channel, pulse)
         except:
             if "wait_time" not in self._lf_parameters or self._lf_parameters["wait_time"] <= 0 * ureg.s:
                 segment = Segment("lf", duration=duration)
