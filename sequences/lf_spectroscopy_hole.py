@@ -43,8 +43,8 @@ class LFSpectroscopyHole(SharedSequence):
         super().__init__(parameters, shutter_off_after_antihole=True)
         self._lf_parameters = parameters["lf"]
         self._define_lf1()
-        self._define_lf()
         self._define_rf()
+        self._define_lf()
 
     def _define_lf1(self):
         lf_channel = get_channel_from_name(self._rf_parameters["name"])

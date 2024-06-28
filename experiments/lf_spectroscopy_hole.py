@@ -210,7 +210,7 @@ params = default_params.copy()
 # lf_frequencies = np.array([1, -1]) - 0.75
 lf_frequencies = np.linspace(-5, 5, 10)
 lf_frequencies *= ureg.kHz
-lf_phases = np.array([np.pi, -np.pi])
+lf_phases = np.array([np.pi])
 
 sequence = get_sequence(params)
 sequence.setup_sequence(use_opposite_field=False)
@@ -219,6 +219,7 @@ m4i.setup_sequence(sequence)
 opposite_field_plates = [False, True]
 for kk in range(1000000):
     for ll in opposite_field_plates:
+        sequence.setup_sequence(use_opposite_field=ll)
         for freq in lf_frequencies:
             params["lf"]["detuning"] = freq
             for phase in lf_phases:
@@ -230,11 +231,11 @@ for kk in range(1000000):
                 m4i.write_setup_only()
                 data = run_sequence(sequence, params, skip_setup=True)
                 data_id = save_data(sequence, params, *data)
-                if ll == False and freq == lf_frequencies[0] and phase == lf_phases[0]:
+                if freq == lf_frequencies[0] and phase == lf_phases[0]:
                     first_data_id = data_id
-                if ll == False and freq == lf_frequencies[1] and phase == lf_phases[1]:
+                if freq == lf_frequencies[-1] and phase == lf_phases[-1]:
                     last_data_id = data_id
-    print(f"({first_data_id}, {last_data_id})")
+        print(f"{ll}, ({first_data_id}, {last_data_id})")
 
 ## ***NOT T-violation***: single LF detuning time series to measure fluctuations
 # params = default_params.copy()
