@@ -42,13 +42,13 @@ class LFSpectroscopyHole(SharedSequence):
         parameters["eos"] = None
         super().__init__(parameters, shutter_off_after_antihole=True)
         self._lf_parameters = parameters["lf"]
+        self._define_lf1()
         self._define_lf()
         self._define_rf()
 
-    def _define_lf(self):
+    def _define_lf1(self):
         lf_channel = get_channel_from_name(self._rf_parameters["name"])
         center_frequency =  self._lf_parameters["center_frequency"]
-        detuning = self._lf_parameters["detuning"]
         duration = self._lf_parameters["duration"]
         amplitude = self._lf_parameters["amplitude"]
 
@@ -63,6 +63,13 @@ class LFSpectroscopyHole(SharedSequence):
         if not self._shutter_off_after_antihole:
             segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
         self.add_segment(segment)
+
+    def _define_lf(self):
+        lf_channel = get_channel_from_name(self._rf_parameters["name"])
+        center_frequency =  self._lf_parameters["center_frequency"]
+        detuning = self._lf_parameters["detuning"]
+        duration = self._lf_parameters["duration"]
+        amplitude = self._lf_parameters["amplitude"]
         if "wait_time" not in self._lf_parameters or self._lf_parameters["wait_time"] <= 0 * ureg.s:
             segment = Segment("lf", duration=duration)
             # pulse = AWGSineSweepEnveloped(center_frequency + detuning, center_frequency + detuning, amplitude, 0, duration)
@@ -106,7 +113,6 @@ class LFSpectroscopyHole(SharedSequence):
             segment = Segment("rf")
         segment.add_awg_function(rf_channel, pulse)
         self.add_segment(segment)
-
 
         pulse_center = self._rf_parameters["center_detuning2"] + center_frequency
         scan_range = self._rf_parameters["scan_range"]

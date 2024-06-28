@@ -715,6 +715,13 @@ class M4i6622:
     def setup_sequence_steps_only(self):
         """Only sets ups the steps of a sequence."""
         self._set_sequence_steps()
+
+    def change_segment(self, segment_name):
+        names = [segment.name for segment in self._current_sequence.segments]
+        index = names.index(segment_name)
+        self._write_segment(index, self._current_sequence.segments[index])
+
+    def write_setup_only(self):
         for hcard in self._hcards:
             self._write_setup(hcard)
 
