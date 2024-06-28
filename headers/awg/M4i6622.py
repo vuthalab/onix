@@ -694,7 +694,7 @@ class M4i6622:
         """Sets up a sequence """
         if self._number_of_cards > 1:
             sequence._segments["__start"].add_ttl_function(0, TTLOn())
-        sequence.insert_segments(self._sine_segments)
+        #sequence.insert_segments(self._sine_segments)
         self._current_sequence = sequence
 
         for hcard in self._hcards:
