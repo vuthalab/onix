@@ -39,8 +39,8 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "cb"], #, "rf_b"
         "scan": 2 * ureg.MHz,
-        "durations": [6 * ureg.ms, 6 * ureg.ms, 5 * ureg.ms], # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
-        "repeats": 5, #5
+        "durations": [1 * ureg.ms, 1 * ureg.ms, 5 * ureg.ms], # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
+        "repeats": 50, #5
         "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
         "ao_amplitude": 2000, # 2000
         "detect_delay": 0 * ureg.ms,
@@ -207,7 +207,7 @@ setup_digitizer(
 
 ## Scan the LF Detunings, bbar, time series (T-violation)
 params = default_params.copy()
-# lf_frequencies = np.array([1, -1]) + 0.5
+# lf_frequencies = np.array([1, -1]) - 0.75
 lf_frequencies = np.linspace(-5, 5, 10)
 lf_frequencies *= ureg.kHz
 field_plates = [4500 * 1.5, -4500 * 1.5]
