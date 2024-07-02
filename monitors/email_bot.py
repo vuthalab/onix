@@ -21,7 +21,7 @@ https://influxdb-client.readthedocs.io/en/latest/api.html
 recipients = ["alek.radak@mail.utoronto.ca"]
 
 high_transmission_level = 0.3 # V; what transmission level indicates the lock is on
-lock_check_time = 60 * 2 # s; the longer time interval over which we consider the lock state
+lock_check_time = 60 * 2 # s; the time interval over which we consider the lock state
 
 email_password = os.environ.get("EMAIL_BOT_PASSWORD")
 
@@ -83,6 +83,7 @@ previous_lock_state = check_lock()
 while True:
     lock_state = check_lock()
     
+    # I would want relock emails to know whether we need to go to the lab and fix something
     # if previous_lock_state == 0 and lock_state == 1:
     #     current_time = datetime.datetime.now().replace(microsecond=0)
     #     subject = f'[Lock Alert] Relock at {current_time}'
