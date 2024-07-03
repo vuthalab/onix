@@ -39,12 +39,17 @@ def send_email(subject, message):
         msg['Subject'] = subject
         message = message
         msg.attach(MIMEText(message))
+        print("message attached")
         mailserver = smtplib.SMTP('smtp.gmail.com',587)
+        print("mailserver")
         mailserver.ehlo()
         mailserver.starttls()
         mailserver.ehlo()
+        print(f"pre-login with password {email_password}")
         mailserver.login('onix.toronto@gmail.com', email_password) 
+        print("post-login")
         mailserver.sendmail('onix.toronto@gmail.com',recipients ,msg.as_string())
+        print("mail sent")
         mailserver.quit()
     except:
         print(f"Couldn't send {subject} email at {datetime.datetime.now().replace(microsecond=0)}") 
@@ -79,16 +84,16 @@ def check_lock():
             send_email(subject, message)
         return previous_lock_state
     
-previous_lock_state = check_lock()
+previous_lock_state = 0 #check_lock()
 while True:
     lock_state = check_lock()
     
     # I would want relock emails to know whether we need to go to the lab and fix something
-    # if previous_lock_state == 0 and lock_state == 1:
-    #     current_time = datetime.datetime.now().replace(microsecond=0)
-    #     subject = f'[Lock Alert] Relock at {current_time}'
-    #     message = f'Lock has been working for the last {lock_check_time / 60} minutes.'
-    #     send_email(subject, message) 
+    if previous_lock_state == 0 and lock_state == 1:
+        current_time = datetime.datetime.now().replace(microsecond=0)
+        subject = f'[Lock Alert] Relock at {current_time}'
+        message = f'Lock has been working for the last {lock_check_time / 60} minutes.'
+        send_email(subject, message) 
     if previous_lock_state == 1 and lock_state == 0:
         current_time = datetime.datetime.now().replace(microsecond=0)
         subject = f'[Lock Alert] Lock Broke at {current_time}'
