@@ -95,6 +95,14 @@ class Quarto:
     def get_last_output_point(self):
         val = float(self._get_param("last_output_point"))
         return val
+    
+    def check_lock(self, voltage_threshold = 0.3):
+        unlock_counter = self.get_unlock_counter()
+        if self.get_last_transmission_point() > voltage_threshold:
+            locked = True
+        else:
+            locked = False
+        return locked, unlock_counter
 
     def set_p_gain(self, val):
         val = float(self._set_param("p_gain", val))
