@@ -29,12 +29,16 @@ class Fitter:
 
         self._fit_kwargs["absolute_sigma"] = True
         self._p0 = {}
+        self._nicknames = {}
+        self._units = {}
         self._lower_bounds = {}
         self._upper_bounds = {}
         for name in self.parameters:
             self._p0[name] = 1.0
             self._lower_bounds[name] = -_np.inf
             self._upper_bounds[name] = _np.inf
+            self._nicknames[name] = name
+            self._units[name] = ""
         self._update_p0_kwargs()
         self._update_bounds_kwargs()
 
@@ -152,6 +156,20 @@ class Fitter:
             raise ValueError(f"Parameter {name} is not defined.")
         self._update_bounds_kwargs()
 
+    def set_nicknames(self, nicknames: dict[str, str]):
+        """Set nicknames for fit parameters."""
+        for param_name in nicknames:
+            if param_name not in self._nicknames:
+                raise ValueError(f"Parameter {param_name} is not defined.")
+            self._nicknames[param_name] = nicknames[param_name]
+
+    def set_units(self, units: dict[str, str]):
+        """Set units for fit parameters."""
+        for param_name in units:
+            if param_name not in self._units:
+                raise ValueError(f"Parameter {param_name} is not defined.")
+            self._units[param_name] = units[param_name]
+
     def fit(self, **kwargs):
         """Fits the data.
 
@@ -220,40 +238,42 @@ class Fitter:
         """
         return self.fit_function(x, *self._fit_kwargs["p0"])
 
-    def result_str(self, param_name, unit="", conv_factor=1.0):
+    def result_str(self, param_name, use_unit=True):
         """Returns a string that represents a fitted parameter value and error.
 
         Example:
             # fitter is a Fitter instance with fitter.fit() successfully run.
             # it has a fitted parameter "tau" of 0.312(10). The unit is second.
-            >>> s_to_ms = 1000.
-            >>> fitter.result_str("tau", "ms", s_to_ms)
-            "tau = 312(10) ms"
+            >>> fitter.set_unit({"tau": "s"})
+            >>> fitter.result_str("tau")
+            "tau = 0.312(10) s"
 
         Args:
             param_name: str, name of the parameter.
-            unit: str, unit of the value, default to "".
-            conv_factor: float, a factor to convert the fitted result and error to output.
+            use_unit: bool, whether to include the unit.
 
         Returns:
             str, summary of fit result and error of the parameter.
         """
-        result = self.results[param_name] * conv_factor
-        error = self.errors[param_name] * conv_factor
-        output_str = param_name + " = " + present_float(result, error)
-        if unit != "":
-            output_str += " " + unit
+        result = self.results[param_name]
+        error = self.errors[param_name]
+        if "$" in self._nicknames[param_name]:
+            output_str = self._nicknames[param_name] + " = " + present_float(result, error)
+        else:
+            output_str = self._nicknames[param_name][:-1] + " = " + present_float(result, error) + "$"
+        if use_unit:
+            output_str += " " + self._units[param_name]
         return output_str
 
-    def all_results_str(self):
+    def all_results_str(self, use_unit=True):
         """Returns all fit results in a formatted string."""
         results_str = ""
         for _kk, name in enumerate(self.parameters):
-            results_str += self.result_str(name) + "\n"
+            results_str += self.result_str(name, use_unit) + "\n"
         try:
-            results_str += "Reduced chi-square = {0:.2f}".format(self.reduced_chi)
+            results_str += "Reduced $\\chi^2$ = {0:.2f}".format(self.reduced_chi)
         except Exception:
-            results_str += "Reduced chi-square is undefined."
+            results_str += "Reduced $\\chi^2$ is undefined."
         return results_str
 
     def residuals(self):

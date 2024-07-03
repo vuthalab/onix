@@ -63,6 +63,10 @@ class M4i6622:
         It assumes all cards are M4i6622.
         Assumes that the star-hub option is not used, and the GPIO output channel 0 of the first
         card is connected to the trigger ext0 of all other cards.
+
+    Update 2024-07-03:
+        Allows only modifying the order of the sequence or only change part of the sequence using
+        setup_sequence_steps_only, change_segment, and write_all_setup.
     """
 
     def __init__(
@@ -83,6 +87,7 @@ class M4i6622:
             self._hcards.append(hcard)
         self._number_of_cards = len(self._hcards)
         self._aligned_buffer = [None for kk in self._hcards]
+        self._segment_name_map = {}
 
         for hcard in self._hcards:
             self._reset(hcard)
@@ -688,13 +693,16 @@ class M4i6622:
             self._start_dma_transfer(hcard)
         for hcard in self._hcards:
             self._wait_dma_transfer(hcard)
+        self._segment_name_map[segment.name] = segment_number
 
     # public functions
     def setup_sequence(self, sequence: Sequence):
         """Sets up a sequence """
         if self._number_of_cards > 1:
             sequence._segments["__start"].add_ttl_function(0, TTLOn())
-        #sequence.insert_segments(self._sine_segments)
+        # sequence.insert_segments(self._sine_segments)
+        # above line commented to avoid occupying two segments in the AWG memory
+        # however it means that when a sequence is already set up we cannot run sine waves.
         self._current_sequence = sequence
 
         for hcard in self._hcards:
@@ -703,25 +711,39 @@ class M4i6622:
         min_num_segments = int(np.power(2, np.ceil(np.log2(len(segments)))))
         for hcard in self._hcards:
             self._set_sequence_max_segments(hcard, min_num_segments)
+            self._segment_name_map = {}
 
         segment_number = -1
         for segment_number in range(len(segments)):
             self._write_segment(segment_number, segments[segment_number])
 
-        self._set_sequence_steps()
-        for hcard in self._hcards:
-            self._write_setup(hcard)
+        self.setup_sequence_steps_only()
+        self.write_all_setup()
 
     def setup_sequence_steps_only(self):
-        """Only sets ups the steps of a sequence."""
+        """Only sets up the steps of a sequence.
+        
+        Useful if only sequence order is changed.
+        self.write_all_setup() must be called afterwards to validate.
+        """
         self._set_sequence_steps()
 
     def change_segment(self, segment_name):
-        names = [segment.name for segment in self._current_sequence.segments]
-        index = names.index(segment_name)
-        self._write_segment(index, self._current_sequence.segments[index])
+        """Reprograms one of the segment of a sequence that is already set up.
+        
+        Useful if only some of the segments are changed.
+        self.write_all_setup() must be called afterwards to validate.
+        """
+        index = self._segment_name_map[segment_name]
+        segment = None
+        for s in self._current_sequence.segments:
+            if s.name == segment_name:
+                segment = s
+                break
+        self._write_segment(index, segment)
 
-    def write_setup_only(self):
+    def write_all_setup(self):
+        """Writes the setup to the devices."""
         for hcard in self._hcards:
             self._write_setup(hcard)
 
