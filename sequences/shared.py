@@ -440,6 +440,7 @@ class SharedSequence(Sequence):
 
     def get_antihole_sequence(self, use_opposite_field):
         segment_steps = []
+        self._field_plate_parameters["use_opposite_field"] = use_opposite_field
         if not use_opposite_field:
             segment_steps.append(("field_plate_ramp_up", 1))
             segment_steps.append(("antihole", self._antihole_repeats))
