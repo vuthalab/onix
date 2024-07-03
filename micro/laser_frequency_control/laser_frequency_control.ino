@@ -529,7 +529,7 @@ void cmd_unlock_counter(qCommand& qC, Stream& S) {
   // if ( qC.next() != NULL) {
   //   unlock_counter = atof(qC.current());
   // }
-  S.printf("dc offset is %i\n", unlock_counter);
+  S.printf("unlock counter is %i\n", unlock_counter);
 }
 
 void setup(void) {

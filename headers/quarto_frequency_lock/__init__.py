@@ -96,9 +96,13 @@ class Quarto:
         val = float(self._get_param("last_output_point"))
         return val
     
-    def check_lock(self, voltage_threshold = 0.3):
+    def get_transmission_voltage(self):
+        val = float(self._get_param("transmission_unlock"))
+        return val
+    
+    def check_lock(self):
         unlock_counter = self.get_unlock_counter()
-        if self.get_last_transmission_point() > voltage_threshold:
+        if self.get_last_transmission_point() > self.get_transmission_voltage():
             locked = True
         else:
             locked = False
