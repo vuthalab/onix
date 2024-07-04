@@ -12,9 +12,10 @@ def run_expt_check_lock(run_expt_function, wait_between_attempts = 1):
     while True:
         locked1, counter1 = laser.check_lock()
         if locked1:
-            run_expt_function()
+            data = run_expt_function()
             locked2, counter2 = laser.check_lock(0.3)
             if counter1 == counter2:
+                return data
                 break
         time.sleep(wait_between_attempts)
 
