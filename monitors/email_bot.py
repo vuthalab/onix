@@ -17,8 +17,8 @@ https://simple-matrix-bot-lib.readthedocs.io/en/latest/quickstart.html
 https://influxdb-client.readthedocs.io/en/latest/api.html
 """
 
-recipients = ["alek.radak@mail.utoronto.ca", "amar.vutha@utoronto.ca", "mingyufan212@gmail.com", "bassam.nima@mail.utoronto.ca", "shravankruthick.s@gmail.com"]
-#recipients = ["alek.radak@mail.utoronto.ca"]
+#recipients = ["alek.radak@mail.utoronto.ca", "amar.vutha@utoronto.ca", "mingyufan212@gmail.com", "bassam.nima@mail.utoronto.ca", "shravankruthick.s@gmail.com"]
+recipients = ["alek.radak@mail.utoronto.ca"]
 
 high_transmission_level = 0.3 # V; what transmission level indicates the lock is on
 lock_check_time = 60 * 2 # s; the time interval over which we consider the lock state
@@ -68,8 +68,10 @@ def check_lock():
         influx_last_working = datetime.datetime.now().replace(microsecond=0)
         if min(values) > high_transmission_level:
             return 1
-        else:
+        elif max(values) < high_transmission_level:
             return 0
+        else:
+            return 2
     except:
         influx_broke_time = datetime.datetime.now().replace(microsecond=0)
         
@@ -89,7 +91,7 @@ while True:
     #     subject = f'[Lock Alert] Relock at {current_time}'
     #     message = f'Lock has been working for the last {lock_check_time / 60} minutes.'
     #     send_email(subject, message) 
-    if previous_lock_state == 1 and lock_state == 0:
+    if previous_lock_state != lock_state and lock_state == 0:
         current_time = datetime.datetime.now().replace(microsecond=0)
         subject = f'[Lock Alert] Lock Broke at {current_time}'
         message = f'Lock has been broken for {lock_check_time / 60} minutes.'
