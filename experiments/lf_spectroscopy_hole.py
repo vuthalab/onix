@@ -204,8 +204,8 @@ for kk in range(1000000):
             params["rf"]["center_detuning"] = 48 * ureg.kHz
             params["rf"]["pre_lf"] = True
         else:
-            params["lf"]["center_frequency"] = 141.3 * ureg.kHz
-            params["lf"]["amplitude"] = 150
+            params["lf"]["center_frequency"] = 139.3 * ureg.kHz
+            params["lf"]["amplitude"] = 1500
             params["rf"]["center_detuning"] = -52 * ureg.kHz
             params["rf"]["pre_lf"] = False
         if kk == 0:
