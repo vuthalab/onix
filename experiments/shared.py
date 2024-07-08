@@ -102,10 +102,10 @@ _shared_parameters = {
         "into": "bbar",
         "amplitude": 4000,
         "scan_detunings": {
-            "b": np.array([-130, 0]) * ureg.kHz, # to prepare into b scans -130 to 0 (abar-bbar transition)
-            "bbar": np.array([0, 130]) * ureg.kHz, # to prepare into bbar scans 0 to 130 (a-b transition)
-            "both": np.array([-130, 130]) * ureg.kHz,
-            "bviac": np.array([-29.335, -29.225]) * ureg.MHz, # to prepare into b using the bbar -> cbar transition
+            "b": np.array([-102, -2]) * ureg.kHz, # to prepare into b scans -130 to 0 (abar-bbar transition)
+            "bbar": np.array([2, 98]) * ureg.kHz, # to prepare into bbar scans 0 to 130 (a-b transition)
+            "both": np.array([-102, 98]) * ureg.kHz,
+            # "bviac": np.array([-29.335, -29.225]) * ureg.MHz, # to prepare into b using the bbar -> cbar transition
         },
     },
     "antihole": {
@@ -255,6 +255,7 @@ def save_data(
     transmissions_err: np.ndarray,
     monitors_avg: Optional[np.ndarray] = None,
     monitors_err: Optional[np.ndarray] = None,
+    extra_headers: dict = None,
 ):
     data = {
         "transmissions_avg": transmissions_avg,
@@ -269,6 +270,9 @@ def save_data(
         "detunings": sequence.analysis_parameters["detect_detunings"],
         "wavemeter": wavemeter_frequency(),
     }
+    if extra_headers is None:
+        extra_headers = {}
+    headers.update(extra_headers)
 
     data_id = save_experiment_data(parameters["name"], data, headers)
     return data_id

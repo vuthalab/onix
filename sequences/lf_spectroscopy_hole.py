@@ -77,7 +77,20 @@ class LFSpectroscopyHole(SharedSequence):
             segment.add_awg_function(lf_channel, pulse)
         else:
             segment = Segment("lf")
-            pulse = AWGSineTrain(duration, self._lf_parameters["wait_time"], center_frequency + detuning, amplitude, [0, self._lf_parameters["phase_diff"]])
+            phase_diff = self._lf_parameters["phase_diff"]
+            wait_in_piov2 = (self._lf_parameters["wait_time"] / duration).to("").magnitude
+            # pulse = AWGCompositePulse(
+            #     np.array([119 / 90, 183 / 90, 211 / 90, 384 / 90, 211 / 90, 183 / 90, 119 / 90, wait_in_piov2, 119 / 90, 183 / 90, 211 / 90, 384 / 90, 211 / 90, 183 / 90, 119 / 90]) * duration,
+            #     center_frequency + detuning,
+            #     np.array([amplitude, amplitude, amplitude, amplitude, amplitude, amplitude, amplitude, 0, amplitude, amplitude, amplitude, amplitude, amplitude, amplitude, amplitude]),
+            #     np.array([np.pi, 0, np.pi, 0, np.pi, 0, np.pi, 0, np.pi + phase_diff, phase_diff, np.pi + phase_diff, phase_diff, np.pi + phase_diff, phase_diff, np.pi + phase_diff]),
+            # )
+            pulse = AWGCompositePulse(
+                np.array([1, wait_in_piov2, 1]) * duration,
+                center_frequency + detuning,
+                np.array([amplitude, 0, amplitude]),
+                np.array([0, 0, phase_diff]),
+            )
             segment.add_awg_function(lf_channel, pulse)
         if not self._shutter_off_after_antihole:
             segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())

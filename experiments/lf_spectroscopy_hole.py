@@ -12,6 +12,7 @@ from onix.experiments.shared import (
     save_data,
 )
 from tqdm import tqdm
+from onix.headers.unlock_check import run_expt_check_lock
 
 
 ## function to run the experiment
@@ -23,7 +24,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "LF Spectroscopy Hole",
-    "sequence_repeats_per_transfer": 5,
+    "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "ao": {
         "center_frequency": 75 * ureg.MHz,
@@ -57,7 +58,7 @@ default_params = {
             #"lf": 64,
         },
         "delay": 8 * ureg.us,
-        "ao_amplitude": 350,
+        "ao_amplitude": 400,
         "simultaneous": False,
     },
     "rf": {
@@ -65,28 +66,31 @@ default_params = {
         "T_0": 1 * ureg.ms,
         "T_e": 0.5 * ureg.ms,
         "T_ch": 30 * ureg.ms,
-        "center_detuning": 60 * ureg.kHz,
+        "center_detuning": -52 * ureg.kHz,
         # "center_detuning1": 60 * ureg.kHz,
         # "center_detuning2": -60 * ureg.kHz,
         "scan_range": 50 * ureg.kHz,
         "cool_down_time": 0 * ureg.ms,
         "use_hsh": False,
-        "pre_lf": True,
+        "pre_lf": False,
     },
     "lf": {
-        # "center_frequency": 168 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
-        # "duration": 0.075 * ureg.ms,
-        # "amplitude": 300,
-        "center_frequency": 304.2 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
-        "duration": 0.075 * ureg.ms, # 0.013 * ureg.ms
-        "amplitude": 8000, # 6000
+        "center_frequency": 141.3 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
+        "duration": 0.025 * ureg.ms,
+        "amplitude": 1500,
+        # "center_frequency": 141.3 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
+        # "duration": 0.25 * ureg.ms,
+        # "amplitude": 150,
+        # "center_frequency": 253 * ureg.kHz, # 168 bbar -- 302 aabar (+- 3)
+        # "duration": 0.25 * ureg.ms, # 0.013 * ureg.ms
+        # "amplitude": 940, # 6000
         "detuning": 0 * ureg.kHz,
-        "wait_time": 0.08 * ureg.ms,
-        "phase_diff": np.pi / 2,
+        "wait_time": 0.05 * ureg.ms,
+        "phase_diff": -np.pi / 2,
     },
     "field_plate": {
-        "amplitude": 4500 * 1.5,
-        "stark_shift": 2 * ureg.MHz * 1.5,
+        "amplitude": 4500 * 1,
+        "stark_shift": 2 * ureg.MHz * 1,
         "use": True,
     }
 }
@@ -102,37 +106,25 @@ setup_digitizer(
     ch2_range=default_params["digitizer"]["ch2_range"],
 )
 
-## Test HSH Pulse vs Scan
-# type = ["HSH", "scan"]
-# repeats = 5
-# for ll in type:
-#     params = default_params.copy()
-#     rf_frequencies = np.arange(-200, 200, 20)
-#     rf_frequencies *= ureg.kHz
-#     if ll == "HSH":
-#         params["rf"]["use_hsh"] = True
-#     else:
-#         params["rf"]["use_hsh"] = False
-#     for ii in range(repeats):
-#         for kk in range(len(rf_frequencies)):
-#             params["rf"]["center_detuning"] = rf_frequencies[kk]
-#             sequence = get_sequence(params)
-#             data = run_sequence(sequence, params)
-#             data_id = save_data(sequence, params, *data)
-#             if kk == 0:
-#                 first_data_id = data_id
-#             elif kk == len(rf_frequencies) - 1:
-#                 last_data_id = data_id
-#         print(f"{ll}: {first_data_id}, {last_data_id}")
-
 ## Scan the LF Detunings
 # params = default_params.copy()
-# lf_frequencies = np.arange(-15, 15.5, 1)
+# lf_frequencies = np.arange(-5, 5.1, 0.1)
 # lf_frequencies *= ureg.kHz
+# sequence = get_sequence(params)
+# sequence.setup_sequence(use_opposite_field=False)
+# m4i.setup_sequence(sequence)
 # for kk in tqdm(range(len(lf_frequencies))):
 #     params["lf"]["detuning"] = lf_frequencies[kk]
-#     sequence = get_sequence(params)
-#     data = run_sequence(sequence, params)
+#     del sequence._segments["lf"]
+#     sequence._define_lf()
+#     m4i.change_segment("lf")
+#     m4i.setup_sequence_steps_only()
+#     m4i.write_all_setup()
+#     def worker():
+#         start_time = time.time()
+#         data = run_sequence(sequence, params, skip_setup=True)
+#         return (start_time, data)
+#     start_time, data = run_expt_check_lock(worker)
 #     data_id = save_data(sequence, params, *data)
 #     if kk == 0:
 #         first_data_id = data_id
@@ -143,12 +135,19 @@ setup_digitizer(
 
 ## Scan the LF Durations
 # params = default_params.copy()
-# lf_durations = np.arange(0, 0.5, 0.02)
+# lf_durations = np.arange(0.001, 2., 0.1)
 # lf_durations *= ureg.ms
+# sequence = get_sequence(params)
+# sequence.setup_sequence(use_opposite_field=False)
+# m4i.setup_sequence(sequence)
 # for kk in tqdm(range(len(lf_durations))):
 #     params["lf"]["duration"] = lf_durations[kk]
-#     sequence = get_sequence(params)
-#     data = run_sequence(sequence, params)
+#     del sequence._segments["lf"]
+#     sequence._define_lf()
+#     m4i.change_segment("lf")
+#     m4i.setup_sequence_steps_only()
+#     m4i.write_all_setup()
+#     data = run_sequence(sequence, params, skip_setup=True)
 #     data_id = save_data(sequence, params, *data)
 #     if kk == 0:
 #         first_data_id = data_id
@@ -173,22 +172,6 @@ setup_digitizer(
 #         last_data_id = data_id
 # print(f"({first_data_id}, {last_data_id})")
 
-## Scan the Ramsey frequencies
-# params = default_params.copy()
-# lf_frequencies = np.arange(-3, 3, 0.3) * ureg.kHz
-# for kk in tqdm(range(len(lf_frequencies))):
-#     params["lf"]["detuning"] = lf_frequencies[kk]
-#     sequence = get_sequence(params)
-#     data = run_sequence(sequence, params)
-#     data_id = save_data(sequence, params, *data)
-#     time.sleep(1) # one second delay between each step to prevent heating issues
-#     if kk == 0:
-#         first_data_id = data_id
-#         print(first_data_id)
-#     elif kk == len(lf_frequencies) - 1:
-#         last_data_id = data_id
-# print(f"({first_data_id}, {last_data_id})")
-
 ## Scan the Ramsey wait times
 # params = default_params.copy()
 # wait_times = np.arange(0.01, 1, 0.05) * ureg.kHz
@@ -205,62 +188,30 @@ setup_digitizer(
 #         last_data_id = data_id
 # print(f"({first_data_id}, {last_data_id})")
 
-## Scan the LF Detunings, bbar, time series (T-violation)
-# params = default_params.copy()
-# # lf_frequencies = np.array([1, -1]) - 0.75
-# lf_frequencies = np.linspace(-5, 5, 10)
-# lf_frequencies *= ureg.kHz
-# field_plates = [4500 * 1.5, -4500 * 1.5]
-# for ll in range(1000):
-#     for mm in field_plates:
-#         params["field_plate"]["amplitude"] = mm
-#         params["lf"]["phase_diff"] = np.pi / 2
-#         for kk in range(len(lf_frequencies)):
-#             params["lf"]["detuning"] = lf_frequencies[kk]
-#             sequence = get_sequence(params)
-#             data = run_sequence(sequence, params)
-#             data_id = save_data(sequence, params, *data)
-#             print(data_id)
-#             if kk == 0:
-#                 first_data_id = data_id
-#             elif kk == len(lf_frequencies) - 1:
-#                 last_data_id = data_id
-#         print(f"({first_data_id}, {last_data_id})")
-#         params["lf"]["phase_diff"] = -np.pi / 2
-#         for kk in range(len(lf_frequencies)):
-#             params["lf"]["detuning"] = lf_frequencies[kk]
-#             sequence = get_sequence(params)
-#             data = run_sequence(sequence, params)
-#             data_id = save_data(sequence, params, *data)
-#             if kk == 0:
-#                 first_data_id = data_id
-#             elif kk == len(lf_frequencies) - 1:
-#                 last_data_id = data_id
-#         print(f"({first_data_id}, {last_data_id})")
-
 
 ## Scan the LF Detunings, bbar, time series (T-violation), faster awg, a-abar and b-bbar
 params = default_params.copy()
-lf_frequencies = np.array([-0.7, 0.7])
+lf_frequencies = np.array([-1, 1])
 lf_frequencies *= ureg.kHz
 lf_phases = np.array([np.pi / 2, -np.pi / 2])
 
 opposite_field_plates = [False, True]
 for kk in range(1000000):
-    for jj in range(2):
+    for jj in range(1, 2):
         if jj == 0:
-            params["lf"]["center_frequency"] = 304.2 * ureg.kHz
-            params["lf"]["amplitude"] = 8000
-            params["rf"]["center_frequency"] = 60 * ureg.kHz
+            params["lf"]["center_frequency"] = 253 * ureg.kHz
+            params["lf"]["amplitude"] = 940
+            params["rf"]["center_detuning"] = 48 * ureg.kHz
             params["rf"]["pre_lf"] = True
         else:
-            params["lf"]["center_frequency"] = 168 * ureg.kHz
-            params["lf"]["amplitude"] = 300
-            params["rf"]["center_frequency"] = -60 * ureg.kHz
+            params["lf"]["center_frequency"] = 141.3 * ureg.kHz
+            params["lf"]["amplitude"] = 150
+            params["rf"]["center_detuning"] = -52 * ureg.kHz
             params["rf"]["pre_lf"] = False
-        sequence = get_sequence(params)
-        sequence.setup_sequence(use_opposite_field=False)
-        m4i.setup_sequence(sequence)
+        if kk == 0:
+            sequence = get_sequence(params)
+            sequence.setup_sequence(use_opposite_field=False)
+            m4i.setup_sequence(sequence)
 
         for ll in opposite_field_plates:
             sequence.setup_sequence(use_opposite_field=ll)
@@ -272,9 +223,13 @@ for kk in range(1000000):
                     sequence._define_lf()
                     m4i.change_segment("lf")
                     m4i.setup_sequence_steps_only()
-                    m4i.write_setup_only()
-                    data = run_sequence(sequence, params, skip_setup=True)
-                    data_id = save_data(sequence, params, *data)
+                    m4i.write_all_setup()
+                    def worker():
+                        start_time = time.time()
+                        data = run_sequence(sequence, params, skip_setup=True)
+                        return (start_time, data)
+                    start_time, data = run_expt_check_lock(worker)
+                    data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time})
                     if freq == lf_frequencies[0]:
                         first_data_id = data_id
                     if freq == lf_frequencies[-1]:
