@@ -53,8 +53,8 @@ default_params = {
         "off_time": 1 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 64,
-            "rf": 64,
+            "antihole": 4,
+            "rf": 4,
             #"lf": 64,
         },
         "delay": 8 * ureg.us,
@@ -204,7 +204,7 @@ for kk in range(1000000):
             params["rf"]["center_detuning"] = 48 * ureg.kHz
             params["rf"]["pre_lf"] = True
         else:
-            params["lf"]["center_frequency"] = 139.3 * ureg.kHz
+            params["lf"]["center_frequency"] = 139.5 * ureg.kHz
             params["lf"]["amplitude"] = 1500
             params["rf"]["center_detuning"] = -52 * ureg.kHz
             params["rf"]["pre_lf"] = False
