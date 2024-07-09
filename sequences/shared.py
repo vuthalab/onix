@@ -64,6 +64,7 @@ def chasm_segment(
             else:
                 polarities = [-1, 1]
             for polarity in polarities:
+                print(scan, detuning + field_plate_parameters["stark_shift"] * polarity)
                 segments.append(
                     _scan_segment(
                         segment_name,

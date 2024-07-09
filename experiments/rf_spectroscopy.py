@@ -25,7 +25,7 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 20,
+    "sequence_repeats_per_transfer": 50,
     "data_transfer_repeats": 1,
     "eos": {
         "ac": {
@@ -45,7 +45,7 @@ default_params = {
         },
     },
     "rf": {
-        "transition": "bc",
+        "transition": "ab",
         "amplitude": 8000,  # 4200
         "detuning": (65) * ureg.kHz,
         "duration": 2 * ureg.ms,
@@ -71,11 +71,11 @@ default_params = {
         "off_time": 1 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 32,
-            "rf": 32,
+            "antihole": 64,
+            "rf": 64,
         },
         "delay": 8 * ureg.us,
-        "ao_amplitude": 350,
+        "ao_amplitude": 400,
     },
     "field_plate": {
         "amplitude": 4500 * 1.,
@@ -122,7 +122,7 @@ first_data_id = None
 ## scan freq
 params = default_params.copy()
 first_data_id = None
-rf_frequencies = np.linspace(-240, -60, 25)
+rf_frequencies = np.linspace(-250, 250, 100)
 rf_frequencies *= ureg.kHz
 # f_check = f_lock_Quarto(location='/dev/ttyACM0')
 # field_plate_amplitude = 4500
