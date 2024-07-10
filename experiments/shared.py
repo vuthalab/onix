@@ -107,6 +107,14 @@ _shared_parameters = {
             "both": np.array([-102, 98]) * ureg.kHz,
             # "bviac": np.array([-29.335, -29.225]) * ureg.MHz, # to prepare into b using the bbar -> cbar transition
         },
+#         "hsh": {
+#             "amplitude": 6000,
+#             "T_0": 0.1 * ureg.ms,
+#             "T_e": 0.05 * ureg.ms,
+#             "T_ch": 3 * ureg.ms,
+#             "center_detuning": -52 * ureg.kHz,
+#             "scan_range": 30 * ureg.kHz,
+#         },
     },
     "antihole": {
         "transitions": ["ac", "ca"],
@@ -116,6 +124,7 @@ _shared_parameters = {
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
         "detect_delay": 0 * ureg.us,
+        #"use_hsh" = False,
     },
     "detect": {
         "transition": "bb",
