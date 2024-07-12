@@ -65,7 +65,6 @@ def chasm_segment(
             else:
                 polarities = [-1, 1]
             for polarity in polarities:
-                print(scan, detuning + field_plate_parameters["stark_shift"] * polarity)
                 segments.append(
                     _scan_segment(
                         segment_name,
@@ -120,12 +119,12 @@ def antihole_segment(
         if transition.startswith("rf_"):
             rf_pump_parameters = rf_pump_parameters.copy()
             rf_pump_parameters["into"] = transition[3:]
-            segments.append(_rf_pump_segment(segment_name, rf_parameters, rf_pump_parameters, duration))
+            #segments.append(_rf_pump_segment(segment_name, rf_parameters, rf_pump_parameters, duration))
             
-            # if antihole_parameters["use_hsh"] == True:
-            #     segments.append(_rf_pump_hsh_segment(segment_name, rf_parameters, rf_pump_parameters))
-            # else:            
-            #     segments.append(_rf_pump_segment(segment_name, rf_parameters, rf_pump_parameters, duration))
+            if antihole_parameters["use_hsh"] == True:
+                segments.append(_rf_pump_hsh_segment(segment_name, rf_parameters, rf_pump_parameters))
+            else:            
+                segments.append(_rf_pump_segment(segment_name, rf_parameters, rf_pump_parameters, duration))
         else:
             segments.append(
                 _scan_segment(
@@ -267,29 +266,32 @@ def _rf_pump_segment(
     segment.add_awg_function(rf_channel, pulse)
     return segment
 
-# def _rf_pump_hsh_segment(
-#     name: str,
-#     rf_parameters: dict[str, Any],
-#     rf_pump_parameters: dict[str, Any],
-# ):
-#     segment = Segment(name)
+def _rf_pump_hsh_segment(
+    name: str,
+    rf_parameters: dict[str, Any],
+    rf_pump_parameters: dict[str, Any],
+):
+    segment = Segment(name)
     
-#     rf_channel = get_channel_from_name(rf_parameters["name"])
+    rf_channel = get_channel_from_name(rf_parameters["name"])
 
-#     amplitude = rf_pump_parameters["hsh"]["amplitude"]
-#     T_0 = rf_pump_parameters["hsh"]["T_0"]
-#     T_ch = rf_pump_parameters["hsh"]["T_ch"]
-#     T_e = rf_pump_parameters["hsh"]["T_e"]
+    amplitude = rf_pump_parameters["amplitude"]
+    T_0 = rf_pump_parameters["hsh"]["T_0"]
+    T_ch = rf_pump_parameters["hsh"]["T_ch"]
+    T_e = rf_pump_parameters["hsh"]["T_e"]
 
-#     lower_state = rf_parameters["transition"][0]
-#     upper_state = rf_pump_parameters["into"]
-#     offset = rf_parameters["offset"]
-#     center_frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + offset
-#     pulse_center = rf_pump_parameters["center_detuning"] + center_frequency
-#     scan_range = rf_pump_parameters["hsh"]["scan_range"]
-#     pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, pulse_center, scan_range)
-#     segment.add_awg_function(rf_channel, pulse)
-#     return segment
+    lower_state = rf_parameters["transition"][0]
+    upper_state = rf_parameters["transition"][1]
+    offset = rf_parameters["offset"]
+    center_frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + offset
+    scan_range = rf_pump_parameters["scan_detunings"][rf_pump_parameters["into"]] #rf_pump_parameters["hsh"]["scan_range"]
+    scan_range = np.mean(scan_range)
+    center_frequency += scan_range
+
+    pulse_center = center_frequency #+ rf_pump_parameters["hsh"]["center_detuning"]
+    pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, pulse_center, scan_range)
+    segment.add_awg_function(rf_channel, pulse)
+    return segment
 
 def _scan_segment(
     name: str,

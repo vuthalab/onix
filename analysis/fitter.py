@@ -258,9 +258,9 @@ class Fitter:
         result = self.results[param_name]
         error = self.errors[param_name]
         if "$" in self._nicknames[param_name]:
-            output_str = self._nicknames[param_name] + " = " + present_float(result, error)
-        else:
             output_str = self._nicknames[param_name][:-1] + " = " + present_float(result, error) + "$"
+        else:
+            output_str = self._nicknames[param_name] + " = " + present_float(result, error)
         if use_unit:
             output_str += " " + self._units[param_name]
         return output_str
