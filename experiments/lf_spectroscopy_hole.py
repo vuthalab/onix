@@ -40,9 +40,9 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "cb", "rf_b"], #, "rf_b"
         "scan": 2 * ureg.MHz,
-        "durations": 6 * ureg.ms, # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
+        "durations": [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms], # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
         "repeats": 100, #5 100
-        "detunings": 0 * ureg.MHz,
+        "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
         "ao_amplitude": 2000, # 2000
         "detect_delay": 0 * ureg.ms,
         "use_hsh": False,
