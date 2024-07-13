@@ -7,6 +7,7 @@ from onix.sequences.sequence import (
     AWGHalfSineRamp,
     AWGSinePulse,
     AWGSimultaneousSinePulses,
+    AWGDoubleSineSweep,
     AWGHSHPulse,
     AWGConstant,
     AWGSineSweep,
@@ -357,27 +358,61 @@ class SharedSequence(Sequence):
         self.add_segment(segment)
 
     def _define_antihole(self):
-        segment, self._antihole_repeats = antihole_segment(
-            "antihole",
-            self._ao_parameters,
-            self._eos_parameters,
-            self._field_plate_parameters,
-            self._antihole_parameters,
-            self._rf_parameters,
-            self._rf_pump_parameters,
+        scan = self._antihole_parameters["scan"]
+        center = self._ao_parameters["center_frequency"]
+        order = self._ao_parameters["order"]
+        detuning1 = 0 * ureg.MHz + self._antihole_parameters["detunings"]
+        detuning2 = -17.95 * ureg.MHz + self._antihole_parameters["detunings"]
+        start_frequency_1 = (detuning1 - scan) / order + center
+        start_frequency_2 = (detuning2 - scan) / order + center
+        stop_frequency_1 = (detuning1 + scan) / order + center
+        stop_frequency_2 = (detuning2 + scan) / order + center
+        duration = self._antihole_parameters["durations"]
+        ao_amplitude = self._antihole_parameters["ao_amplitude"]
+        self._antihole_repeats = self._antihole_parameters["repeats"]
+
+        rf_pump_parameters = self._rf_pump_parameters.copy()
+        rf_pump_parameters["into"] = "b"
+        segment = _rf_pump_segment("antihole", self._rf_parameters, rf_pump_parameters, duration)
+        segment.add_awg_function(
+            get_channel_from_name(self._ao_parameters["name"]),
+            AWGDoubleSineSweep(
+                start_frequency_1,
+                stop_frequency_1,
+                ao_amplitude,
+                start_frequency_2,
+                stop_frequency_2,
+                ao_amplitude,
+                0 * ureg.s,
+                duration,
+            )
         )
+        if self._field_plate_parameters["use"]:
+            field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
+            fp_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            segment.add_awg_function(fp_channel, field_plate)
         self.add_segment(segment)
-        opposite_field_plate_params = self._field_plate_parameters.copy()
-        opposite_field_plate_params["amplitude"] = -opposite_field_plate_params["amplitude"]
-        segment, self._antihole_repeats = antihole_segment(
-            "antihole_opposite",
-            self._ao_parameters,
-            self._eos_parameters,
-            opposite_field_plate_params,
-            self._antihole_parameters,
-            self._rf_parameters,
-            self._rf_pump_parameters,
+
+        rf_pump_parameters = self._rf_pump_parameters.copy()
+        rf_pump_parameters["into"] = "b"
+        segment = _rf_pump_segment("antihole_opposite", self._rf_parameters, rf_pump_parameters, duration)
+        segment.add_awg_function(
+            get_channel_from_name(self._ao_parameters["name"]),
+            AWGDoubleSineSweep(
+                start_frequency_1,
+                stop_frequency_1,
+                ao_amplitude,
+                start_frequency_2,
+                stop_frequency_2,
+                ao_amplitude,
+                0 * ureg.s,
+                duration,
+            )
         )
+        if self._field_plate_parameters["use"]:
+            field_plate = AWGConstant(-self._field_plate_parameters["amplitude"])
+            fp_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            segment.add_awg_function(fp_channel, field_plate)
         self.add_segment(segment)
 
     def _define_detect(self):
