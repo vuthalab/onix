@@ -182,13 +182,19 @@ void transmission_adc_loop(void) {
         last_good_integral = integral;
         confirm_unlock_index = -1;
       }
-      else if (confirm_unlock_index < 0) {
-        confirm_unlock_index = SAMPLES_CONFIRM_UNLOCK - 1;
-      }
-      else if (confirm_unlock_index > 0) {
-        confirm_unlock_index -= 1;
+      else {
+        unlock_counter += 1;
+        if (confirm_unlock_index < 0) {
+          confirm_unlock_index = SAMPLES_CONFIRM_UNLOCK - 1;
+        }
+        else if (confirm_unlock_index > 0) {
+          confirm_unlock_index -= 1;
+        }
       }
     }
+  }
+  else {
+    unlock_counter += 1;
   }
 }
 
@@ -247,7 +253,6 @@ void update_pid(bool local_pause_data) {
       output = output_offset + last_good_integral;
       confirm_unlock_index = -1;
       triggerWrite(LOCK_TRIGGER_OUTPUT, HIGH);
-      unlock_counter += 1;
     }
     else if (wait_lock_index >= 0) {
       feedback_on = false;
@@ -379,7 +384,6 @@ void cmd_state(qCommand& qC, Stream& S){
     if (new_state <= 2) {
       state = new_state;
       if (state == 0) {
-        unlock_counter += 1;
         integral = 0.0;
         previous_error = -100.0;
         output_scan_index = 0;
