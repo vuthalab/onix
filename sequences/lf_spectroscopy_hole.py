@@ -65,7 +65,7 @@ class LFSpectroscopyHole(SharedSequence):
         self.add_segment(segment)
 
     def _define_lf(self):
-        lf_channel = get_channel_from_name(self._rf_parameters["name"])
+        lf_channel = get_channel_from_name(self._lf_parameters["name"])
         center_frequency =  self._lf_parameters["center_frequency"]
         detuning = self._lf_parameters["detuning"]
         duration = self._lf_parameters["duration"]
@@ -94,6 +94,11 @@ class LFSpectroscopyHole(SharedSequence):
             segment.add_awg_function(lf_channel, pulse)
         if not self._shutter_off_after_antihole:
             segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
+    
+        if self._field_plate_parameters["use"] and self._field_plate_parameters["during"]["lf"]:
+            field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
+            fp_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            segment.add_awg_function(fp_channel, field_plate)
         self.add_segment(segment)
 
 
@@ -125,6 +130,11 @@ class LFSpectroscopyHole(SharedSequence):
             )
             segment = Segment("rf")
         segment.add_awg_function(rf_channel, pulse)
+    
+        if self._field_plate_parameters["use"] and self._field_plate_parameters["during"]["rf"]:
+            field_plate = AWGConstant(self._field_plate_parameters["amplitude"])
+            fp_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            segment.add_awg_function(fp_channel, field_plate)
         self.add_segment(segment)
 
         # pulse_center = self._rf_parameters["center_detuning2"] + center_frequency
@@ -155,9 +165,18 @@ class LFSpectroscopyHole(SharedSequence):
             segment_steps.append(("rf", 1))
             segment_steps.append(("break", 1))
 
+        if self._field_plate_parameters["during"]["lf"]:
+            segment_steps.append(("field_plate_ramp_up", 1))
         segment_steps.append(("lf", 1)) # pi/2 b <-> bbar
+        if self._field_plate_parameters["during"]["lf"]:
+            segment_steps.append(("field_plate_ramp_down", 1))
 
+        if self._field_plate_parameters["during"]["rf"]:
+            segment_steps.append(("field_plate_ramp_up", 1))
         segment_steps.append(("rf", 1)) # pi a <-> b
+        if self._field_plate_parameters["during"]["rf"]:
+            segment_steps.append(("field_plate_ramp_down", 1))
+
 
         segment_steps.append(("break", 1))
         segment_steps.append(("shutter_break", int(self._rf_parameters["cool_down_time"] / (10 * ureg.us))))

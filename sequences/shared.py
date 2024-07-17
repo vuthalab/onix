@@ -78,6 +78,10 @@ def chasm_segment(
                     )
                 )
     segment = MultiSegments(name, segments)
+    if field_plate_parameters["use"] and field_plate_parameters["during"]["chasm"]:
+        field_plate = AWGConstant(field_plate_parameters["amplitude"])
+        fp_channel = get_channel_from_name(field_plate_parameters["name"])
+        segment.add_awg_function(fp_channel, field_plate)
     return (segment, repeats)
 
 
@@ -139,7 +143,8 @@ def antihole_segment(
                 )
             )
     segment = MultiSegments(name, segments)
-    if field_plate_parameters["use"]:
+    
+    if field_plate_parameters["use"] and field_plate_parameters["during"]["antihole"]:
         field_plate = AWGConstant(field_plate_parameters["amplitude"])
         fp_channel = get_channel_from_name(field_plate_parameters["name"])
         segment.add_awg_function(fp_channel, field_plate)
@@ -239,6 +244,10 @@ def detect_segment(
         "detect_pulse_times": detect_pulse_times,
     }
     segment._duration = segment.duration + detect_parameters["delay"]
+    if field_plate_parameters["use"] and field_plate_parameters["during"]["detect"]:
+        field_plate = AWGConstant(field_plate_parameters["amplitude"])
+        fp_channel = get_channel_from_name(field_plate_parameters["name"])
+        segment.add_awg_function(fp_channel, field_plate)
     return (segment, analysis_parameters)
 
 
@@ -400,8 +409,6 @@ class SharedSequence(Sequence):
         total_field_plate_time = self._field_plate_parameters["ramp_time"] + self._field_plate_parameters["padding_time"]
         segment_up = Segment("field_plate_ramp_up", total_field_plate_time)
         segment_down = Segment("field_plate_ramp_down", total_field_plate_time)
-        segment_up_opposite = Segment("field_plate_ramp_up_opposite", total_field_plate_time)
-        segment_down_opposite = Segment("field_plate_ramp_down_opposite", total_field_plate_time)
         if self._field_plate_parameters["use"]:
             field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
             field_plate_up = AWGHalfSineRamp(
@@ -418,25 +425,34 @@ class SharedSequence(Sequence):
             )
             segment_up.add_awg_function(field_plate_channel, field_plate_up)
             segment_down.add_awg_function(field_plate_channel, field_plate_down)
-
-            field_plate_up_opposite = AWGHalfSineRamp(
-                0,
-                -self._field_plate_parameters["amplitude"],
-                0 * ureg.s,
-                self._field_plate_parameters["ramp_time"],
-            )
-            field_plate_down_opposite = AWGHalfSineRamp(
-                -self._field_plate_parameters["amplitude"],
-                0,
-                0 * ureg.s,
-                self._field_plate_parameters["ramp_time"],
-            )
-            segment_up_opposite.add_awg_function(field_plate_channel, field_plate_up_opposite)
-            segment_down_opposite.add_awg_function(field_plate_channel, field_plate_down_opposite)
         self.add_segment(segment_up)
         self.add_segment(segment_down)
-        self.add_segment(segment_up_opposite)
-        self.add_segment(segment_down_opposite)
+
+        total_field_plate_time = self._field_plate_parameters["ramp_time"] + self._field_plate_parameters["padding_time"]
+        segment_up_shutter = Segment("field_plate_ramp_up_shutter_on", total_field_plate_time)
+        segment_down_shutter = Segment("field_plate_ramp_down_shutter_on", total_field_plate_time)
+        if self._field_plate_parameters["use"]:
+            field_plate_channel = get_channel_from_name(self._field_plate_parameters["name"])
+            field_plate_up = AWGHalfSineRamp(
+                0,
+                self._field_plate_parameters["amplitude"],
+                0 * ureg.s,
+                self._field_plate_parameters["ramp_time"],
+            )
+            field_plate_down = AWGHalfSineRamp(
+                self._field_plate_parameters["amplitude"],
+                0,
+                0 * ureg.s,
+                self._field_plate_parameters["ramp_time"],
+            )
+            segment_up_shutter.add_awg_function(field_plate_channel, field_plate_up)
+            segment_down_shutter.add_awg_function(field_plate_channel, field_plate_down)
+        segment_up_shutter.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
+        segment_down_shutter.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
+        self.add_segment(segment_up_shutter)
+        self.add_segment(segment_down_shutter)
+
+
 
         segment = Segment("shutter_break", break_time)
         segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
@@ -450,6 +466,8 @@ class SharedSequence(Sequence):
 
     def get_detect_sequence(self, detect_cycles: int) -> list[tuple[str, int]]:
         segment_steps = []
+        if self._field_plate_parameters["during"]["detect"]:
+            segment_steps.append(("field_plate_ramp_up_shutter_on", 1))
         max_cycles = 1000000
         if detect_cycles <= max_cycles:
             segment_steps.append(("detect", detect_cycles))
@@ -457,11 +475,17 @@ class SharedSequence(Sequence):
             for _ in range(detect_cycles // max_cycles):
                 segment_steps.append(("detect", max_cycles))
             segment_steps.append(("detect", detect_cycles % max_cycles))
+        if self._field_plate_parameters["during"]["detect"]:
+            segment_steps.append(("field_plate_ramp_down_shutter_on", 1))
         return segment_steps
 
     def get_chasm_sequence(self):
         segment_steps = []
+        if self._field_plate_parameters["during"]["chasm"]:
+            segment_steps.append(("field_plate_ramp_up", 1))
         segment_steps.append(("chasm", self._chasm_repeats))
+        if self._field_plate_parameters["during"]["chasm"]:
+            segment_steps.append(("field_plate_ramp_down", 1))
         detect_cycles = self._detect_parameters["cycles"]["chasm"]
         if detect_cycles > 0:
             segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
@@ -470,22 +494,19 @@ class SharedSequence(Sequence):
             segment_steps.append(("break", self._shutter_fall_delay_repeats))
         return segment_steps
 
-    def get_antihole_sequence(self, use_opposite_field):
+    def get_antihole_sequence(self):
         segment_steps = []
-        self._field_plate_parameters["use_opposite_field"] = use_opposite_field
-        if not use_opposite_field:
+        if self._field_plate_parameters["during"]["antihole"]:
             segment_steps.append(("field_plate_ramp_up", 1))
-            segment_steps.append(("antihole", self._antihole_repeats))
+        segment_steps.append(("antihole", self._antihole_repeats))
+        if self._field_plate_parameters["during"]["antihole"]:
             segment_steps.append(("field_plate_ramp_down", 1))
-        else:
-            segment_steps.append(("field_plate_ramp_up_opposite", 1))
-            segment_steps.append(("antihole_opposite", self._antihole_repeats))
-            segment_steps.append(("field_plate_ramp_down_opposite", 1))
         segment_steps.append(("break", int(self._antihole_parameters["detect_delay"]/(10 * ureg.us))))
         segment_steps.append(("shutter_break", self._shutter_rise_delay_repeats))
         detect_cycles = self._detect_parameters["cycles"]["antihole"]
-        segment_steps.extend(self.get_detect_sequence(detect_cycles))
-        self.analysis_parameters["detect_groups"].append(("antihole", detect_cycles))
+        if detect_cycles > 0:
+            segment_steps.extend(self.get_detect_sequence(detect_cycles))
+            self.analysis_parameters["detect_groups"].append(("antihole", detect_cycles))
         segment_steps.append(("shutter_break", 1))
         if self._shutter_off_after_antihole:
             segment_steps.append(("break", self._shutter_fall_delay_repeats))
@@ -497,8 +518,9 @@ class SharedSequence(Sequence):
 
     def setup_sequence(self, use_opposite_field=False):
         segment_steps = []
+        self._field_plate_parameters["use_opposite_field"] = False
         segment_steps.extend(self.get_chasm_sequence())
-        segment_steps.extend(self.get_antihole_sequence(use_opposite_field))
+        segment_steps.extend(self.get_antihole_sequence())
         segment_steps.extend(self.get_rf_sequence())
         return super().setup_sequence(segment_steps)
 
