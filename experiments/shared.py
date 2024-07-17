@@ -129,6 +129,7 @@ _shared_parameters = {
         "ao_amplitude": 2000,
         "detect_delay": 0 * ureg.us,
         "use_hsh": False,
+        "simultaneous": False,
     },
     "detect": {
         "transition": "bb",

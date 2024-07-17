@@ -33,7 +33,7 @@ default_params = {
     "chasm": {
         "transitions": ["ac"],
         "scan": 2 * ureg.MHz,
-        "durations": [10 * ureg.ms], # 10 ms
+        "durations": 10 * ureg.ms, # 10 ms
         "repeats": 30, #100,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
@@ -41,12 +41,17 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "cb", "rf_b"], #, "rf_b"
         "scan": 1 * ureg.MHz,
-        "durations": [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms], # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
         "repeats": 100, #5 100
+        "durations": [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms],
         "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
-        "ao_amplitude": 2000, # 2000
+        "ao_amplitude": 2000,
         "detect_delay": 0 * ureg.ms,
         "use_hsh": False,
+        "simultaneous": False,
+        # "durations": 6 * ureg.ms, # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
+        # "detunings": 0 * ureg.MHz,
+        # "ao_amplitude_1": 2000,
+        # "ao_amplitude_2": 2000,
     },
     "detect": {
         "transition": "ac",
@@ -121,47 +126,30 @@ setup_digitizer(
 )
 
 ## Scan the LF Detunings
-# params = default_params.copy()
-# lf_frequencies = np.arange(-15, 15, 0.5)
-#
-#
-# # params["lf"]["center_frequency"] = 250.7 * ureg.kHz
-# # params["lf"]["duration"] = 0.06 * ureg.ms
-# # params["lf"]["amplitude"] = 8000
-# # params["rf"]["center_detuning"] = 48 * ureg.kHz
-# # params["rf"]["pre_lf"] = True
-#
-# params["lf"]["center_frequency"] = 139.7 * ureg.kHz
-# params["lf"]["duration"] = 0.06 * ureg.ms
-# params["lf"]["amplitude"] = 625
-# params["rf"]["center_detuning"] = -52 * ureg.kHz
-# params["rf"]["pre_lf"] = False
-#
-#
-# lf_frequencies *= ureg.kHz
-# for ll in [False, True]:
-#     sequence = get_sequence(params)
-#     sequence.setup_sequence(use_opposite_field=ll)
-#     m4i.setup_sequence(sequence)
-#     for kk in tqdm(range(len(lf_frequencies))):
-#         params["lf"]["detuning"] = lf_frequencies[kk]
-#         del sequence._segments["lf"]
-#         sequence._define_lf()
-#         m4i.change_segment("lf")
-#         m4i.setup_sequence_steps_only()
-#         m4i.write_all_setup()
-#         def worker():
-#             start_time = time.time()
-#             data = run_sequence(sequence, params, skip_setup=True)
-#             return (start_time, data)
-#         start_time, data = run_expt_check_lock(worker)
-#         data_id = save_data(sequence, params, *data)
-#         if kk == 0:
-#             first_data_id = data_id
-#             print(first_data_id)
-#         elif kk == len(lf_frequencies) - 1:
-#             last_data_id = data_id
-#     print(f"({first_data_id}, {last_data_id})")
+params = default_params.copy()
+lf_frequencies = np.arange(-15, 15, 0.5)
+lf_frequencies *= ureg.kHz
+sequence = get_sequence(params)
+m4i.setup_sequence(sequence)
+for kk in tqdm(range(len(lf_frequencies))):
+    params["lf"]["detuning"] = lf_frequencies[kk]
+    del sequence._segments["lf"]
+    sequence._define_lf()
+    m4i.change_segment("lf")
+    m4i.setup_sequence_steps_only()
+    m4i.write_all_setup()
+    def worker():
+        start_time = time.time()
+        data = run_sequence(sequence, params, skip_setup=False)
+        return (start_time, data)
+    start_time, data = run_expt_check_lock(worker)
+    data_id = save_data(sequence, params, *data)
+    if kk == 0:
+        first_data_id = data_id
+        print(first_data_id)
+    elif kk == len(lf_frequencies) - 1:
+        last_data_id = data_id
+print(f"({first_data_id}, {last_data_id})")
 
 ## Scan the LF Durations
 # params = default_params.copy()
@@ -359,8 +347,15 @@ setup_digitizer(
 # print(f"({first_data_id}, {data_id})")
 
 ## OPTIMIZE
-params = default_params.copy()
-sequence = get_sequence(params)
-optimizer = OptimizeExperiment(params, sequence)
-optimizer.set_var_param(["chasm", "repeats"], (1, 100))
-result = optimizer.run_optimizer()
+# params = default_params.copy()
+# sequence = get_sequence(params)
+# optimizer = OptimizeExperiment(params, sequence)
+# # optimizer.set_var_param(["chasm", "repeats"], (1, 50))
+# optimizer.set_var_param(["chasm", "durations"], (1, 30))
+# optimizer.set_var_param(["chasm", "ao_amplitude"], (500, 2500))
+# # optimizer.set_var_param(["antihole", "repeats"], (1, 200))
+# optimizer.set_var_param(["antihole", "durations"], (0.1, 30))
+# optimizer.set_var_param(["antihole", "ao_amplitude_1"], (100, 2500))
+# optimizer.set_var_param(["antihole", "ao_amplitude_2"], (100, 2500))
+# optimizer.set_var_param(["rf_pump", "amplitude"], (100, 5000))
+# result = optimizer.run_optimizer()
