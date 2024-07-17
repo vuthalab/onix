@@ -88,6 +88,13 @@ _shared_parameters = {
         "stark_shift": 2 * ureg.MHz,
         "ramp_time": 30 * ureg.ms,
         "padding_time": 1 * ureg.ms,
+        "during": {
+            "chasm": True,
+            "antihole": False,
+            "rf": False,
+            "lf": False,
+            "detect": False,
+        }
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
@@ -103,7 +110,7 @@ _shared_parameters = {
         "amplitude": 4000,
         "scan_detunings": {
             "b": np.array([-102, -2]) * ureg.kHz, # to prepare into b scans -130 to 0 (abar-bbar transition)
-            "bbar": np.array([2, 98]) * ureg.kHz, # to prepare into bbar scans 0 to 130 (a-b transition)
+            "bbar": np.array([-2, 98]) * ureg.kHz, # to prepare into bbar scans 0 to 130 (a-b transition)
             "both": np.array([-102, 98]) * ureg.kHz,
             # "bviac": np.array([-29.335, -29.225]) * ureg.MHz, # to prepare into b using the bbar -> cbar transition
         },
