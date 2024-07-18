@@ -42,26 +42,27 @@ default_params = {
         "transitions": ["ac", "cb", "rf_b"], #, "rf_b"
         "scan": 1 * ureg.MHz,
         "repeats": 100, #5 100
-#         "durations": [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms],
-#         "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
-#         "ao_amplitude": 2000,
+        "durations": [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms],
+        "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
+        "ao_amplitude": 2000,
         "detect_delay": 0 * ureg.ms,
         "use_hsh": False,
-        "simultaneous": True,
-        "durations": 5 * ureg.ms, # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
-        "detunings": 0 * ureg.MHz,
-        "ao_amplitude_1": 2000,
-        "ao_amplitude_2": 2000,
+        # "simultaneous": True,
+        # "durations": 5 * ureg.ms, # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
+        # "detunings": 0 * ureg.MHz,
+        # "ao_amplitude_1": 2000,
+        # "ao_amplitude_2": 2000,
     },
     "detect": {
         "transition": "ac",
-        "detunings": np.linspace(-5, 5, 100) * ureg.MHz, #np.flip(np.linspace(-3, 3, 30)) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz
-        "on_time": 20 * ureg.us,
+        "detunings": np.linspace(-0.5, 0.5, 20) * ureg.MHz, #np.flip(np.linspace(-3, 3, 30)) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz
+        "on_time": 50 * ureg.us,
         "off_time": 1 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 0,
-            "rf": 16,
+            "antihole": 8,
+            "normalize": 8,
+            "rf": 8,
             #"lf": 64,
         },
         "delay": 8 * ureg.us,
@@ -237,63 +238,65 @@ setup_digitizer(
 
 
 ## Scan the LF Detunings, bbar, time series (T-violation), faster awg, a-abar and b-bbar
-# params = default_params.copy()
-# lf_frequencies = np.array([-2, 2])
-# lf_frequencies *= ureg.kHz
-# lf_phases = np.array([0])
-# amplitude = default_params["field_plate"]["amplitude"]
-# stark_shift = default_params["field_plate"]["stark_shift"]
-#
-# electric_polarity = [True, False]
-# for kk in range(1000000):
-#     for jj in range(0, 2):
-#         if jj == 0:
-#             params["lf"]["center_frequency"] = 251.0 * ureg.kHz
-#             params["lf"]["duration"] = 0.06 * ureg.ms
-#             params["lf"]["amplitude"] = 8000
-#             params["rf"]["center_detuning"] = 48 * ureg.kHz
-#             params["rf"]["pre_lf"] = True
-#         else:
-#             params["lf"]["center_frequency"] = 139.7 * ureg.kHz
-#             params["lf"]["duration"] = 0.06 * ureg.ms
-#             params["lf"]["amplitude"] = 625
-#             params["rf"]["center_detuning"] = -52 * ureg.kHz
-#             params["rf"]["pre_lf"] = False
-#
-#         ratios = [0.5, 0.75, 1, 1.5, 2, 2.5, 3]
-#         np.random.shuffle(ratios)
-#         for ratio in ratios:
-#             for ll in electric_polarity:
-#                 if ll:
-#                     params["field_plate"]["amplitude"] = amplitude * ratio
-#                     params["field_plate"]["stark_shift"] = stark_shift * ratio
-#                 else:
-#                     params["field_plate"]["amplitude"] = -amplitude * ratio
-#                     params["field_plate"]["stark_shift"] = stark_shift * ratio
-#                 sequence = get_sequence(params)
-#                 sequence.setup_sequence(use_opposite_field=ll)
-#                 m4i.setup_sequence(sequence)
-#                 for freq in lf_frequencies:
-#                     params["lf"]["detuning"] = freq
-#                     for phase in lf_phases:
-#                         params["lf"]["phase_diff"] = phase
-#                         del sequence._segments["lf"]
-#                         sequence._define_lf()
-#                         m4i.change_segment("lf")
-#                         m4i.setup_sequence_steps_only()
-#                         m4i.write_all_setup()
-#                         def worker():
-#                             start_time = time.time()
-#                             data = run_sequence(sequence, params, skip_setup=True)
-#                             return (start_time, data)
-#                         start_time, data = run_expt_check_lock(worker)
-#                         data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time})
-#                         if freq == lf_frequencies[0] and phase == lf_phases[0]:
-#                             first_data_id = data_id
-#                         if freq == lf_frequencies[-1] and phase == lf_phases[-1]:
-#                             last_data_id = data_id
-#                         #time.sleep(10)
-#                 print(f"{jj}, {ll}, ({first_data_id}, {last_data_id})")
+params = default_params.copy()
+lf_frequencies = np.array([-3, 3])
+lf_frequencies *= ureg.kHz
+lf_phases = np.array([0])
+amplitude = default_params["field_plate"]["amplitude"]
+stark_shift = default_params["field_plate"]["stark_shift"]
+
+electric_polarity = [True, False]
+for kk in range(1000000):
+    for jj in range(1, 2):
+        if jj == 0:
+            params["lf"]["center_frequency"] = 251.0 * ureg.kHz
+            params["lf"]["duration"] = 0.06 * ureg.ms
+            params["lf"]["amplitude"] = 8000
+            params["rf"]["center_detuning"] = 48 * ureg.kHz
+            params["rf"]["pre_lf"] = True
+        else:
+            params["lf"]["center_frequency"] = 139.7 * ureg.kHz
+            # params["lf"]["duration"] = 0.06 * ureg.ms
+            # params["lf"]["amplitude"] = 625
+            params["lf"]["duration"] = 0.025 * ureg.ms
+            params["lf"]["amplitude"] = 1500
+            params["rf"]["center_detuning"] = -52 * ureg.kHz
+            params["rf"]["pre_lf"] = False
+
+        ratios = [0.5, 0.75, 1, 1.25, 1.5, 2]
+        np.random.shuffle(ratios)
+        for ratio in ratios:
+            for ll in electric_polarity:
+                if ll:
+                    params["field_plate"]["amplitude"] = amplitude * ratio
+                    params["field_plate"]["stark_shift"] = stark_shift * ratio
+                else:
+                    params["field_plate"]["amplitude"] = -amplitude * ratio
+                    params["field_plate"]["stark_shift"] = stark_shift * ratio
+                sequence = get_sequence(params)
+                sequence.setup_sequence(use_opposite_field=ll)
+                m4i.setup_sequence(sequence)
+                for freq in lf_frequencies:
+                    params["lf"]["detuning"] = freq
+                    for phase in lf_phases:
+                        params["lf"]["phase_diff"] = phase
+                        del sequence._segments["lf"]
+                        sequence._define_lf()
+                        m4i.change_segment("lf")
+                        m4i.setup_sequence_steps_only()
+                        m4i.write_all_setup()
+                        def worker():
+                            start_time = time.time()
+                            data = run_sequence(sequence, params, skip_setup=True)
+                            return (start_time, data)
+                        start_time, data = run_expt_check_lock(worker)
+                        data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time})
+                        if freq == lf_frequencies[0] and phase == lf_phases[0]:
+                            first_data_id = data_id
+                        if freq == lf_frequencies[-1] and phase == lf_phases[-1]:
+                            last_data_id = data_id
+                        #time.sleep(10)
+                print(f"{jj}, {ll}, ({first_data_id}, {last_data_id})")
 #     #
 
 ## Scan the LF Detunings, bbar, time series (T-violation), faster awg

@@ -44,7 +44,7 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         #self._define_lf_sweep()
 
     def _define_optical(self):
-        optical_sequence_duration = 0.1 * ureg.ms
+        optical_sequence_duration = 1 * ureg.ms
         ao_channel = get_channel_from_name(self._ao_parameters["name"])
         amplitude = self._optical_parameters["ao_amplitude"]
         detuning_ac = 0 * ureg.MHz
