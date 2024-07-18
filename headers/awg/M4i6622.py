@@ -733,6 +733,8 @@ class M4i6622:
         
         Useful if only some of the segments are changed.
         self.write_all_setup() must be called afterwards to validate.
+
+        This still does not work.
         """
         index = self._segment_name_map[segment_name]
         segment = None

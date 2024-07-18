@@ -12,7 +12,6 @@ from onix.experiments.shared import (
 from onix.data_tools import get_experiment_data, open_analysis_folder, get_analysis_file_path
 from onix.analysis.helper import group_and_average_data
 
-
 def get_average_heights(data_number):
     data, headers = get_experiment_data(data_number)
     detunings_MHz = headers["detunings"].to("MHz").magnitude

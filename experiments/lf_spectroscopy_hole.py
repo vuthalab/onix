@@ -33,8 +33,8 @@ default_params = {
     "chasm": {
         "transitions": ["ac"],
         "scan": 2 * ureg.MHz,
-        "durations": 10 * ureg.ms, # 10 ms
-        "repeats": 30, #100,
+        "durations": 5 * ureg.ms, # 10 ms
+        "repeats": 60, #100,
         "detunings": 0 * ureg.MHz,
         "ao_amplitude": 2000,
     },
@@ -42,21 +42,21 @@ default_params = {
         "transitions": ["ac", "cb", "rf_b"], #, "rf_b"
         "scan": 1 * ureg.MHz,
         "repeats": 100, #5 100
-        "durations": [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms],
-        "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
-        "ao_amplitude": 2000,
+#         "durations": [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms],
+#         "detunings": [0 * ureg.MHz, -18 * ureg.MHz, 0 * ureg.MHz],
+#         "ao_amplitude": 2000,
         "detect_delay": 0 * ureg.ms,
         "use_hsh": False,
-        "simultaneous": False,
-        # "durations": 6 * ureg.ms, # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
-        # "detunings": 0 * ureg.MHz,
-        # "ao_amplitude_1": 2000,
-        # "ao_amplitude_2": 2000,
+        "simultaneous": True,
+        "durations": 5 * ureg.ms, # [6 * ureg.ms, 6 * ureg.ms, 3 * ureg.ms]
+        "detunings": 0 * ureg.MHz,
+        "ao_amplitude_1": 2000,
+        "ao_amplitude_2": 2000,
     },
     "detect": {
         "transition": "ac",
-        "detunings": np.linspace(-0.5, 0.5, 5) * ureg.MHz, #np.flip(np.linspace(-3, 3, 30)) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz
-        "on_time": 5 * ureg.us,
+        "detunings": np.linspace(-5, 5, 100) * ureg.MHz, #np.flip(np.linspace(-3, 3, 30)) * ureg.MHz, #np.linspace(-0.5, 0.5, 5) * ureg.MHz
+        "on_time": 20 * ureg.us,
         "off_time": 1 * ureg.us,
         "cycles": {
             "chasm": 0,
@@ -98,7 +98,7 @@ default_params = {
 
         "detuning": 0 * ureg.kHz,
         "wait_time": 0.05 * ureg.ms,
-        "phase_diff": 0,
+        "phase_diff": np.pi,
     },
     "field_plate": {
         "amplitude": 4500,
@@ -126,30 +126,31 @@ setup_digitizer(
 )
 
 ## Scan the LF Detunings
-params = default_params.copy()
-lf_frequencies = np.arange(-15, 15, 0.5)
-lf_frequencies *= ureg.kHz
-sequence = get_sequence(params)
-m4i.setup_sequence(sequence)
-for kk in tqdm(range(len(lf_frequencies))):
-    params["lf"]["detuning"] = lf_frequencies[kk]
-    del sequence._segments["lf"]
-    sequence._define_lf()
-    m4i.change_segment("lf")
-    m4i.setup_sequence_steps_only()
-    m4i.write_all_setup()
-    def worker():
-        start_time = time.time()
-        data = run_sequence(sequence, params, skip_setup=False)
-        return (start_time, data)
-    start_time, data = run_expt_check_lock(worker)
-    data_id = save_data(sequence, params, *data)
-    if kk == 0:
-        first_data_id = data_id
-        print(first_data_id)
-    elif kk == len(lf_frequencies) - 1:
-        last_data_id = data_id
-print(f"({first_data_id}, {last_data_id})")
+# params = default_params.copy()
+# lf_frequencies = np.arange(-15, 15, 0.5)
+# lf_frequencies *= ureg.kHz
+# sequence = get_sequence(params)
+# sequence.setup_sequence()
+# m4i.setup_sequence(sequence)
+# for kk in tqdm(range(len(lf_frequencies))):
+#     params["lf"]["detuning"] = lf_frequencies[kk]
+#     del sequence._segments["lf"]
+#     sequence._define_lf()
+#     m4i.change_segment("lf")
+#     m4i.setup_sequence_steps_only()
+#     m4i.write_all_setup()
+#     def worker():
+#         start_time = time.time()
+#         data = run_sequence(sequence, params, skip_setup=True)
+#         return (start_time, data)
+#     start_time, data = run_expt_check_lock(worker)
+#     data_id = save_data(sequence, params, *data)
+#     if kk == 0:
+#         first_data_id = data_id
+#         print(first_data_id)
+#     elif kk == len(lf_frequencies) - 1:
+#         last_data_id = data_id
+# print(f"({first_data_id}, {last_data_id})")
 
 ## Scan the LF Durations
 # params = default_params.copy()
@@ -347,15 +348,34 @@ print(f"({first_data_id}, {last_data_id})")
 # print(f"({first_data_id}, {data_id})")
 
 ## OPTIMIZE
+params = default_params.copy()
+optimizer = OptimizeExperiment(params)
+# optimizer.set_var_param(["chasm", "repeats"], (1, 50))
+# optimizer.set_var_param(["chasm", "durations"], (1, 15))
+# optimizer.set_var_param(["chasm", "ao_amplitude"], (500, 2500))
+# optimizer.set_var_param(["antihole", "repeats"], (1, 200))
+optimizer.set_var_param(["antihole", "durations"], (0.1, 10))
+optimizer.set_var_param(["antihole", "ao_amplitude_1"], (100, 2500))
+# optimizer.set_var_param(["antihole", "ao_amplitude_2"], (100, 2500))
+# optimizer.set_var_param(["rf_pump", "amplitude"], (100, 3000))
+result = optimizer.run_optimizer()
+
+## OPTIMIZE TEST PARAMETERS
 # params = default_params.copy()
 # sequence = get_sequence(params)
-# optimizer = OptimizeExperiment(params, sequence)
-# # optimizer.set_var_param(["chasm", "repeats"], (1, 50))
-# optimizer.set_var_param(["chasm", "durations"], (1, 30))
-# optimizer.set_var_param(["chasm", "ao_amplitude"], (500, 2500))
-# # optimizer.set_var_param(["antihole", "repeats"], (1, 200))
-# optimizer.set_var_param(["antihole", "durations"], (0.1, 30))
-# optimizer.set_var_param(["antihole", "ao_amplitude_1"], (100, 2500))
-# optimizer.set_var_param(["antihole", "ao_amplitude_2"], (100, 2500))
-# optimizer.set_var_param(["rf_pump", "amplitude"], (100, 5000))
-# result = optimizer.run_optimizer()
+# # params["chasm"]["repeats"] = 30
+# # params["chasm"]["durations"] = 10.02 * ureg.ms
+# # params["chasm"]["ao_amplitude"] = 851
+# # params["antihole"]["repeats"] = 100
+# # params["antihole"]["durations"] = 24.09 * ureg.ms
+# # params["antihole"]["ao_amplitude_1"] = 2099
+# # params["antihole"]["ao_amplitude_2"] = 112
+# # params["rf_pump"]["amplitude"] = 1500
+#
+# params["lf"]["phase_diff"] = 0
+# data = run_sequence(sequence, params)
+# data_id_1 = save_data(sequence, params, *data)
+#
+# params["lf"]["phase_diff"] = np.pi
+# data = run_sequence(sequence, params)
+# data_id_2 = save_data(sequence, params, *data)

@@ -107,7 +107,7 @@ _shared_parameters = {
     "rf_pump": {
         "use": False,
         "into": "bbar",
-        "amplitude": 4000,
+        "amplitude": 2500,
         "scan_detunings": {
             "b": np.array([-102, -2]) * ureg.kHz, # to prepare into b scans -130 to 0 (abar-bbar transition)
             "bbar": np.array([-2, 98]) * ureg.kHz, # to prepare into bbar scans 0 to 130 (a-b transition)
@@ -140,11 +140,7 @@ _shared_parameters = {
         "randomize": False,
         "on_time": 5 * ureg.us,
         "off_time": 1 * ureg.us,
-        "cycles": {
-            "chasm": 0,
-            "antihole": 200,
-            "rf": 200,
-        },
+        "cycles": {},
         "delay": 8 * ureg.us,
     },
     "digitizer": {
@@ -214,7 +210,7 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
         m4i.setup_sequence(sequence)
 
     dg.start_capture()
-    time.sleep(0.1)
+    time.sleep(0.01)
 
     sequence_repeats_per_transfer = params["sequence_repeats_per_transfer"]
     data_transfer_repeats = params["data_transfer_repeats"]
@@ -228,7 +224,7 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
             if show_progress:
                 print(
                     f"{ll / sequence_repeats_per_transfer  * 100:.0f}%"
-                )  # TODO: use tqdm progress bar, for kk too
+                )  # TODO: use tqdm progress bar, for kk tooz
             m4i.start_sequence()
             m4i.wait_for_sequence_complete()
         m4i.stop_sequence()

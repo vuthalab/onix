@@ -2,170 +2,181 @@ import time
 
 import numpy as np
 from onix.data_tools import save_experiment_data
+from onix.headers.awg.M4i6622 import M4i6622
+from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
+from onix.sequences.rf_ramsey import RFRamsey
+from onix.experiments.helpers import data_averaging
 from onix.units import ureg
 
-from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
-from onix.headers.wavemeter.wavemeter import WM
-from onix.headers.awg.M4i6622 import M4i6622
-from onix.sequences.rf_ramsey import RFRamsey
-import matplotlib.pyplot as plt
-import sys
+try:
+    m4i
+    print("m4i is already defined.")
+except Exception:
+    m4i = M4i6622()
 
-#phase = float(sys.argv[1])
-phase = 0
+try:
+    dg
+    print("dg is already defined.")
+except Exception:
+    dg = Digitizer()
 
-wavemeter = WM()
 
-def wavemeter_frequency():
-    freq = wavemeter.read_frequency(params["wm_channel"])
-    if isinstance(freq, str):
-        return -1
-    return freq
+## function to run the experiment
+def run_experiment(params):
+    sequence = RFRamsey(  # Only change the part that changed
+        ao_parameters=params["ao"],
+        eos_parameters=params["eos"],
+        field_plate_parameters=params["field_plate"],
+        chasm_parameters=params["chasm"],
+        antihole_parameters=params["antihole"],
+        rf_parameters=params["rf"],
+        detect_parameters=params["detect"],
+    )
+    sequence.setup_sequence()
+    m4i.setup_sequence(sequence)
 
-m4i = M4i6622()
+    transmissions = None
+    dg.start_capture()
+    time.sleep(0.1)
+
+    for kk in range(params["repeats"]):
+        print(f"{kk / params['repeats'] * 100:.0f}%")
+        m4i.start_sequence()
+        m4i.wait_for_sequence_complete()
+    m4i.stop_sequence()
+
+    dg.wait_for_data_ready()
+    digitizer_sample_rate, digitizer_data = dg.get_data()
+    transmissions = np.array(digitizer_data[0])
+    monitors = np.array(digitizer_data[1])
+
+    photodiode_times = [kk / digitizer_sample_rate for kk in range(len(transmissions[0]))]
+    transmissions_avg, transmissions_err = data_averaging(transmissions, digitizer_sample_rate, sequence.analysis_parameters["detect_pulse_times"])
+    monitors_avg, monitors_err = data_averaging(monitors, digitizer_sample_rate, sequence.analysis_parameters["detect_pulse_times"])
+
+    #import matplotlib.pyplot as plt
+    #plt.plot(photodiode_times, transmissions[0])
+    #plt.show()
+
+    data = {
+        "transmissions_avg": transmissions_avg,
+        "transmissions_err": transmissions_err,
+        "monitors_avg": monitors_avg,
+        "monitors_err": monitors_err,
+    }
+    headers = {
+        "params": params,
+        "detunings": sequence.analysis_parameters["detect_detunings"]
+    }
+    name = "RF Ramsey"
+    data_id = save_experiment_data(name, data, headers)
+    print(data_id)
+    print()
+
 
 ## parameters
-
-params = {
+default_params = {
     "wm_channel": 5,
-
-    "digitizer_channel": 0,
-    "field_plate_channel": 1,
-    "rf_channel": 2,
-
-    "repeats": 2,
-
+    "repeats": 20,
     "ao": {
-        "channel": 0,
-        "frequency": 80 * ureg.MHz,
+        "name": "ao_dp",
+        "order": 2,
+        "frequency": 74 * ureg.MHz,  # TODO: rename it to "center_frequency"
         "amplitude": 2000,
-        "detect_amplitude": 90,
+        "detect_amplitude": 650,
+        "rise_delay": 1.1 * ureg.us,
+        "fall_delay": 0.6 * ureg.us,
     },
-
-    "eo": {
-        "channel": 1,
-        "offset": 60 * ureg.MHz,
-        "amplitude": 3400,
+    "eos": {
+        "ac": {
+            "name": "eo_ac",
+            "amplitude": 4500,  #4500
+            "offset": -300 * ureg.MHz,
+        },
+        "bb": {
+            "name": "eo_bb",
+            "amplitude": 1900,  #1900
+            "offset": -300 * ureg.MHz,
+        },
+        "ca": {
+            "name": "eo_ca",
+            "amplitude": 1400,  #1400
+            "offset": -300 * ureg.MHz,
+        },
     },
-
-    "detect_ao": {
-        "channel": 3,
-        "frequency": 80 * ureg.MHz,
+    "field_plate": {
+        "name": "field_plate",
+        "use": False,
         "amplitude": 0,
+        "stark_shift": 1 * ureg.MHz,
+        "padding_time": 1 * ureg.ms,
     },
-
-    "burn": {
+    "chasm": {
         "transition": "bb",
-        "duration": 5 * ureg.s,
-        "scan": 5 * ureg.MHz,
+        "scan": 2.8 * ureg.MHz,
+        "scan_rate": 5 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
     },
-
-    "repop": {
-        "transitions": ["ca", "ac"],
-        "duration": 0.6 * ureg.s,
-        "scan": 0.3 * ureg.MHz,
+    "antihole": {
+        "transitions": ["ac", "ca"],
+        "scan": 0 * ureg.MHz,
+        "scan_rate": 0 * ureg.MHz / ureg.s,
         "detuning": 0 * ureg.MHz,
+        "duration_no_scan": 0.5 * ureg.s
     },
-
-    "flop": {
-        "transition": "ab",
-        "pulse_time": 0.2 * ureg.ms,
-        "wait_time": 0.2 * ureg.ms,
-        "amplitude": 6000,  # do not go above 6000.
-        "phase_difference": phase,
-        "offset": 35 * ureg.kHz,
-        "repeats": 1,
-    },
-
     "detect": {
         "transition": "bb",
-        "detunings": np.linspace(-2.5, 2.5, 51) * ureg.MHz,
-        "on_time": 16 * ureg.us,
-        "off_time": 8 * ureg.us,
-        "delay_time": 600 * ureg.ms,
-        "repeats": 500,
-        "ttl_detect_offset_time": 4 * ureg.us,
-        "ttl_start_time": 12 * ureg.us,
-        "ttl_duration": 4 * ureg.us,
+        "trigger_channel": 2,
+        "detunings": np.linspace(-2, 2, 20) * ureg.MHz,
+        "randomize": True,
+        "on_time": 10 * ureg.us,
+        "off_time": 2 * ureg.us,
+        "chasm_repeats": 100,  # change the names of detection repeats
+        "antihole_repeats": 100,
+        "rf_repeats": 100,
+    },
+    "rf": {
+        "name": "rf_coil",
+        "transition": "ab",
+        "amplitude": 4200,  # 4200
+        "offset": -203 * ureg.kHz,
+        "detuning": 0 * ureg.kHz,
+        "piov2_time": 0.2 * ureg.ms,
+        "delay_time": 0.2 * ureg.ms,
+        "phase": 0,
     },
 }
-print(f"phase is {params['flop']['phase_difference']}")
-
-## setup sequence
-sequence = RFRamsey(
-    ao_parameters=params["ao"],
-    eo_parameters=params["eo"],
-    detect_ao_parameters=params["detect_ao"],
-    burn_parameters=params["burn"],
-    repop_parameters=params["repop"],
-    flop_parameters=params["flop"],
-    detect_parameters=params["detect"],
-    digitizer_channel=params["digitizer_channel"],
-    field_plate_channel=params["field_plate_channel"],
-    rf_channel=params["rf_channel"],
+default_sequence = RFRamsey(
+    ao_parameters=default_params["ao"],
+    eos_parameters=default_params["eos"],
+    field_plate_parameters=default_params["field_plate"],
+    chasm_parameters=default_params["chasm"],
+    antihole_parameters=default_params["antihole"],
+    rf_parameters=default_params["rf"],
+    detect_parameters=default_params["detect"],
 )
-sequence.setup_sequence()
+default_sequence.setup_sequence()
 
-## setup the awg and digitizer
-m4i.setup_sequence(sequence)
-
-## take data
+digitizer_time_s = default_sequence.analysis_parameters["digitizer_duration"].to("s").magnitude
 sample_rate = 1e8
-dg = Digitizer(False)
-val = dg.configure_system(
-    mode=2,
-    sample_rate=int(sample_rate),
-    segment_size=64,
-    segment_count=sequence.num_of_records(),
+dg.set_acquisition_config(
+    num_channels=2,
+    sample_rate=1e8,
+    segment_size=int(digitizer_time_s * sample_rate),
+    segment_count=default_sequence.num_of_records() * default_params["repeats"]
 )
+dg.set_channel_config(channel=1, range=2)
+dg.set_channel_config(channel=2, range=0.5)
+dg.set_trigger_source_edge()
+dg.write_configs_to_device()
 
-acq_params = dg.get_acquisition_parameters()
 
-epoch_times = []
-transmissions = None
-reflections = None
-
-for kk in range(params["repeats"]):
-    dg.arm_digitizer()
-    time.sleep(0.1)
-    print(f"{kk / params['repeats'] * 100:.0f}%")
-    m4i.start_sequence()
-    epoch_times.append(time.time())
-    m4i.wait_for_sequence_complete()
-    digitizer_data = dg.get_data()
-    current_rep_transmissions = np.array(digitizer_data[0])
-    current_rep_transmissions = np.reshape(current_rep_transmissions, (4, params["detect"]["repeats"], len(current_rep_transmissions[0])))
-    current_rep_transmissions = np.average(current_rep_transmissions, axis=1)
-    current_rep_reflections = np.array(digitizer_data[1])
-    current_rep_reflections = np.reshape(current_rep_reflections, (4, params["detect"]["repeats"], len(current_rep_reflections[0])))
-    current_rep_reflections = np.average(current_rep_reflections, axis=1)
-    if transmissions is None:
-        transmissions = current_rep_transmissions
-        reflections = current_rep_reflections
-    else:
-        transmissions = np.append(transmissions, current_rep_transmissions, axis=0)
-        reflections = np.append(reflections, current_rep_reflections, axis=0)
-m4i.stop_sequence()
-
-photodiode_times = [kk / sample_rate for kk in range(len(transmissions[0]))]
-
-## plot
-#plt.plot(photodiode_times, np.transpose(photodiode_voltages)); plt.legend(); plt.show();
-
-## save data
-data = {
-    "times": photodiode_times,
-    "transmissions": transmissions,
-    "monitors": reflections,
-    "epoch_times": epoch_times,
-}
-headers = {
-    "params": params,
-    "wavemeter_frequency": wavemeter_frequency(),
-}
-name = "RF Ramsey"
-data_id = save_experiment_data(name, data, headers)
-print(data_id)
+## scan
+rf_offsets = np.arange(-44, -36, 0.5)
+#np.random.shuffle(rf_offsets)
+params = default_params.copy()
+for kk in range(len(rf_offsets)):
+    params["rf"]["offset"] = rf_offsets[kk] * ureg.kHz
+    run_experiment(params)
 
 ## empty

@@ -1,23 +1,9 @@
 import numpy as np
 
 
-def group_and_average_data(data, cycles, average: bool = True):
+def group_and_average_data(data, cycles, average: bool = True, return_err: bool = False):
     total_cycles = sum(cycles.values())
     remainder_to_label = {}
-
-    """
-    for cycle_n in range(total_cycles):
-        last_index_of_label = 0
-
-        for label in cycles:
-
-            if cycles[label] > 0:
-                last_index_of_label += cycles[label]
-
-                if cycle_n < last_index_of_label:
-                    remainder_to_label[cycle_n] = label
-                    break
-    """
     current_label_no = 0
     # makes a dictionary - {cycle number: what was detected in the cycle}
     for label in cycles.keys():
@@ -27,6 +13,7 @@ def group_and_average_data(data, cycles, average: bool = True):
         current_label_no += cycles[label]
 
     data_averages = {}
+    data_errs = {}
     for label in cycles:
         if cycles[label] > 0:
             data_averages[label] = []
@@ -41,6 +28,11 @@ def group_and_average_data(data, cycles, average: bool = True):
     if average:
         for label in cycles:
             if cycles[label] > 0:
+                data_errs[label] = np.std(data_averages[label], axis=0) / len(data_averages[label])
                 data_averages[label] = np.average(data_averages[label], axis=0)
 
-    return data_averages
+    if not return_err:
+        return data_averages
+    else:
+        return data_averages, data_errs
+
