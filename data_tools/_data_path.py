@@ -62,17 +62,17 @@ def _locate_expt_data_number(data_number: int) -> Tuple[str, str]:
     if op.exists(op.join(folder, file)):
         return (folder, file)
     
-    start_str = str(data_number).rjust(expt_rjust, "0") + " - "
-    with os.scandir(expt_folder) as it:
-        for year_month in it:
-            if year_month.is_dir():
-                with os.scandir(year_month.path) as it1:
-                    for day in it1:
-                        if day.is_dir():
-                            with os.scandir(day.path) as it2:
-                                for file in it2:
-                                    if file.name.startswith(start_str) and file.name.endswith(".npz"):
-                                        return (os.path.join(expt_folder, year_month.name, day.name), file.name)
+    # start_str = str(data_number).rjust(expt_rjust, "0") + " - "
+    # with os.scandir(expt_folder) as it:
+    #     for year_month in it:
+    #         if year_month.is_dir():
+    #             with os.scandir(year_month.path) as it1:
+    #                 for day in it1:
+    #                     if day.is_dir():
+    #                         with os.scandir(day.path) as it2:
+    #                             for file in it2:
+    #                                 if file.name.startswith(start_str) and file.name.endswith(".npz"):
+    #                                     return (os.path.join(expt_folder, year_month.name, day.name), file.name)
     raise ValueError(f"Experiment data number {data_number} is not found.")
 
 
