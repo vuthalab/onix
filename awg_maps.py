@@ -27,7 +27,7 @@ awg_channels = {
     4 : {
         "name" : "blue_laser",
         "desc" : "blue laser aom (max 0.63 W) connected to ZHL-1A (15 dB gain)",
-        "max_allowed_amplitude" : 32768,
+        "max_allowed_amplitude" : 18000,
     },
     5 : {
         "name" : "eo_ca",
