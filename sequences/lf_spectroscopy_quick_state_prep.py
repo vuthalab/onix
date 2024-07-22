@@ -36,11 +36,13 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         self._detect_parameters = parameters["detect"]
         self._lf_parameters = parameters["lf"]
         self._sequence_parameters = parameters["sequence"]
+        self._cleanout_parameters = parameters["cleanout"]
         self._define_optical()
         self._define_detect()
         self._define_rf()
         self._define_breaks()
         self._define_lf()
+        self._define_cleanout()
         #self._define_lf_sweep()
 
     def _define_optical(self):
@@ -147,6 +149,15 @@ class LFSpectroscopyQuickStatePrep(Sequence):
                 )
                 segment.add_awg_function(lf_channel, pulse)
             self.add_segment(segment)
+
+    def _define_cleanout(self):
+        duration = self._cleanout_parameters["duration"]
+        amplitude = self._cleanout_parameters["amplitude"]
+        blue_laser_channel = get_channel_from_name("blue_laser")
+        segment = Segment("cleanout", duration=duration)
+        pulse = AWGConstant(amplitude)
+        segment.add_awg_function(blue_laser_channel, pulse)
+        self.add_segment(segment)
 
     def _define_breaks(self):
         break_time = 10 * ureg.us

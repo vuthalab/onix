@@ -25,8 +25,8 @@ awg_channels = {
         "max_allowed_amplitude" : 4500,
     },
     4 : {
-        "name" : "lf_coil",
-        "desc" : "lf coil",
+        "name" : "blue_laser",
+        "desc" : "blue laser aom (max 0.63 W) connected to ZHL-1A (15 dB gain)",
         "max_allowed_amplitude" : 32768,
     },
     5 : {

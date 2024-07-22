@@ -22,7 +22,7 @@ def get_sequence(params):
 
 ## parameters
 ac_pumps = 200
-cb_pumps = 50
+cleanouts = 1
 detects = 16
 lf_counts = 1
 
@@ -73,6 +73,10 @@ default_params = {
             "detect": True,
         }
     },
+    "cleanout": {
+        "amplitude": 7000,
+        "duration": 25 * ureg.ms,
+    },
     "sequence": {
         # "sequence": [
         #     ("optical_ac", ac_pumps),
@@ -103,7 +107,7 @@ default_params = {
             ("lf_0", 1),
             ("rf_abar_bbar", 1),
             ("detect_3", detects),
-            ("optical_cb", cb_pumps),
+            ("cleanout", cleanouts),
 
             ("optical_ac", ac_pumps),
             ("detect_4", detects),
@@ -114,7 +118,7 @@ default_params = {
             ("lf_0", 1),
             ("rf_a_b", 1),
             ("detect_6", detects),
-            ("optical_cb", cb_pumps),
+            ("cleanout", cleanouts),
         ]
     }
 }
