@@ -72,7 +72,7 @@ class M4i6622:
     def __init__(
         self,
         addresses: Union[list[str], str] = ["/dev/spcm0", "/dev/spcm1"],
-        external_clock_frequency: Optional[int] = None,
+        external_clock_frequency: Optional[int] = 10000000,
     ):
         if not isinstance(addresses, list):
             addresses = [addresses]
