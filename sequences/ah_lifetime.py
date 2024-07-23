@@ -19,6 +19,8 @@ class AHLifetime(SharedSequence):
         self.long_break_time = 20 * ureg.ms
         segment = Segment("long_break", self.long_break_time)
         segment.add_awg_function(6, AWGSinePulse(121.25e6, self._rf_parameters["amplitude"]))
+        if self._antihole_parameters["blue_light"]["use"]:
+            segment.add_awg_function(4, AWGSinePulse(115e6, self._antihole_parameters["blue_light"]["amplitude"]))
         self.add_segment(segment)
 
     def get_antihole_sequence(self):

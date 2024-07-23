@@ -143,6 +143,11 @@ _shared_parameters = {
         "cycles": {},
         "delay": 8 * ureg.us,
     },
+    "cleanout": {
+        "amplitude": 7000,
+        "duration": 25 * ureg.ms,
+        "frequency": 115 * ureg.MHz
+    },
     "digitizer": {
         "sample_rate": 25e6,
         "ch1_range": 2,

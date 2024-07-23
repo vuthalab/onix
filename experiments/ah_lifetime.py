@@ -54,13 +54,17 @@ default_params = {
         "durations": [100 * ureg.us, 100 * ureg.us],
         "repeats": 2000,
         "ao_amplitude": 2000,
+        "blue_light": {
+            "use": True,
+            "amplitude": 7000,
+        }
     },
     "detect": {
         "detunings": np.linspace(-2, 2, 12) * ureg.MHz, # np.array([-2, 0]) * ureg.MHz,
         "on_time": 5 * ureg.us, #5
         "off_time": 0.5 * ureg.us,
         "delta_detect_time": 0 * ureg.s,
-        "ao_amplitude": 450,
+        "ao_amplitude": 180,
         "cycles": {
             "chasm": 0,
             "antihole": 32,
@@ -69,7 +73,7 @@ default_params = {
         },
     },
     "rf": {
-        "amplitude": 1000,
+        "amplitude": 0,
     },
 }
 default_params = update_parameters_from_shared(default_params)
@@ -90,7 +94,7 @@ start_time = time.time()
 params = default_params.copy()
 first_data_id = None
 
-delta_detect_times = np.logspace(2, 4.2, num = 12)  * ureg.s
+delta_detect_times = np.logspace(0.1, 4.25, num = 18)  * ureg.s
 #delta_detect_times = [3600 * ureg.s]
 for delta_detect_time in delta_detect_times:
     params["detect"]["delta_detect_time"] = delta_detect_time

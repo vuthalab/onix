@@ -21,10 +21,11 @@ def get_sequence(params):
 
 
 ## parameters
-ac_pumps = 200
-cleanouts = 1
-detects = 16
-lf_counts = 1
+ac_pumps = 25
+cb_pumps = 25
+cleanouts = 25
+detects = 256
+lf_counts = 9
 
 default_params = {
     "name": "LF Spectroscopy Quick State Prep",
@@ -42,7 +43,7 @@ default_params = {
         "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
-        "ao_amplitude": 500,
+        "ao_amplitude": 180,
         "simultaneous": False,
         "cycles": {},
     },
@@ -54,16 +55,16 @@ default_params = {
         "scan_range": 45 * ureg.kHz,
     },
     "lf": {
-        "center_frequencies": [139.3 * ureg.kHz for kk in range(lf_counts)],
+        "center_frequencies": [141.146 * ureg.kHz for kk in range(lf_counts)],
         "amplitudes": [1000 for kk in range(lf_counts)],
-        "wait_times": [0.025 * ureg.ms for kk in range(lf_counts)],
+        "wait_times": [0.35 * ureg.ms for kk in range(lf_counts)],
         "durations": [0.05 * ureg.ms for kk in range(lf_counts)],
         "detunings": [0. * ureg.kHz for kk in range(lf_counts)],
-        "phase_diffs": [0 for kk in range(lf_counts)]
+        "phase_diffs": np.linspace(0,2*np.pi, lf_counts),
     },
     "field_plate": {
         "amplitude": 4500,
-        "stark_shift": 2.1 * ureg.MHz,
+        "stark_shift": 2.2 * ureg.MHz,
         "use": True,
         "during": {
             "chasm": False,
@@ -75,7 +76,7 @@ default_params = {
     },
     "cleanout": {
         "amplitude": 7000,
-        "duration": 25 * ureg.ms,
+        "duration": 1 * ureg.ms,
     },
     "sequence": {
         # "sequence": [
@@ -99,25 +100,27 @@ default_params = {
         # ]
         "sequence": [
             ("optical_ac", ac_pumps),
-            ("detect_1", detects),
-            ("rf_a_b", 1),
-            ("detect_2", detects),
+            #("detect_1", detects),
+            #("rf_a_b", 1),
+            #("detect_2", detects),
             ("rf_abar_bbar", 1),
-            ("rf_a_b", 1),
+            #("rf_a_b", 1),
             ("lf_0", 1),
             ("rf_abar_bbar", 1),
             ("detect_3", detects),
+            ("optical_cb", cb_pumps),
             ("cleanout", cleanouts),
 
             ("optical_ac", ac_pumps),
-            ("detect_4", detects),
-            ("rf_abar_bbar", 1),
-            ("detect_5", detects),
+            #("detect_4", detects),
+            #("rf_abar_bbar", 1),
+            #("detect_5", detects),
             ("rf_a_b", 1),
-            ("rf_abar_bbar", 1),
+            #("rf_abar_bbar", 1),
             ("lf_0", 1),
             ("rf_a_b", 1),
             ("detect_6", detects),
+            ("optical_cb", cb_pumps),
             ("cleanout", cleanouts),
         ]
     }
@@ -160,25 +163,58 @@ setup_digitizer(
 )
 
 ## Repeat the sequence
-# params = default_params.copy()
-# sequence = get_sequence(params)
-# sequence.setup_sequence()
-# m4i.setup_sequence(sequence)
-#
-# repeats = 30000
-# for kk in tqdm(range(repeats)):
-#     def worker():
-#         start_time = time.time()
-#         data = run_sequence(sequence, params, skip_setup=True)
-#         return (start_time, data)
-#     start_time, data = run_expt_check_lock(worker)
-#     data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time})
-#     if kk == 0:
-#         first_data_id = data_id
-#         print(first_data_id)
-#     elif kk == repeats - 1:
-#         last_data_id = data_id
-# print(f"({first_data_id}, {last_data_id})")
+default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
+params = default_params.copy()
+sequence = get_sequence(params)
+sequence.setup_sequence()
+m4i.setup_sequence(sequence)
+
+repeats = 30000
+
+lf_indices = list(range(lf_counts))
+np.random.shuffle(lf_indices)
+lf_indices = [2, 5, 0, 4, 1, 3, 6, 7, 8]
+for kk in range(repeats):
+    for ll, e_field in enumerate(["_opposite", ""]):
+        if ll == 0:
+            params["field_plate"]["amplitude"] = -default_field_plate_amplitude
+        else:
+            params["field_plate"]["amplitude"] = default_field_plate_amplitude
+        for jj, lf_index in enumerate(lf_indices):
+            params["sequence"]["sequence"] = [
+                ("optical_ac", ac_pumps),
+                ("rf_abar_bbar", 1),
+                (f"lf_{lf_index}", 1),
+                ("rf_abar_bbar", 1),
+                (f"detect{e_field}_3", detects),
+                ("optical_cb", cb_pumps),
+                ("cleanout", cleanouts),
+
+                ("optical_ac", ac_pumps),
+                ("rf_a_b", 1),
+                (f"lf_{lf_index}", 1),
+                ("rf_a_b", 1),
+                (f"detect{e_field}_6", detects),
+                ("optical_cb", cb_pumps),
+                ("cleanout", cleanouts),
+            ]
+            sequence.setup_sequence()
+            m4i.setup_sequence_steps_only()
+            m4i.write_all_setup()
+
+            def worker():
+                start_time = time.time()
+                data = run_sequence(sequence, params, skip_setup=True)
+                return (start_time, data)
+            start_time, data = run_expt_check_lock(worker)
+            data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time})
+            time.sleep(0.2)
+            if jj == 0:
+                first_data_id = data_id
+                print(first_data_id)
+            elif jj == lf_counts - 1:
+                last_data_id = data_id
+        print(f"({first_data_id}, {last_data_id})")
 
 ## Scan the LF Detunings
 # params = default_params.copy()
@@ -265,34 +301,34 @@ setup_digitizer(
 
 
 ## Scan the Ramsey phases
-default_fp_amplitude = default_params["field_plate"]["amplitude"]
-
-for jj in range(100000):
-    params = default_params.copy()
-    phases = np.linspace(0, 2 * np.pi, 9)
-    for ll in [-1, 1]:
-        params["field_plate"]["amplitude"] = default_fp_amplitude * ll
-        sequence = get_sequence(params)
-        sequence.setup_sequence()
-        m4i.setup_sequence(sequence)
-        for kk in range(len(phases)):
-            params["lf"]["phase_diffs"] = [phases[kk]]
-            del sequence._segments["lf_0"]
-            sequence._define_lf()
-            m4i.change_segment("lf_0")
-            m4i.setup_sequence_steps_only()
-            m4i.write_all_setup()
-            def worker():
-                start_time = time.time()
-                data = run_sequence(sequence, params, skip_setup=True)
-                return (start_time, data)
-            start_time, data = run_expt_check_lock(worker)
-            data_id = save_data(sequence, params, *data)
-            if kk == 0:
-                first_data_id = data_id
-            elif kk == len(phases) - 1:
-                last_data_id = data_id
-    print(f"({first_data_id}, {last_data_id})")
+# default_fp_amplitude = default_params["field_plate"]["amplitude"]
+#
+# for jj in range(100000):
+#     params = default_params.copy()
+#     phases = np.linspace(0, 2 * np.pi, 9)
+#     for ll in [-1, 1]:
+#         params["field_plate"]["amplitude"] = default_fp_amplitude * ll
+#         sequence = get_sequence(params)
+#         sequence.setup_sequence()
+#         m4i.setup_sequence(sequence)
+#         for kk in range(len(phases)):
+#             params["lf"]["phase_diffs"] = [phases[kk]]
+#             del sequence._segments["lf_0"]
+#             sequence._define_lf()
+#             m4i.change_segment("lf_0")
+#             m4i.setup_sequence_steps_only()
+#             m4i.write_all_setup()
+#             def worker():
+#                 start_time = time.time()
+#                 data = run_sequence(sequence, params, skip_setup=True)
+#                 return (start_time, data)
+#             start_time, data = run_expt_check_lock(worker)
+#             data_id = save_data(sequence, params, *data)
+#             if kk == 0:
+#                 first_data_id = data_id
+#             elif kk == len(phases) - 1:
+#                 last_data_id = data_id
+#     print(f"({first_data_id}, {last_data_id})")
 
 ## Scan the Ramsey wait times
 # params = default_params.copy()
