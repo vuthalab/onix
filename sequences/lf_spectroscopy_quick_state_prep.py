@@ -43,6 +43,7 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         self._define_breaks()
         self._define_cleanout()
         self._define_lf() # LF must be the last segment defined
+        self._define_field_plate_trigger()
         #self._define_lf_sweep()
 
     def _define_optical(self):
@@ -80,31 +81,18 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         self.add_segment(segment)
 
         if self._field_plate_parameters["use"]:
-            if self._field_plate_parameters["method"] == "awg":
-                field_plate_opposite = self._field_plate_parameters.copy()
-                field_plate_opposite["amplitude"] = -field_plate_opposite["amplitude"]
-                segment, self.analysis_parameters = detect_segment(
-                    "detect_opposite",
-                    self._ao_parameters,
-                    None,
-                    field_plate_opposite,
-                    self._shutter_parameters,
-                    self._detect_parameters,
-                )
-                self.analysis_parameters["detect_groups"] = []
-                self.add_segment(segment)
-            elif self._field_plate_parameters["method"] == "ttl": 
-                rigol = Rigol()
-                rigol.field_plate_output(
-                    amplitude = 1,
-                    amp_time = 1e-3,
-                    on_time_with_ramp = 10e-3,
-                    sign = -1,
-                )
-                fp_channel = get_ttl_channel_from_name(self._field_plate_parameters["name"])
-                segment.add_ttl_function(fp_channel, TTLOn())
-            else:
-                raise ValueError("Invalid method type for field plate output. Use 'awg' or 'ttl'.")
+            field_plate_opposite = self._field_plate_parameters.copy()
+            field_plate_opposite["amplitude"] = -field_plate_opposite["amplitude"]
+            segment, self.analysis_parameters = detect_segment(
+                "detect_opposite",
+                self._ao_parameters,
+                None,
+                field_plate_opposite,
+                self._shutter_parameters,
+                self._detect_parameters,
+            )
+            self.analysis_parameters["detect_groups"] = []
+            self.add_segment(segment)
         
 
     def _define_rf(self):
@@ -203,10 +191,17 @@ class LFSpectroscopyQuickStatePrep(Sequence):
             self._shutter_parameters["fall_delay"] / break_time
         )
 
+    def _define_field_plate_trigger(self):
+        segment = Segment("field_plate_trigger", self._field_plate_parameters["ramp_time"])
+        fp_channel = get_ttl_channel_from_name(self._field_plate_parameters["name"])
+        segment.add_ttl_function(fp_channel, TTLOn())
+        self.add_segment(segment)
+
     def setup_sequence(self):
         segment_steps = []
         for name, repeats in self._sequence_parameters["sequence"]:
             if name.startswith("detect"):
+                segment_steps.append(("field_plate_trigger", 1))
                 if "opposite" in name:
                     segment_steps.append(("shutter_break_opposite", self._shutter_rise_delay_repeats))
                     segment_steps.append(("detect_opposite", repeats))
@@ -217,6 +212,10 @@ class LFSpectroscopyQuickStatePrep(Sequence):
                 analysis_name = name.split("_")[-1]
                 self._detect_parameters["cycles"][analysis_name] = repeats
                 self.analysis_parameters["detect_groups"].append((analysis_name, repeats))
+                self.field_plate_on_time = (
+                    self._segments["shutter_break"].duration * self._shutter_rise_delay_repeats 
+                    + self._segments["detect"].duration * repeats
+                )
             else:
                 segment_steps.append((name, repeats))
             segment_steps.append(("break", 1))
@@ -227,3 +226,11 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         for name, cycles in self.analysis_parameters["detect_groups"]:
             total_cycles += cycles
         return total_cycles
+
+        # rigol = Rigol()
+        # rigol.field_plate_output(
+        #     amplitude = 2.5 * self._field_plate_parameters["amplitude"] / 2**15,
+        #     ramp_time = self._field_plate_parameters["ramp_time"].to("s").magnitude,
+        #     on_time_with_ramp = 10e-3,
+        #     sign = 1,
+        # )

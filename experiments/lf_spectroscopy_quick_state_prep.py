@@ -13,6 +13,7 @@ from onix.experiments.shared import (
 )
 from tqdm import tqdm
 from onix.headers.unlock_check import run_expt_check_lock
+from onix.headers.rigol_field_plate import Rigol
 import os
 import influxdb_client
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -57,7 +58,7 @@ def get_4k_platform_temp(average_time = 60):
 ac_pumps = 25
 cb_pumps = 25
 cleanouts = 0
-detects = 1
+detects = 256
 lf_counts = 9
 freq_counts = 1
 
@@ -81,7 +82,7 @@ default_params = {
         "simultaneous": False,
         "cycles": {},
         "fid": {
-            "use": True,
+            "use": False,
             "pump_amplitude": 500,
             "pump_time": 100 * ureg.us,
             "probe_detuning": -10 * ureg.MHz,
@@ -107,6 +108,7 @@ default_params = {
         "phase_diffs": list(np.linspace(0,2*np.pi, lf_counts))*freq_counts,
     },
     "field_plate": {
+        "method": "ttl",
         "amplitude": 4500,
         "stark_shift": 2.2 * ureg.MHz,
         "use": True,
@@ -123,7 +125,7 @@ default_params = {
         "duration": 0.001 * ureg.us,
     },
     "digitizer": {
-        "sample_rate": 100e6,
+        "sample_rate": 25e6,
         "ch1_range": 2,
         "ch2_range": 2,
     },
@@ -170,6 +172,7 @@ setup_digitizer(
 ## Repeat the sequence
 default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
 
+rigol = Rigol()
 def run_1_experiment(only_print_first_last=False, repeats=50):
     params = default_params.copy()
     sequence = get_sequence(params)
@@ -182,6 +185,13 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 params["field_plate"]["amplitude"] = -default_field_plate_amplitude
             else:
                 params["field_plate"]["amplitude"] = default_field_plate_amplitude
+            if params["field_plate"]["method"] == "ttl":
+                rigol.field_plate_output(
+                    amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
+                    ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
+                    on_time = sequence.field_plate_on_time.to("s").magnitude,
+                    set_params = True,
+                )
             for jj, lf_index in enumerate(lf_indices):
                 params["sequence"]["sequence"] = [
                     ("optical_ac", ac_pumps),

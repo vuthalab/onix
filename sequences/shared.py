@@ -296,18 +296,6 @@ def detect_segment(
             field_plate = AWGConstant(field_plate_parameters["amplitude"])
             fp_channel = get_channel_from_name(field_plate_parameters["name"])
             segment.add_awg_function(fp_channel, field_plate)
-        elif field_plate_parameters["method"] == "ttl": 
-            rigol = Rigol()
-            rigol.field_plate_output(
-                amplitude = 1,
-                amp_time = 1e-3,
-                on_time_with_ramp = 10e-3,
-                sign = 1,
-            )
-            fp_channel = get_ttl_channel_from_name(field_plate_parameters["name"])
-            segment.add_ttl_function(fp_channel, TTLOn())
-        else:
-            raise ValueError("Invalid method type for field plate output. Use 'awg' or 'ttl'.")
     return (segment, analysis_parameters)
     
 

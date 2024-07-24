@@ -87,7 +87,7 @@ _shared_parameters = {
         "method": "ttl", # "awg", "ttl"
         "amplitude": 3800,
         "stark_shift": 2 * ureg.MHz,
-        "ramp_time": 30 * ureg.ms,
+        "ramp_time": 3 * ureg.ms,
         "padding_time": 1 * ureg.ms,
         "during": {
             "chasm": True,

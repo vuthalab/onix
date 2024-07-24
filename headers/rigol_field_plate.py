@@ -39,7 +39,7 @@ class Rigol():
     def field_plate_output(self, 
                      amplitude: float = 1, 
                      ramp_time: float = 1e-3, 
-                     on_time_with_ramp: float = 10e-3,
+                     on_time: float = 10e-3,
                      number_steps: int = 256,
                      sign: Literal[-1, 1] = 1,
                      set_params: bool = False):
@@ -47,9 +47,9 @@ class Rigol():
         """
         Use set_params = True if changing period, voltage, or other params excluded from arguments.
         """
-        period = on_time_with_ramp * 1.1
+        period = (on_time+ramp_time) * 1.1
         times = np.linspace(0, period, number_steps)
-        ys = sign * amplitude/5 * (1/ramp_time*times*(times < ramp_time) + (times >= ramp_time)*(times < on_time_with_ramp))
+        ys = sign * amplitude/5 * (1/ramp_time*times*(times < ramp_time) + (times >= ramp_time)*(times < (on_time+ramp_time)))
         self.write("SOURCE1:TRACE:DATA VOLATILE,"+ ",".join(map(str, ys)))
         if set_params:
             v_high = 10
