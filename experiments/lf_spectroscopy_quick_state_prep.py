@@ -57,7 +57,7 @@ def get_4k_platform_temp(average_time = 60):
 ac_pumps = 25
 cb_pumps = 25
 cleanouts = 0
-detects = 256
+detects = 1
 lf_counts = 9
 freq_counts = 1
 
@@ -81,12 +81,12 @@ default_params = {
         "simultaneous": False,
         "cycles": {},
         "fid": {
-            "use": False,
-            "probe_detuning": 10 * ureg.MHz,
-            "probe_amplitude": 180,
-            "probe_time": 30 * ureg.us,
+            "use": True,
             "pump_amplitude": 500,
             "pump_time": 100 * ureg.us,
+            "probe_detuning": -10 * ureg.MHz,
+            "probe_amplitude": 180,
+            "probe_time": 30 * ureg.us,
             "wait_time": 5 * ureg.us,
             "phase": 0,
         }
@@ -108,7 +108,7 @@ default_params = {
     },
     "field_plate": {
         "amplitude": 4500,
-        "stark_shift": 2.0 * ureg.MHz,
+        "stark_shift": 2.2 * ureg.MHz,
         "use": True,
         "during": {
             "chasm": False,
@@ -123,7 +123,7 @@ default_params = {
         "duration": 0.001 * ureg.us,
     },
     "digitizer": {
-        "sample_rate": 25e6,
+        "sample_rate": 100e6,
         "ch1_range": 2,
         "ch2_range": 2,
     },
@@ -170,12 +170,11 @@ setup_digitizer(
 ## Repeat the sequence
 default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
 
-def run_1_experiment(only_print_first_last=False):
+def run_1_experiment(only_print_first_last=False, repeats=50):
     params = default_params.copy()
     sequence = get_sequence(params)
     sequence.setup_sequence()
     m4i.setup_sequence(sequence)
-    repeats = 50
     lf_indices = list(range(lf_counts*freq_counts))
     for kk in range(repeats):
         for ll, e_field in enumerate(["_opposite", ""]):
@@ -225,12 +224,12 @@ def run_1_experiment(only_print_first_last=False):
                 print(f"({first_data_id}, {last_data_id})")
             elif kk == 0 or kk == repeats - 1:
                 print(f"({first_data_id}, {last_data_id})")
-# run_1_experiment()
+run_1_experiment(repeats=1)
 
-for kk in np.linspace(1.4, 2.6, 7):
-    default_params["field_plate"]["stark_shift"] = kk * ureg.MHz
-    print(default_params["field_plate"]["stark_shift"])
-    run_1_experiment(True)
+# for kk in np.linspace(1.4, 2.6, 7):
+#     default_params["field_plate"]["stark_shift"] = kk * ureg.MHz
+#     print(default_params["field_plate"]["stark_shift"])
+#     run_1_experiment(True)
 
 ## Scan the LF Detunings
 # params = default_params.copy()
