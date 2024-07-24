@@ -198,62 +198,76 @@ setup_digitizer(
 
 ## Repeat the sequence
 default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
-params = default_params.copy()
-sequence = get_sequence(params)
-sequence.setup_sequence()
-m4i.setup_sequence(sequence)
 
-repeats = 1000000000
+def run_1_experiment():
+    params = default_params.copy()
+    params["detect"]["detunings"] = default_detect_detuning
+    sequence = get_sequence(params)
+    sequence.setup_sequence()
+    m4i.setup_sequence(sequence)
+    repeats = 300
+    lf_indices = list(range(lf_counts*freq_counts))
+    for kk in range(repeats):
+        for ll, e_field in enumerate(["_opposite", ""]):
+            if ll == 0:
+                params["field_plate"]["amplitude"] = -default_field_plate_amplitude
+            else:
+                params["field_plate"]["amplitude"] = default_field_plate_amplitude
+            for jj, lf_index in enumerate(lf_indices):
+                params["sequence"]["sequence"] = [
+                    ("optical_ac", ac_pumps),
+                    ("rf_abar_bbar", 1),
+                    (f"lf_{lf_index}", 1),
+                    ("rf_abar_bbar", 1),
+                    (f"detect{e_field}_3", detects),
+                    ("optical_cb", cb_pumps),
+                    #("cleanout", cleanouts),
 
-lf_indices = list(range(lf_counts*freq_counts))
-# np.random.shuffle(lf_indices)
-# lf_indices = [2, 5, 0, 4, 1, 3, 6, 7, 8]
-for kk in range(repeats):
-    for ll, e_field in enumerate(["_opposite", ""]):
-        if ll == 0:
-            params["field_plate"]["amplitude"] = -default_field_plate_amplitude
-        else:
-            params["field_plate"]["amplitude"] = default_field_plate_amplitude
-        for jj, lf_index in enumerate(lf_indices):
-            params["sequence"]["sequence"] = [
-                ("optical_ac", ac_pumps),
-                ("rf_abar_bbar", 1),
-                (f"lf_{lf_index}", 1),
-                ("rf_abar_bbar", 1),
-                (f"detect{e_field}_3", detects),
-                ("optical_cb", cb_pumps),
-                #("cleanout", cleanouts),
+                    ("optical_ac", ac_pumps),
+                    ("rf_a_b", 1),
+                    (f"lf_{lf_index}", 1),
+                    ("rf_a_b", 1),
+                    (f"detect{e_field}_6", detects),
+                    ("optical_cb", cb_pumps),
+                    #("cleanout", cleanouts),
+                ]
+                sequence.setup_sequence()
+                m4i.setup_sequence_steps_only()
+                m4i.write_all_setup()
 
-                ("optical_ac", ac_pumps),
-                ("rf_a_b", 1),
-                (f"lf_{lf_index}", 1),
-                ("rf_a_b", 1),
-                (f"detect{e_field}_6", detects),
-                ("optical_cb", cb_pumps),
-                #("cleanout", cleanouts),
-            ]
-            sequence.setup_sequence()
-            m4i.setup_sequence_steps_only()
-            m4i.write_all_setup()
+                def worker():
+                    start_time = time.time()
+                    data = run_sequence(sequence, params, skip_setup=True)
+                    return (start_time, data)
+                start_time, data = run_expt_check_lock(worker)
+                end_time = time.time()
+                try:
+                    temp = get_4k_platform_temp(end_time - start_time)
+                except:
+                    temp = None
+                data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
+                time.sleep(0.2)
+                if jj == 0:
+                    first_data_id = data_id
+                elif jj == lf_counts - 1:
+                    last_data_id = data_id
+            if kk == 0 or kk == repeats - 1:
+                print(f"({first_data_id}, {last_data_id})")
 
-            def worker():
-                start_time = time.time()
-                data = run_sequence(sequence, params, skip_setup=True)
-                return (start_time, data)
-            start_time, data = run_expt_check_lock(worker)
-            end_time = time.time()
-            try:
-                temp = get_4k_platform_temp(end_time - start_time)
-            except:
-                temp = None
-            data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
-            time.sleep(0.2)
-            if jj == 0:
-                first_data_id = data_id
-                print(first_data_id)
-            elif jj == lf_counts - 1:
-                last_data_id = data_id
-        print(f"({first_data_id}, {last_data_id})")
+detect_detunings = np.linspace(-1, 1, 11)
+for detect_detuning in detect_detunings:
+    print(detect_detuning)
+    default_detect_detuning = np.array([detect_detuning]) * ureg.MHz
+    run_1_experiment()
+
+default_default_field_plate_amplitude = default_field_plate_amplitude
+electric_field_multipliers = np.linspace(0.7, 1.3, 7)
+for xx in electric_field_multipliers:
+    print(xx)
+    default_field_plate_amplitude = xx*default_default_field_plate_amplitude
+    run_1_experiment()
+
+
 
 ## Scan the LF Detunings
 # params = default_params.copy()
