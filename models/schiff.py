@@ -222,3 +222,50 @@ class NewPhysicsSensitivities:
         MeV_to_TeV = (1.0 / 1e-6) * (1e-12 / 1.0)
 
         return MeV_to_TeV * np.sqrt(prefactor * 1 / d_q_inv_MeV)
+
+    @property
+    def a0_over_fa(self) -> float:
+        """Axion a_0 / f_a limit.
+        
+        This assumes that the the oscillation in theta_QCD has been constrained.
+        a_0 is the axion field amplitude, and f_a is the coupling constant of axions
+        and gluons. This is simply theta_QCD per definition of axions.
+
+        See PRD 89, 043522 (2014) Section IV for details.
+        In PRX 7, 041034 (2017), this quantity is C_G a_0 / f_a.
+        """
+        return self.theta_QCD
+
+def inverse_fa_limit(frequency, theta_QCD_amplitude):
+    """Limit on the axion gluon coupling constant from theta_QCD oscillation amplitude.
+    
+    See PRD 89, 043522 (2014) Section IV and PRX 7, 041034 (2017) for details.
+    In PRX 7, 041034 (2017), the returned quantity is C_G / f_a.
+
+    The local dark matter density is rho_DM = a_0^2 * m_a^2 / 2.
+    m_a is the axion particle mass.
+    The oscillation frequency is simply m_a (both mass and frequency in natural units).
+
+    Consistency check:
+        Neutron EDM experiment in PRD 92, 092003 (2015) constrains theta_QCD to ~1e-10.
+        Their lowest measurement frequency is ~1e-9 Hz. Using the same dataset, they analyzed
+        their maximum bound on C_G / f_a in PRX 7, 041034 (2017) to be 1e-21 GeV^-1.
+        This function gives inverse_fa_limit(frequency=1e-9, theta_QCD_amplitude=1e-10) = 1.7e-22 GeV^-1
+        which is approximately the same. The smaller limit may come from that their theta_QCD oscillation
+        bound are not as good as the static theta_QCD bound.
+
+    Args:
+        frequency: float, theta_QCD oscillation measured at frequency in Hz.
+        theta_QCD_amplitude: float, theta_QCD oscillation amplitude.
+
+    Returns:
+        float, constraint on 1 / f_a in GeV^-1.
+    """
+    GeV_to_J = _c.e * 1e9
+    rho_DM = 0.4 * GeV_to_J * 100**3  # J/m^3, assumes axions saturate local dark matter density.
+    energy_density_natural_to_SI = GeV_to_J**4 / (_c.hbar * _c.c)**3  # 1 GeV^4 to J/m^3
+    rho_DM_natural = rho_DM / energy_density_natural_to_SI  # GeV^4
+    frequency_natural_to_SI = GeV_to_J / _c.hbar  # 1 GeV to radians
+    frequency_natural = frequency * 2 * np.pi / frequency_natural_to_SI  # GeV
+    a0_over_fa = theta_QCD_amplitude  # this is simply the definition of axions.
+    return a0_over_fa * frequency_natural / np.sqrt(2 * rho_DM_natural)
