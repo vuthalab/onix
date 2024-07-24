@@ -2,6 +2,7 @@ from typing import Any
 from onix.sequences.sequence import (
     AWGCompositePulse,
     AWGConstant,
+    AWGRamp,
     AWGHSHPulse,
     AWGSinePulse,
     Segment,
@@ -165,6 +166,11 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         segment = SegmentEmpty("break", break_time)
         self.add_segment(segment)
 
+        if self._field_plate_parameters["use"]:
+            segment.add_awg_function(
+                get_channel_from_name(self._field_plate_parameters["name"]),
+                AWGRamp(0, self._field_plate_parameters["amplitude"], 0, self._field_plate_parameters["ramp_time"])
+            )
         segment = Segment("shutter_break", break_time)
         segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
         self.add_segment(segment)
@@ -174,6 +180,10 @@ class LFSpectroscopyQuickStatePrep(Sequence):
                 AWGConstant(self._field_plate_parameters["amplitude"])
             )
 
+            segment.add_awg_function(
+                get_channel_from_name(self._field_plate_parameters["name"]),
+                AWGRamp(0, -self._field_plate_parameters["amplitude"], 0, self._field_plate_parameters["ramp_time"])
+            )
             segment = Segment("shutter_break_opposite", break_time)
             segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
             self.add_segment(segment)
