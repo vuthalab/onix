@@ -1,11 +1,13 @@
 import io
 import pickle
+import pint
 import os.path as op
 from datetime import datetime
 from typing import Any, Dict, Tuple, Optional
 
 import numpy as np
 
+from onix.units import ureg
 from ._data_path import (
     get_new_experiment_path,
     get_new_persistent_path,
@@ -14,6 +16,8 @@ from ._data_path import (
     get_exist_experiment_path,
     get_exist_persistent_path,
 )
+
+pint.set_application_registry(ureg)
 
 
 def _add_default_headers(headers: Dict[Any, Any], data_name: str, data_number: int):
