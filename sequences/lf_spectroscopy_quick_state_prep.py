@@ -173,10 +173,6 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         if self._field_plate_parameters["use"]:
             segment.add_awg_function(
                 get_channel_from_name(self._field_plate_parameters["name"]),
-                AWGRamp(0, self._field_plate_parameters["amplitude"], 0, self._field_plate_parameters["ramp_time"])
-            )
-            segment.add_awg_function(
-                get_channel_from_name(self._field_plate_parameters["name"]),
                 AWGConstant(self._field_plate_parameters["amplitude"])
             )
 
@@ -184,10 +180,6 @@ class LFSpectroscopyQuickStatePrep(Sequence):
             segment = Segment("shutter_break_opposite", break_time)
             segment.add_ttl_function(self._shutter_parameters["channel"], TTLOn())
             self.add_segment(segment)
-            segment.add_awg_function(
-                get_channel_from_name(self._field_plate_parameters["name"]),
-                AWGRamp(0, -self._field_plate_parameters["amplitude"], 0, self._field_plate_parameters["ramp_time"])
-            )
             segment.add_awg_function(
                 get_channel_from_name(self._field_plate_parameters["name"]),
                 AWGConstant(-self._field_plate_parameters["amplitude"])
