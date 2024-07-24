@@ -46,7 +46,32 @@ awg_channels = {
     },
 }
 
-
+ttl_channels = {
+    0 : {
+        "name" : "sequence",
+        "desc" : "for triggering the second AWG board",
+    },
+    1 : {
+        "name" : "shutter",
+        "desc" : "for opening or closing the shutters",
+    },
+    2 : {
+        "name" : "digitizer",
+        "desc" : "for triggering the digitizer board",
+    },
+    3 : {
+        "name" : "sequence_1",
+        "desc" : "unused",
+    },
+    4 : {
+        "name" : "field_plate",
+        "desc" : "for triggering the field plate using the rigol",
+    },
+    5 : {
+        "name" : "channel_5",
+        "desc" : "unused",
+    }
+}
 
 def get_channel_from_name(name: str) -> int:
     for channel in awg_channels:
@@ -54,3 +79,8 @@ def get_channel_from_name(name: str) -> int:
             return channel
     raise ValueError(f"Channel {name} is not defined.")
 
+def get_ttl_channel_from_name(name: str) -> int:
+    for channel in ttl_channels:
+        if ttl_channels[channel]["name"] == name:
+            return channel
+    raise ValueError(f"Channel {name} is not defined.")

@@ -12,9 +12,9 @@ from onix.sequences.sequence import (
 import numpy as np
 from onix.models.hyperfine import energies
 from onix.sequences.shared import detect_segment
-from onix.awg_maps import get_channel_from_name
+from onix.awg_maps import get_channel_from_name, get_ttl_channel_from_name
 from onix.units import ureg
-
+from onix.headers.rigol_field_plate import Rigol
 
 class LFSpectroscopyQuickStatePrep(Sequence):
     def __init__(self, parameters: dict[str, Any]):
@@ -80,18 +80,32 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         self.add_segment(segment)
 
         if self._field_plate_parameters["use"]:
-            field_plate_opposite = self._field_plate_parameters.copy()
-            field_plate_opposite["amplitude"] = -field_plate_opposite["amplitude"]
-            segment, self.analysis_parameters = detect_segment(
-                "detect_opposite",
-                self._ao_parameters,
-                None,
-                field_plate_opposite,
-                self._shutter_parameters,
-                self._detect_parameters,
-            )
-            self.analysis_parameters["detect_groups"] = []
-            self.add_segment(segment)
+            if self._field_plate_parameters["method"] == "awg":
+                field_plate_opposite = self._field_plate_parameters.copy()
+                field_plate_opposite["amplitude"] = -field_plate_opposite["amplitude"]
+                segment, self.analysis_parameters = detect_segment(
+                    "detect_opposite",
+                    self._ao_parameters,
+                    None,
+                    field_plate_opposite,
+                    self._shutter_parameters,
+                    self._detect_parameters,
+                )
+                self.analysis_parameters["detect_groups"] = []
+                self.add_segment(segment)
+            elif self._field_plate_parameters["method"] == "ttl": 
+                rigol = Rigol()
+                rigol.field_plate_output(
+                    amplitude = 1,
+                    amp_time = 1e-3,
+                    on_time_with_ramp = 10e-3,
+                    sign = -1,
+                )
+                fp_channel = get_ttl_channel_from_name(self._field_plate_parameters["name"])
+                segment.add_ttl_function(fp_channel, TTLOn())
+            else:
+                raise ValueError("Invalid method type for field plate output. Use 'awg' or 'ttl'.")
+        
 
     def _define_rf(self):
         rf_channel = get_channel_from_name(self._rf_parameters["name"])

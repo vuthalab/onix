@@ -22,8 +22,8 @@ from onix.sequences.sequence import (
     TTLPulses,
 )
 from onix.units import Q_, ureg
-from onix.awg_maps import get_channel_from_name
-
+from onix.awg_maps import get_channel_from_name, get_ttl_channel_from_name
+from onix.headers.rigol_field_plate import Rigol
 
 # TODO: transition to optical detuning function.
 
@@ -168,7 +168,8 @@ def detect_segment(
     ttl_stop_time = ttl_start_time + ttl_duration
     detect_padding_time = 4 * ureg.us  # extra data recording time around the detection
     ttl_function = TTLPulses([[ttl_start_time, ttl_stop_time]])
-    segment.add_ttl_function(detect_parameters["trigger_channel"], ttl_function)
+    trigger_channel = get_ttl_channel_from_name(detect_parameters["name"])
+    segment.add_ttl_function(trigger_channel, ttl_function)
 
     transition = detect_parameters["transition"]
     if eos_parameters is not None:
@@ -291,9 +292,22 @@ def detect_segment(
         }
     segment._duration = segment.duration + detect_parameters["delay"]
     if field_plate_parameters["use"] and field_plate_parameters["during"]["detect"]:
-        field_plate = AWGConstant(field_plate_parameters["amplitude"])
-        fp_channel = get_channel_from_name(field_plate_parameters["name"])
-        segment.add_awg_function(fp_channel, field_plate)
+        if field_plate_parameters["method"] == "awg":
+            field_plate = AWGConstant(field_plate_parameters["amplitude"])
+            fp_channel = get_channel_from_name(field_plate_parameters["name"])
+            segment.add_awg_function(fp_channel, field_plate)
+        elif field_plate_parameters["method"] == "ttl": 
+            rigol = Rigol()
+            rigol.field_plate_output(
+                amplitude = 1,
+                amp_time = 1e-3,
+                on_time_with_ramp = 10e-3,
+                sign = 1,
+            )
+            fp_channel = get_ttl_channel_from_name(field_plate_parameters["name"])
+            segment.add_ttl_function(fp_channel, TTLOn())
+        else:
+            raise ValueError("Invalid method type for field plate output. Use 'awg' or 'ttl'.")
     return (segment, analysis_parameters)
     
 

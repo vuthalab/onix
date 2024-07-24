@@ -84,6 +84,7 @@ _shared_parameters = {
     "field_plate": {
         "name": "field_plate",
         "use": False,
+        "method": "ttl", # "awg", "ttl"
         "amplitude": 3800,
         "stark_shift": 2 * ureg.MHz,
         "ramp_time": 30 * ureg.ms,
@@ -133,7 +134,8 @@ _shared_parameters = {
     },
     "detect": {
         "transition": "bb",
-        "trigger_channel": 2,
+        # "trigger_channel": 2,
+        "name": "digitizer", # ttl channel name
         "ao_amplitude": 450,
         "detunings": np.array([0, 1]) * ureg.MHz,
         "simultaneous": False,
