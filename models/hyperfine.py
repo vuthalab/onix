@@ -97,36 +97,36 @@ class HyperfineStates:
     def _mu_z(self):
         return -(self._Zeeman_tensor[2][0] * self._I_x + self._Zeeman_tensor[2][1] * self._I_y + self._Zeeman_tensor[2][2] * self._I_z) / self._mu_N
 
-    def m_Ix(self, eigenvector: qutip.Qobj):
+    def mu_Ix(self, eigenvector: qutip.Qobj):
         return (eigenvector.dag() * self._mu_x * eigenvector).tr()
 
-    def m_Iy(self, eigenvector: qutip.Qobj):
+    def mu_Iy(self, eigenvector: qutip.Qobj):
         return (eigenvector.dag() * self._mu_y * eigenvector).tr()
 
-    def m_Iz(self, eigenvector: qutip.Qobj):
+    def mu_Iz(self, eigenvector: qutip.Qobj):
         return (eigenvector.dag() * self._mu_z * eigenvector).tr()
+
+    def m_Ix(self, eigenvector: qutip.Qobj):
+        return (eigenvector.dag() * self._I_x * eigenvector).tr()
+
+    def m_Iy(self, eigenvector: qutip.Qobj):
+        return (eigenvector.dag() * self._I_y * eigenvector).tr()
+
+    def m_Iz(self, eigenvector: qutip.Qobj):
+        return (eigenvector.dag() * self._I_z * eigenvector).tr()
 
     def magnetic_field_sensitivity(self, eigenvector: qutip.Qobj):
         """Magnetic field sensitivity on (D1, D2, b) axes in MHz / T."""
-        m1_x = 0
-        m1_y = 0
-        m1_z = 0
-        for kk in range(3):
-            m1_x += self._Zeeman_tensor[0][kk] * self._I_axes[kk]
-            m1_y += self._Zeeman_tensor[1][kk] * self._I_axes[kk]
-            m1_z += self._Zeeman_tensor[2][kk] * self._I_axes[kk]
-        return [
-            (eigenvector.dag() * m1_x * eigenvector).tr(),
-            (eigenvector.dag() * m1_y * eigenvector).tr(),
-            (eigenvector.dag() * m1_z * eigenvector).tr(),
-        ]
+        return np.array(
+            [self.mu_Ix(eigenvector), self.mu_Iy(eigenvector), self.mu_Iz(eigenvector)]
+        ) * self._mu_N
 
     def Schiff_moment_sensitivity(self, eigenvector: qutip.Qobj):
         """Returns the dot product of nuclear spin and the electric field direction.
 
-        Assumes that the electric field is on D1 and D2 axes respectively.
+        Assumes that the electric field is on the D1 axis.
         """
-        return (self.m_Ix(eigenvector) / self.I, self.m_Iy(eigenvector) / self.I)
+        return self.m_Ix(eigenvector)
 
     def m1_elements(self):
         """Magnetic dipole transition matrix elements between different Zeeman levels.
