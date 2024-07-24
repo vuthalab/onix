@@ -932,6 +932,86 @@ class AWGDoubleSineTrain(AWGFunction):
             times[i] = times[i].to("s").magnitude
         return np.sum(times) * ureg.s
 
+
+class AWGFIDPulse(AWGFunction):
+    def __init__(
+        self,
+        pump_frequencies: Union[List[float], Q_, List[Q_]],
+        pump_amplitude: float,
+        pump_time: Union[float, Q_],
+        wait_time: Union[float, Q_],
+        probe_frequency: Union[float, Q_],
+        probe_amplitude: float,
+        probe_time: Union[float, Q_],
+        probe_phase: float,
+        start_time: Optional[Union[float, Q_]],
+    ):
+        super().__init__()
+
+        self._pump_amplitude = pump_amplitude
+        self._probe_amplitude = probe_amplitude
+        self._probe_phase = probe_phase
+
+        if isinstance(pump_time, numbers.Number):
+            pump_time = pump_time * ureg.s
+        self._pump_time: Q_ = pump_time
+
+        if isinstance(wait_time, numbers.Number):
+            wait_time = wait_time * ureg.s
+        self._wait_time: Q_ = wait_time
+
+        if isinstance(probe_frequency, numbers.Number):
+            probe_frequency = probe_frequency * ureg.Hz
+        self._probe_frequency: Q_ = probe_frequency
+
+        if isinstance(probe_time, numbers.Number):
+            probe_time = probe_time * ureg.s
+        self._probe_time: Q_ = probe_time
+
+        if start_time is None:
+            start_time = 0 * ureg.s
+        if isinstance(start_time, numbers.Number):
+            start_time = start_time * ureg.s
+        self._start_time: Q_ = start_time
+
+        if isinstance(pump_frequencies, numbers.Number):
+            pump_frequencies = pump_frequencies * ureg.Hz
+        elif not isinstance(pump_frequencies, Q_):
+            for kk in range(len(pump_frequencies)):
+                if isinstance(pump_frequencies[kk], numbers.Number):
+                    pump_frequencies[kk] = pump_frequencies[kk] * ureg.Hz
+            pump_frequencies = Q_.from_list(pump_frequencies, "Hz")
+        self._pump_frequencies: Q_ = pump_frequencies
+
+    def output(self, times):
+        def sine(times, frequency, amplitude, phase, start_time, end_time):
+            mask = np.heaviside(times - start_time, 1) - np.heaviside(times - end_time, 1)
+            return mask * amplitude * np.sin(2 * np.pi * frequency * times + phase)
+        
+        data = np.zeros(len(times))
+
+        start_time = self._start_time.to("s").magnitude
+        pump_time = self._pump_time.to("s").magnitude
+        for frequency in self._pump_frequencies:
+            frequency = frequency.to("Hz").magnitude
+            data += sine(times, frequency, self._pump_amplitude, 0, start_time, start_time + pump_time)
+
+        probe_start_time = start_time + pump_time + self._wait_time.to("s").magnitude
+        probe_stop_time = probe_start_time + self._probe_time.to("s").magnitude
+        probe_frequency = self._probe_frequency.to("Hz").magnitude
+        data += sine(times, probe_frequency, self._probe_amplitude, self._probe_phase, probe_start_time, probe_stop_time)
+
+        return data
+
+    @property
+    def max_amplitude(self) -> float:
+        return np.max([self._pump_amplitude, self._probe_amplitude])
+
+    @property
+    def min_duration(self) -> Q_:
+        return self._pump_time + self._wait_time + self._probe_time
+
+
 class AWGSimultaneousDoubleSineTrain(AWGFunction):
     def __init__(
       self,

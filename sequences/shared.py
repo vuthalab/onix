@@ -4,10 +4,12 @@ import warnings
 import numpy as np
 from onix.models.hyperfine import energies
 from onix.sequences.sequence import (
+    AWGFIDPulse,
     AWGHalfSineRamp,
     AWGSinePulse,
     AWGSimultaneousSinePulses,
     AWGDoubleSineSweep,
+    AWGDoubleSineTrain,
     AWGHSHPulse,
     AWGConstant,
     AWGSineSweep,
@@ -211,6 +213,26 @@ def detect_segment(
 
         # )
         raise NotImplementedError()
+    elif "fid" in detect_parameters and detect_parameters["fid"]["use"]:
+        probe_detuning = detect_parameters["fid"]["probe_detuning"]
+        pump_amplitude = detect_detunings["fid"]["pump_amplitude"]
+        pump_time = detect_detunings["fid"]["pump_time"]
+        wait_time = detect_detunings["fid"]["wait_time"]
+        probe_amplitude = detect_detunings["fid"]["probe_amplitude"]
+        probe_time = detect_detunings["fid"]["probe_time"]
+        phase = detect_detunings["fid"]["phase"] / ao_parameters["order"]
+        ao_probe_frequency = ao_parameters["center_frequency"] + probe_detuning / ao_parameters["order"]
+        ao_pulse = AWGFIDPulse(
+            ao_frequencies,
+            pump_amplitude,
+            pump_time,
+            wait_time,
+            ao_probe_frequency,
+            probe_amplitude,
+            probe_time,
+            phase,
+            start_time = start_time + off_time / 2,
+        )
     else:
         ao_pulse = AWGSineTrain(
             on_time,
@@ -225,32 +247,55 @@ def detect_segment(
 
     segment.add_ttl_function(shutter_parameters["channel"], TTLOn())
 
-    detect_pulse_times = [
-        (
-            start_time + off_time / 2 + kk * (on_time + off_time),
-            start_time + off_time / 2 + on_time + kk * (on_time + off_time),
-        )
-        for kk in range(len(detect_detunings))
-    ]
-    detect_pulse_times = [
-        (
-            (pulse_start + ao_parameters["rise_delay"]).to("s").magnitude,
-            (pulse_end + ao_parameters["fall_delay"]).to("s").magnitude,
-        )
-        for (pulse_start, pulse_end) in detect_pulse_times
-    ]
-    analysis_parameters = {
-        "detect_detunings": detect_detunings,
-        "digitizer_duration": segment.duration - ttl_start_time,
-        "detect_pulse_times": detect_pulse_times,
-    }
+    if "fid" in detect_parameters and detect_parameters["fid"]["use"]:
+        probe_pulse_start = detect_parameters["fid"]["pump_time"] + detect_parameters["fid"]["wait_time"]
+        detect_pulse_times = [
+            (
+                start_time + off_time / 2 + probe_pulse_start,
+                start_time + off_time / 2 + probe_pulse_start + detect_parameters["fid"]["probe_time"],
+            )
+        ]
+        detect_pulse_times = [
+            (
+                (pulse_start + ao_parameters["rise_delay"]).to("s").magnitude,
+                (pulse_end + ao_parameters["fall_delay"]).to("s").magnitude,
+            )
+            for (pulse_start, pulse_end) in detect_pulse_times
+        ]
+        analysis_parameters = {
+            "fid": True,
+            "detect_detunings": detect_detunings,
+            "digitizer_duration": segment.duration - ttl_start_time,
+            "detect_pulse_times": detect_pulse_times,
+        }
+    else:
+        detect_pulse_times = [
+            (
+                start_time + off_time / 2 + kk * (on_time + off_time),
+                start_time + off_time / 2 + on_time + kk * (on_time + off_time),
+            )
+            for kk in range(len(detect_detunings))
+        ]
+        detect_pulse_times = [
+            (
+                (pulse_start + ao_parameters["rise_delay"]).to("s").magnitude,
+                (pulse_end + ao_parameters["fall_delay"]).to("s").magnitude,
+            )
+            for (pulse_start, pulse_end) in detect_pulse_times
+        ]
+        analysis_parameters = {
+            "fid": False,
+            "detect_detunings": detect_detunings,
+            "digitizer_duration": segment.duration - ttl_start_time,
+            "detect_pulse_times": detect_pulse_times,
+        }
     segment._duration = segment.duration + detect_parameters["delay"]
     if field_plate_parameters["use"] and field_plate_parameters["during"]["detect"]:
         field_plate = AWGConstant(field_plate_parameters["amplitude"])
         fp_channel = get_channel_from_name(field_plate_parameters["name"])
         segment.add_awg_function(fp_channel, field_plate)
     return (segment, analysis_parameters)
-
+    
 
 def _rf_pump_segment(
     name: str,
