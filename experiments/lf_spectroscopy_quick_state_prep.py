@@ -56,7 +56,7 @@ def get_4k_platform_temp(average_time = 60):
 ## parameters
 ac_pumps = 25
 cb_pumps = 25
-cleanouts = 25
+cleanouts = 0
 detects = 256
 lf_counts = 9
 freq_counts = 1
@@ -73,13 +73,23 @@ default_params = {
     },
     "detect": {
         "transition": "ac",
-        "detunings": np.array([0]) * ureg.MHz,
+        "detunings": np.array([0.0], dtype=float) * ureg.MHz,
         "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
         "ao_amplitude": 180,
         "simultaneous": False,
         "cycles": {},
+        "fid": {
+            "use": False,
+            "probe_detuning": 10 * ureg.MHz,
+            "probe_amplitude": 180,
+            "probe_time": 30 * ureg.us,
+            "pump_amplitude": 500,
+            "pump_time": 100 * ureg.us,
+            "wait_time": 5 * ureg.us,
+            "phase": 0,
+        }
     },
     "rf": {
         "amplitude": 8000,
@@ -89,7 +99,7 @@ default_params = {
         "scan_range": 45 * ureg.kHz,
     },
     "lf": {
-        "center_frequencies": [(141.146 + (jj * 0.1 )) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
+        "center_frequencies": [(141.146 + (jj * 0.1)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
         "amplitudes": [1000 for kk in range(lf_counts * freq_counts)],
         "wait_times": [0.35 * ureg.ms for kk in range(lf_counts * freq_counts)],
         "durations": [0.05 * ureg.ms for kk in range(lf_counts * freq_counts)],
@@ -98,7 +108,7 @@ default_params = {
     },
     "field_plate": {
         "amplitude": 4500,
-        "stark_shift": 2.2 * ureg.MHz,
+        "stark_shift": 2.0 * ureg.MHz,
         "use": True,
         "during": {
             "chasm": False,
@@ -112,26 +122,12 @@ default_params = {
         "amplitude": 0,
         "duration": 0.001 * ureg.us,
     },
+    "digitizer": {
+        "sample_rate": 25e6,
+        "ch1_range": 2,
+        "ch2_range": 2,
+    },
     "sequence": {
-        # "sequence": [
-        #     ("optical_ac", ac_pumps),
-        #     ("detect_1", detects),
-        #     ("rf_a_b", 1),
-        #     ("detect_2", detects),
-        #     ("lf_0", 1),
-        #     ("rf_a_b", 1),
-        #     ("detect_3", detects),
-        #     ("optical_cb", cb_pumps),
-        #
-        #     ("optical_ac", ac_pumps),
-        #     ("detect_4", detects),
-        #     ("rf_abar_bbar", 1),
-        #     ("detect_5", detects),
-        #     ("lf_0", 1),
-        #     ("rf_abar_bbar", 1),
-        #     ("detect_6", detects),
-        #     ("optical_cb", cb_pumps),
-        # ]
         "sequence": [
             ("optical_ac", ac_pumps),
             #("detect_1", detects),
@@ -160,32 +156,6 @@ default_params = {
     }
 }
 default_params = update_parameters_from_shared(default_params)
-# default_params["sequence"]["sequence"] = []
-# field_plate = ""
-# for ll, lf_index in enumerate([0, 1, 2, 3, 4, 5, 6, 7]):
-#     detect_index_group = ll
-#     default_params["sequence"]["sequence"].extend(
-#         [
-#             ("optical_ac", ac_pumps),
-#             (f"detect{field_plate}_{detect_index_group * 6 + 1}", detects),
-#             ("rf_a_b", 1),
-#             (f"detect{field_plate}_{detect_index_group * 6 + 2}", detects),
-#             (f"lf_{lf_index}", 1),
-#             ("rf_a_b", 1),
-#             (f"detect{field_plate}_{detect_index_group * 6 + 3}", detects),
-#             ("optical_cb", cb_pumps),
-#
-#             ("optical_ac", ac_pumps),
-#             (f"detect{field_plate}_{detect_index_group * 6 + 4}", detects),
-#             ("rf_abar_bbar", 1),
-#             (f"detect{field_plate}_{detect_index_group * 6 + 5}", detects),
-#             (f"lf_{lf_index}", 1),
-#             ("rf_abar_bbar", 1),
-#             (f"detect{field_plate}_{detect_index_group * 6 + 6}", detects),
-#             ("optical_cb", cb_pumps),
-#         ]
-#     )
-# )
 default_sequence = get_sequence(default_params)
 default_sequence.setup_sequence()
 setup_digitizer(
@@ -194,10 +164,12 @@ setup_digitizer(
     default_params["sequence_repeats_per_transfer"],
     ch1_range=default_params["digitizer"]["ch1_range"],
     ch2_range=default_params["digitizer"]["ch2_range"],
+    sample_rate=default_params["digitizer"]["sample_rate"],
 )
 
 ## Repeat the sequence
 default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
+default_detect_detuning = default_params["detect"]["detunings"]
 
 def run_1_experiment():
     params = default_params.copy()
@@ -253,12 +225,8 @@ def run_1_experiment():
                     last_data_id = data_id
             if kk == 0 or kk == repeats - 1:
                 print(f"({first_data_id}, {last_data_id})")
+# run_1_experiment()
 
-detect_detunings = np.linspace(-1, 1, 11)
-for detect_detuning in detect_detunings:
-    print(detect_detuning)
-    default_detect_detuning = np.array([detect_detuning]) * ureg.MHz
-    run_1_experiment()
 
 default_default_field_plate_amplitude = default_field_plate_amplitude
 electric_field_multipliers = np.linspace(0.7, 1.3, 7)
