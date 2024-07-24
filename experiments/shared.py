@@ -239,20 +239,24 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
         sample_rate, digitizer_data = dg.get_data()
 
         transmissions = np.array(digitizer_data[0])
-        transmissions_avg, transmissions_err = average_data(
-            transmissions,
-            sample_rate,
-            sequence.analysis_parameters["detect_pulse_times"],
-        )
         monitors = np.array(digitizer_data[1])
+        if sequence.analysis_parameters["fid"]:
+            transmissions_avg = transmissions
+            transmissions_err = np.zeros(transmissions_avg.shape)
+        else:
+            transmissions_avg, transmissions_err = average_data(
+                transmissions,
+                sample_rate,
+                sequence.analysis_parameters["detect_pulse_times"],
+            )
+            transmissions_avgs.append(transmissions_avg)
+            transmissions_errs.append(transmissions_err)
+
         monitors_avg, monitors_err = average_data(
             monitors,
             sample_rate,
             sequence.analysis_parameters["detect_pulse_times"],
         )
-
-        transmissions_avgs.append(transmissions_avg)
-        transmissions_errs.append(transmissions_err)
         monitors_avgs.append(monitors_avg)
         monitors_errs.append(monitors_err)
 
