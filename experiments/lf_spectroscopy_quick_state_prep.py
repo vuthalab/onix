@@ -13,11 +13,44 @@ from onix.experiments.shared import (
 )
 from tqdm import tqdm
 from onix.headers.unlock_check import run_expt_check_lock
+import os
+import influxdb_client
+from influxdb_client.client.write_api import SYNCHRONOUS
+token = os.environ.get("INFLUXDB_TOKEN")
+org = "onix"
+url = "http://onix-pc:8086"
+query_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
+query_api = query_client.query_api()
+
 
 ## function to run the experiment
 def get_sequence(params):
     sequence = LFSpectroscopyQuickStatePrep(params)
     return sequence
+
+## function to get 4K plate temp
+def get_4k_platform_temp(average_time = 60):
+    if average_time > 10:
+        tables = query_api.query(
+                (
+                    f'from(bucket:"live") |> range(start: -{average_time}s) '
+                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
+                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
+                )
+                )
+        values =  np.array([record["_value"] for table in tables for record in table.records])
+        return np.average(values)
+    else:
+        tables = query_api.query(
+                (
+                    f'from(bucket:"live") |> range(start: -20s) '
+                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
+                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
+                )
+                )
+        values =  np.array([record["_value"] for table in tables for record in table.records])
+        return values[-1]
+
 
 
 ## parameters
@@ -26,6 +59,7 @@ cb_pumps = 25
 cleanouts = 25
 detects = 256
 lf_counts = 9
+freq_counts = 1
 
 default_params = {
     "name": "LF Spectroscopy Quick State Prep",
@@ -55,12 +89,12 @@ default_params = {
         "scan_range": 45 * ureg.kHz,
     },
     "lf": {
-        "center_frequencies": [141.146 * ureg.kHz for kk in range(lf_counts)],
-        "amplitudes": [1000 for kk in range(lf_counts)],
-        "wait_times": [0.35 * ureg.ms for kk in range(lf_counts)],
-        "durations": [0.05 * ureg.ms for kk in range(lf_counts)],
-        "detunings": [0. * ureg.kHz for kk in range(lf_counts)],
-        "phase_diffs": np.linspace(0,2*np.pi, lf_counts),
+        "center_frequencies": [(141.146 + (jj * 0.1 )) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
+        "amplitudes": [1000 for kk in range(lf_counts * freq_counts)],
+        "wait_times": [0.35 * ureg.ms for kk in range(lf_counts * freq_counts)],
+        "durations": [0.05 * ureg.ms for kk in range(lf_counts * freq_counts)],
+        "detunings": [0. * ureg.kHz for kk in range(lf_counts * freq_counts)],
+        "phase_diffs": list(np.linspace(0,2*np.pi, lf_counts))*freq_counts,
     },
     "field_plate": {
         "amplitude": 4500,
@@ -75,8 +109,8 @@ default_params = {
         }
     },
     "cleanout": {
-        "amplitude": 7000,
-        "duration": 1 * ureg.ms,
+        "amplitude": 0,
+        "duration": 0.001 * ureg.us,
     },
     "sequence": {
         # "sequence": [
@@ -109,7 +143,7 @@ default_params = {
             ("rf_abar_bbar", 1),
             ("detect_3", detects),
             ("optical_cb", cb_pumps),
-            ("cleanout", cleanouts),
+            #("cleanout", cleanouts),
 
             ("optical_ac", ac_pumps),
             #("detect_4", detects),
@@ -121,7 +155,7 @@ default_params = {
             ("rf_a_b", 1),
             ("detect_6", detects),
             ("optical_cb", cb_pumps),
-            ("cleanout", cleanouts),
+            #("cleanout", cleanouts),
         ]
     }
 }
@@ -169,11 +203,11 @@ sequence = get_sequence(params)
 sequence.setup_sequence()
 m4i.setup_sequence(sequence)
 
-repeats = 30000
+repeats = 1000000000
 
-lf_indices = list(range(lf_counts))
-np.random.shuffle(lf_indices)
-lf_indices = [2, 5, 0, 4, 1, 3, 6, 7, 8]
+lf_indices = list(range(lf_counts*freq_counts))
+# np.random.shuffle(lf_indices)
+# lf_indices = [2, 5, 0, 4, 1, 3, 6, 7, 8]
 for kk in range(repeats):
     for ll, e_field in enumerate(["_opposite", ""]):
         if ll == 0:
@@ -188,7 +222,7 @@ for kk in range(repeats):
                 ("rf_abar_bbar", 1),
                 (f"detect{e_field}_3", detects),
                 ("optical_cb", cb_pumps),
-                ("cleanout", cleanouts),
+                #("cleanout", cleanouts),
 
                 ("optical_ac", ac_pumps),
                 ("rf_a_b", 1),
@@ -196,7 +230,7 @@ for kk in range(repeats):
                 ("rf_a_b", 1),
                 (f"detect{e_field}_6", detects),
                 ("optical_cb", cb_pumps),
-                ("cleanout", cleanouts),
+                #("cleanout", cleanouts),
             ]
             sequence.setup_sequence()
             m4i.setup_sequence_steps_only()
@@ -207,7 +241,12 @@ for kk in range(repeats):
                 data = run_sequence(sequence, params, skip_setup=True)
                 return (start_time, data)
             start_time, data = run_expt_check_lock(worker)
-            data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time})
+            end_time = time.time()
+            try:
+                temp = get_4k_platform_temp(end_time - start_time)
+            except:
+                temp = None
+            data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
             time.sleep(0.2)
             if jj == 0:
                 first_data_id = data_id
