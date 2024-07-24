@@ -249,8 +249,8 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
                 sample_rate,
                 sequence.analysis_parameters["detect_pulse_times"],
             )
-            transmissions_avgs.append(transmissions_avg)
-            transmissions_errs.append(transmissions_err)
+        transmissions_avgs.append(transmissions_avg)
+        transmissions_errs.append(transmissions_err)
 
         monitors_avg, monitors_err = average_data(
             monitors,

@@ -215,12 +215,12 @@ def detect_segment(
         raise NotImplementedError()
     elif "fid" in detect_parameters and detect_parameters["fid"]["use"]:
         probe_detuning = detect_parameters["fid"]["probe_detuning"]
-        pump_amplitude = detect_detunings["fid"]["pump_amplitude"]
-        pump_time = detect_detunings["fid"]["pump_time"]
-        wait_time = detect_detunings["fid"]["wait_time"]
-        probe_amplitude = detect_detunings["fid"]["probe_amplitude"]
-        probe_time = detect_detunings["fid"]["probe_time"]
-        phase = detect_detunings["fid"]["phase"] / ao_parameters["order"]
+        pump_amplitude = detect_parameters["fid"]["pump_amplitude"]
+        pump_time = detect_parameters["fid"]["pump_time"]
+        wait_time = detect_parameters["fid"]["wait_time"]
+        probe_amplitude = detect_parameters["fid"]["probe_amplitude"]
+        probe_time = detect_parameters["fid"]["probe_time"]
+        phase = detect_parameters["fid"]["phase"] / ao_parameters["order"]
         ao_probe_frequency = ao_parameters["center_frequency"] + probe_detuning / ao_parameters["order"]
         ao_pulse = AWGFIDPulse(
             ao_frequencies,
