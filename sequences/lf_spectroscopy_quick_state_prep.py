@@ -42,7 +42,7 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         self._define_rf()
         self._define_breaks()
         self._define_cleanout()
-        self._define_lf() # LF must be the last segment defined       
+        self._define_lf() # LF must be the last segment defined
         #self._define_lf_sweep()
 
     def _define_optical(self):

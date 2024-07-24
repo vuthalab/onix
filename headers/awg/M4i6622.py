@@ -711,8 +711,8 @@ class M4i6622:
         min_num_segments = int(np.power(2, np.ceil(np.log2(len(segments)))))
         for hcard in self._hcards:
             self._set_sequence_max_segments(hcard, min_num_segments)
-            self._segment_name_map = {}
 
+        self._segment_name_map = {}
         segment_number = -1
         for segment_number in range(len(segments)):
             self._write_segment(segment_number, segments[segment_number])
@@ -722,7 +722,7 @@ class M4i6622:
 
     def setup_sequence_steps_only(self):
         """Only sets up the steps of a sequence.
-        
+
         Useful if only sequence order is changed.
         self.write_all_setup() must be called afterwards to validate.
         """
@@ -730,7 +730,7 @@ class M4i6622:
 
     def change_segment(self, segment_name):
         """Reprograms one of the segment of a sequence that is already set up.
-        
+
         Useful if only some of the segments are changed.
         self.write_all_setup() must be called afterwards to validate.
 
@@ -819,9 +819,3 @@ class M4i6622:
         for hcard in self._hcards:
             print(hcard, self._get_error_information(hcard))
 
-    """
-    def replace_segment(self, new_segment_name, old_segment_name):
-        segments = self._current_sequence.segments
-        index_to_replace = segments.index(old_segment_name)
-        self._write_segment(index_to_replace, new_segment_name)
-    """

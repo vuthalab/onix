@@ -169,15 +169,13 @@ setup_digitizer(
 
 ## Repeat the sequence
 default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
-default_detect_detuning = default_params["detect"]["detunings"]
 
-def run_1_experiment():
+def run_1_experiment(only_print_first_last=False):
     params = default_params.copy()
-    params["detect"]["detunings"] = default_detect_detuning
     sequence = get_sequence(params)
     sequence.setup_sequence()
     m4i.setup_sequence(sequence)
-    repeats = 300
+    repeats = 50
     lf_indices = list(range(lf_counts*freq_counts))
     for kk in range(repeats):
         for ll, e_field in enumerate(["_opposite", ""]):
@@ -223,19 +221,16 @@ def run_1_experiment():
                     first_data_id = data_id
                 elif jj == lf_counts - 1:
                     last_data_id = data_id
-            if kk == 0 or kk == repeats - 1:
+            if not only_print_first_last:
+                print(f"({first_data_id}, {last_data_id})")
+            elif kk == 0 or kk == repeats - 1:
                 print(f"({first_data_id}, {last_data_id})")
 # run_1_experiment()
 
-
-default_default_field_plate_amplitude = default_field_plate_amplitude
-electric_field_multipliers = np.linspace(0.7, 1.3, 7)
-for xx in electric_field_multipliers:
-    print(xx)
-    default_field_plate_amplitude = xx*default_default_field_plate_amplitude
-    run_1_experiment()
-
-
+for kk in np.linspace(1.4, 2.6, 7):
+    default_params["field_plate"]["stark_shift"] = kk * ureg.MHz
+    print(default_params["field_plate"]["stark_shift"])
+    run_1_experiment(True)
 
 ## Scan the LF Detunings
 # params = default_params.copy()
