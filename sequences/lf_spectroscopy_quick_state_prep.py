@@ -197,12 +197,19 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         segment.add_ttl_function(fp_channel, TTLOn())
         self.add_segment(segment)
 
+    def _define_lf_equilibrate(self):
+        duration = self._lf_parameters["durations"][0]
+        lf_channel = get_channel_from_name(self._lf_parameters["name"])
+        amplitude =  self._lf_parameters["amplitudes"][0]
+        segment = Segment("lf_equilibrate", duration)
+        pulse = AWGSinePulse(141.146 * ureg.kHz, amplitude)
+        segment.add_awg_function(lf_channel, pulse)
+        self.add_segment()
+
     def setup_sequence(self):
         segment_steps = []
         for name, repeats in self._sequence_parameters["sequence"]:
             if name.startswith("detect"):
-                # segment_steps.append(("field_plate_trigger", 1))
-                # segment_steps.append(("break", int(self._field_plate_parameters["ramp_time"]/(10 * ureg.us))))
                 if "opposite" in name:
                     segment_steps.append(("shutter_break_opposite", self._shutter_rise_delay_repeats))
                     segment_steps.append(("detect_opposite", repeats))
@@ -227,11 +234,3 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         for name, cycles in self.analysis_parameters["detect_groups"]:
             total_cycles += cycles
         return total_cycles
-
-        # rigol = Rigol()
-        # rigol.field_plate_output(
-        #     amplitude = 2.5 * self._field_plate_parameters["amplitude"] / 2**15,
-        #     ramp_time = self._field_plate_parameters["ramp_time"].to("s").magnitude,
-        #     on_time_with_ramp = 10e-3,
-        #     sign = 1,
-        # )

@@ -106,11 +106,11 @@ default_params = {
         "wait_times": [0.35 * ureg.ms for kk in range(lf_counts * freq_counts)],
         "durations": [0.05 * ureg.ms for kk in range(lf_counts * freq_counts)],
         "detunings": [0. * ureg.kHz for kk in range(lf_counts * freq_counts)],
-        "phase_diffs": list(np.linspace(0,2*np.pi, lf_counts))*freq_counts,
+        "phase_diffs": list(np.linspace(0, 2*np.pi, lf_counts)) * freq_counts,
     },
     "field_plate": {
         "method": "ttl",
-        "relative_to_lf": "before", #"before"= during optical, "after"=during detect
+        "relative_to_lf": "after", #"before"= during optical, "after"=during detect
         "amplitude": 4500,
         "stark_shift": 2.2 * ureg.MHz,
         "ramp_time": 3 * ureg.ms,
@@ -286,7 +286,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
 # for ramp_time in ramp_times:
 #     default_params["field_plate"]["ramp_time"] = ramp_time * ureg.ms
 #     run_1_experiment(True, repeats=250) # 1 repeat = ~ 1 minute
-#
+
 #
 # default_params["field_plate"]["relative_to_lf"] = "after"
 # ramp_times = [1, 3, 10, 30, 100]
@@ -296,7 +296,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
 
 
 ## REDOING THE OPTICAL DETUNINGS SCAN WITH FIXED ELECTRIC FIELD USING RIGOL
-for kk in np.linspace(-1, 1, 2):
+for kk in np.linspace(-1, 1, 11):
     default_params["detect"]["detunings"] = np.array([kk], dtype=float) * ureg.MHz
     print(default_params["detect"]["detunings"])
     run_1_experiment(True, repeats=250)
