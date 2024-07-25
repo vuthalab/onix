@@ -14,6 +14,7 @@ from onix.experiments.shared import (
 from tqdm import tqdm
 from onix.headers.unlock_check import run_expt_check_lock
 from onix.headers.rigol_field_plate import Rigol
+rigol = Rigol()
 import os
 import influxdb_client
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -109,8 +110,10 @@ default_params = {
     },
     "field_plate": {
         "method": "ttl",
+        "relative_to_lf": "before", #"before"= during optical, "after"=during detect
         "amplitude": 4500,
         "stark_shift": 2.2 * ureg.MHz,
+        "ramp_time": 3 * ureg.ms,
         "use": True,
         "during": {
             "chasm": False,
@@ -172,7 +175,6 @@ setup_digitizer(
 ## Repeat the sequence
 default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
 
-rigol = Rigol()
 def run_1_experiment(only_print_first_last=False, repeats=50):
     params = default_params.copy()
     sequence = get_sequence(params)
@@ -186,30 +188,70 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             else:
                 params["field_plate"]["amplitude"] = default_field_plate_amplitude
             if params["field_plate"]["method"] == "ttl":
+                if params["field_plate"]["relative_to_lf"] == "before":
+                    on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence!!!!)))))
+                elif params["field_plate"]["relative_to_lf"] == "after":
+                    on_time = 10e-6 + sequence.field_plate_on_time.to("s").magnitude
+
                 rigol.field_plate_output(
                     amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
                     ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
-                    on_time = sequence.field_plate_on_time.to("s").magnitude,
+                    on_time = on_time,
                     set_params = True,
                 )
             for jj, lf_index in enumerate(lf_indices):
-                params["sequence"]["sequence"] = [
-                    ("optical_ac", ac_pumps),
-                    ("rf_abar_bbar", 1),
-                    (f"lf_{lf_index}", 1),
-                    ("rf_abar_bbar", 1),
-                    (f"detect{e_field}_3", detects),
-                    ("optical_cb", cb_pumps),
-                    #("cleanout", cleanouts),
 
-                    ("optical_ac", ac_pumps),
-                    ("rf_a_b", 1),
-                    (f"lf_{lf_index}", 1),
-                    ("rf_a_b", 1),
-                    (f"detect{e_field}_6", detects),
-                    ("optical_cb", cb_pumps),
-                    #("cleanout", cleanouts),
-                ]
+                # E FIELD DURING OPTICAL
+                if params["field_plate"]["relative_to_lf"] == "before":
+                    params["sequence"]["sequence"] = [
+                        ("field_plate_trigger", 1),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("break", 11),
+                        ("rf_abar_bbar", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_abar_bbar", 1),
+                        (f"detect{e_field}_3", detects),
+                        #("cleanout", cleanouts),
+
+                        ("field_plate_trigger", 1),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("break", 11),
+                        ("rf_a_b", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_a_b", 1),
+                        (f"detect{e_field}_6", detects),
+                        #("cleanout", cleanouts),
+                    ]
+
+                # E FIELD DURING DETECTS
+                elif params["field_plate"]["relative_to_lf"] == "after":
+                    params["sequence"]["sequence"] = [
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("rf_abar_bbar", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_abar_bbar", 1),
+                        ("field_plate_trigger", 1),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        (f"detect{e_field}_3", detects),
+                        ("break", 11),
+                        #("cleanout", cleanouts),
+
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("rf_a_b", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_a_b", 1),
+                        ("field_plate_trigger", 1),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        (f"detect{e_field}_6", detects),
+                        ("break", 11),
+                        #("cleanout", cleanouts),
+                    ]
                 sequence.setup_sequence()
                 m4i.setup_sequence_steps_only()
                 m4i.write_all_setup()
@@ -234,12 +276,30 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 print(f"({first_data_id}, {last_data_id})")
             elif kk == 0 or kk == repeats - 1:
                 print(f"({first_data_id}, {last_data_id})")
-run_1_experiment(repeats=1)
 
-# for kk in np.linspace(1.4, 2.6, 7):
-#     default_params["field_plate"]["stark_shift"] = kk * ureg.MHz
-#     print(default_params["field_plate"]["stark_shift"])
-#     run_1_experiment(True)
+
+
+
+## RAMP TIME SCANS FOR BEFORE AND AFTER LF
+# default_params["field_plate"]["relative_to_lf"] = "before"
+# ramp_times = [1, 3, 10, 30, 100]
+# for ramp_time in ramp_times:
+#     default_params["field_plate"]["ramp_time"] = ramp_time * ureg.ms
+#     run_1_experiment(True, repeats=250) # 1 repeat = ~ 1 minute
+#
+#
+# default_params["field_plate"]["relative_to_lf"] = "after"
+# ramp_times = [1, 3, 10, 30, 100]
+# for ramp_time in ramp_times:
+#     default_params["field_plate"]["ramp_time"] = ramp_time * ureg.ms
+#     run_1_experiment(True, repeats=250)
+
+
+## REDOING THE OPTICAL DETUNINGS SCAN WITH FIXED ELECTRIC FIELD USING RIGOL
+for kk in np.linspace(-1, 1, 2):
+    default_params["detect"]["detunings"] = np.array([kk], dtype=float) * ureg.MHz
+    print(default_params["detect"]["detunings"])
+    run_1_experiment(True, repeats=250)
 
 ## Scan the LF Detunings
 # params = default_params.copy()

@@ -192,7 +192,7 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         )
 
     def _define_field_plate_trigger(self):
-        segment = Segment("field_plate_trigger", self._field_plate_parameters["ramp_time"])
+        segment = Segment("field_plate_trigger", 50 * ureg.us)
         fp_channel = get_ttl_channel_from_name(self._field_plate_parameters["name"])
         segment.add_ttl_function(fp_channel, TTLOn())
         self.add_segment(segment)
@@ -201,7 +201,8 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         segment_steps = []
         for name, repeats in self._sequence_parameters["sequence"]:
             if name.startswith("detect"):
-                segment_steps.append(("field_plate_trigger", 1))
+                # segment_steps.append(("field_plate_trigger", 1))
+                # segment_steps.append(("break", int(self._field_plate_parameters["ramp_time"]/(10 * ureg.us))))
                 if "opposite" in name:
                     segment_steps.append(("shutter_break_opposite", self._shutter_rise_delay_repeats))
                     segment_steps.append(("detect_opposite", repeats))
