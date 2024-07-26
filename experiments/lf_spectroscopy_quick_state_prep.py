@@ -286,10 +286,15 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 print(f"({first_data_id}, {last_data_id})")
 
 ## 2D RF amplitude and duration scan
-default_params["rf"]["amplitude"] = 8000
-default_params["rf"]["T_ch"] = 5 * 2 * np.sqrt(2)  * ureg.ms
-while True:
-    run_1_experiment()
+duration_list = [10, 10 * np.sqrt(2), 20, 20 * np.sqrt(2)]
+amplitude_list = [2000, 2000 * np.sqrt(2), 4000, 4000* np.sqrt(2), 8000, 1000]
+
+for duration in duration_list:
+    for amplitude in amplitude_list:
+        default_params["rf"]["T_ch"] = duration * ureg.ms
+        default_params["rf"]["amplitude"] = amplitude
+        print(f"Amplitude = {amplitude} \t Duration = {duration} ms")
+        run_1_experiment(repeats = 8)
 
 
 ## RAMP TIME SCANS FOR BEFORE AND AFTER LF
