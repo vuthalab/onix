@@ -81,7 +81,10 @@ default_params = {
         "delay": 8 * ureg.us,
         "ao_amplitude": 180,
         "simultaneous": False,
-        "cycles": {},
+        "cycles": {
+            '3': 256,
+            '6': 256.
+        },
         "fid": {
             "use": False,
             "pump_amplitude": 500,
@@ -114,6 +117,7 @@ default_params = {
         "amplitude": 4500,
         "stark_shift": 2.2 * ureg.MHz,
         "ramp_time": 3 * ureg.ms,
+        "wait_time": None,
         "use": True,
         "during": {
             "chasm": False,
@@ -205,6 +209,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 if params["field_plate"]["relative_to_lf"] == "before":
                     params["sequence"]["sequence"] = [
                         ("field_plate_trigger", 1),
+                        #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
                         ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
                         ("optical_cb", cb_pumps),
                         ("optical_ac", ac_pumps),
@@ -216,6 +221,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                         #("cleanout", cleanouts),
 
                         ("field_plate_trigger", 1),
+                        #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
                         ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
                         ("optical_cb", cb_pumps),
                         ("optical_ac", ac_pumps),
@@ -236,6 +242,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                         (f"lf_{lf_index}", 1),
                         ("rf_abar_bbar", 1),
                         ("field_plate_trigger", 1),
+                       # ("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
                         ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
                         (f"detect{e_field}_3", detects),
                         ("break", 11),
@@ -247,6 +254,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                         (f"lf_{lf_index}", 1),
                         ("rf_a_b", 1),
                         ("field_plate_trigger", 1),
+                        #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
                         ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
                         (f"detect{e_field}_6", detects),
                         ("break", 11),
@@ -277,29 +285,37 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             elif kk == 0 or kk == repeats - 1:
                 print(f"({first_data_id}, {last_data_id})")
 
-
+## 2D RF amplitude and duration scan
+default_params["rf"]["amplitude"] = 8000
+default_params["rf"]["T_ch"] = 5 * 2 * np.sqrt(2)  * ureg.ms
+while True:
+    run_1_experiment()
 
 
 ## RAMP TIME SCANS FOR BEFORE AND AFTER LF
 # default_params["field_plate"]["relative_to_lf"] = "before"
-# ramp_times = [1, 3, 10, 30, 100]
-# for ramp_time in ramp_times:
-#     default_params["field_plate"]["ramp_time"] = ramp_time * ureg.ms
-#     run_1_experiment(True, repeats=250) # 1 repeat = ~ 1 minute
-
+# wait_times = [0, 7, 17, 27, 97]
+# print("before")
+# for wait_time in wait_times:
+#     print(wait_time)
+#     default_params["field_plate"]["wait_time"] = wait_time * ureg.ms
+#     run_1_experiment(True, repeats=300) # 1 repeat = ~ 1 minute
+#
 #
 # default_params["field_plate"]["relative_to_lf"] = "after"
-# ramp_times = [1, 3, 10, 30, 100]
-# for ramp_time in ramp_times:
-#     default_params["field_plate"]["ramp_time"] = ramp_time * ureg.ms
-#     run_1_experiment(True, repeats=250)
+# wait_times = [0, 7, 17, 27, 97]
+# print("after")
+# for wait_time in wait_times:
+#     print(wait_time)
+#     default_params["field_plate"]["wait_time"] = wait_time * ureg.ms
+#     run_1_experiment(True, repeats=300)
 
 
 ## REDOING THE OPTICAL DETUNINGS SCAN WITH FIXED ELECTRIC FIELD USING RIGOL
-for kk in np.linspace(-1, 1, 11):
-    default_params["detect"]["detunings"] = np.array([kk], dtype=float) * ureg.MHz
-    print(default_params["detect"]["detunings"])
-    run_1_experiment(True, repeats=250)
+# for kk in np.linspace(-1, 1, 11):
+#     default_params["detect"]["detunings"] = np.array([kk], dtype=float) * ureg.MHz
+#     print(default_params["detect"]["detunings"])
+#     run_1_experiment(True, repeats=250)
 
 ## Scan the LF Detunings
 # params = default_params.copy()
