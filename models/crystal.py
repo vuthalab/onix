@@ -17,3 +17,12 @@ class EuYSO:
     @property
     def eu_site1_numbers(self) -> float:
         return (self.eu_site1_number_density * self.volume).to("").magnitude
+        
+        
+        
+
+def coherence_time(T):
+    """
+    Konz 2003, Fig. 7.
+    """
+    return 7.2e-3 * T**7 # Hz, with T in K
