@@ -149,7 +149,7 @@ class CTC100(USBTMCDevice):
 
     @property
     def output_enabled(self):
-        return self._get_variable('outputEnable') == 'on'
+        return self._get_variable('outputEnable') == 'On'
         
     def enable_output(self): self._set_variable("outputEnable", "on")
         
