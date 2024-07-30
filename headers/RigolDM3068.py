@@ -9,7 +9,7 @@ import os
 import sys
 
 class DM3068:
-    def __init__(self,address='/dev/usbtmc0'):
+    def __init__(self,address='/dev/usbtmc6'):
 
         # allowed data formats are 'float32' or 'adc16'
 
