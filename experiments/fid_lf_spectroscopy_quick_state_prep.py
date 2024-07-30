@@ -1,7 +1,7 @@
 import time
 
 import numpy as np
-from onix.sequences.rf_spectroscopy_quick_state_prep import RFSpectroscopyQuickStatePrep
+from onix.sequences.lf_spectroscopy_quick_state_prep import LFSpectroscopyQuickStatePrep
 from onix.units import ureg
 from onix.experiments.shared import (
     m4i,
@@ -22,12 +22,15 @@ token = os.environ.get("INFLUXDB_TOKEN")
 org = "onix"
 url = "http://onix-pc:8086"
 query_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
+def set_heater_output_power(self, channel, val):
+    self._set_variable(f"{channel}.value", val)
+
 query_api = query_client.query_api()
 
 
 ## function to run the experiment
 def get_sequence(params):
-    sequence = RFSpectroscopyQuickStatePrep(params)
+    sequence = LFSpectroscopyQuickStatePrep(params)
     return sequence
 
 ## function to get 4K plate temp
@@ -58,15 +61,14 @@ def get_4k_platform_temp(average_time = 60):
 ## parameters
 ac_pumps = 25
 cb_pumps = 25
-
 cleanouts = 0
-detects = 128
-
-detuning_counts = 1
-duration_counts = 50
+detects = 256
+lf_counts = 9
+freq_counts = 1
+n_fid = 100
 
 default_params = {
-    "name": "RF Spectroscopy Quick State Prep",
+    "name": "LF Spectroscopy Quick State Prep",
     "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "ao": {
@@ -78,29 +80,38 @@ default_params = {
     "detect": {
         "transition": "ac",
         "detunings": np.array([0.0], dtype=float) * ureg.MHz,
-        "on_time": 10 * ureg.us,
+        # "detunings": np.flip(np.linspace(-10, 10, 100)) * ureg.MHz,
+        "on_time": 40 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
-        "ao_amplitude": 180,
+        "ao_amplitude": 200,
         "simultaneous": False,
-        "cycles": {
-            '1': detects,
-            '2': detects,
+        "cycles": {},
+        "fid": {
+            "use": False,
+            "pump_amplitude": 500,
+            "pump_time": 100 * ureg.us,
+            "probe_detuning": -10 * ureg.MHz,
+            "probe_amplitude": 180,
+            "probe_time": 30 * ureg.us,
+            "wait_time": 5 * ureg.us,
+            "phase": 0,
         }
     },
     "rf": {
-        "amplitudes": [8000 for kk in range(detuning_counts * duration_counts)],
-        "durations": [1 * ureg.ms for kk in range(detuning_counts * duration_counts)],
-        "detunings": [(-250 + (jj * 10)) * ureg.kHz for jj in range(detuning_counts) for kk in range(duration_counts)],
-        "offset": 30 * ureg.kHz,
-        "this_detuning": None,
-        "this_duration": None,
+        "amplitude": 3875,
+        "T_0": 0.3 * ureg.ms,
+        "T_e": 0.15 * ureg.ms,
+        "T_ch": 21 * ureg.ms,
+        "scan_range": 45 * ureg.kHz,
     },
     "lf": {
-        "amplitude": 1000,
-        "duration": 0.05 * ureg.ms,
-        "center_frequency": 141.5 * ureg.kHz,
-        "detuning": 0 * ureg.kHz,
+        "center_frequencies": [(141.146 + (jj * 0.1)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
+        "amplitudes": [1000 for kk in range(lf_counts * freq_counts)],
+        "wait_times": [0.35 * ureg.ms for kk in range(lf_counts * freq_counts)],
+        "durations": [0.05 * ureg.ms for kk in range(lf_counts * freq_counts)],
+        "detunings": [0. * ureg.kHz for kk in range(lf_counts * freq_counts)],
+        "phase_diffs": list(np.linspace(0, 2*np.pi, lf_counts)) * freq_counts,
     },
     "field_plate": {
         "method": "ttl",
@@ -109,7 +120,7 @@ default_params = {
         "stark_shift": 2.2 * ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
-        "use": False,
+        "use": True,
         "during": {
             "chasm": False,
             "antihole": False,
@@ -123,18 +134,19 @@ default_params = {
         "duration": 0.001 * ureg.us,
     },
     "digitizer": {
-        "sample_rate": 25e6,
+        "sample_rate": 50e6,
         "ch1_range": 2,
         "ch2_range": 2,
     },
     "sequence": {
         "sequence": [
-            ("optical_cb", cb_pumps),
             ("optical_ac", ac_pumps),
-            ("lf", 1),
-            ("detect_1", detects),
-            ("rf_0", 1),
-            ("detect_2", detects),
+            ("optical_cb", cb_pumps),
+            ("rf_abar_bbar", 1),
+            ("lf_0", 1),
+            ("rf_abar_bbar", 1),
+
+            ("detect_3", detects),
         ]
     }
 }
@@ -158,52 +170,106 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
     sequence = get_sequence(params)
     sequence.setup_sequence()
     m4i.setup_sequence(sequence)
-
-    rf_indices = list(range(detuning_counts * duration_counts))
-
+    lf_indices = list(range(lf_counts*freq_counts))
     for kk in range(repeats):
-        for jj, rf_index in enumerate(rf_indices):
-            sequence.setup_sequence()
-            m4i.setup_sequence_steps_only()
-            m4i.write_all_setup()
-            params["rf"]["this_detuning"] = params["rf"]["detunings"][jj]
-            params["rf"]["this_duration"] = params["rf"]["durations"][jj]
+        for ll, e_field in enumerate(["_opposite", ""]):
+            if ll == 0:
+                params["field_plate"]["amplitude"] = -default_field_plate_amplitude
+            else:
+                params["field_plate"]["amplitude"] = default_field_plate_amplitude
+            if params["field_plate"]["method"] == "ttl":
+                if params["field_plate"]["relative_to_lf"] == "before":
+                    on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence code!!!)))))
+                elif params["field_plate"]["relative_to_lf"] == "after":
+                    on_time = 10e-6 + sequence.field_plate_on_time.to("s").magnitude
 
-            params["sequence"]["sequence"] = [
-                ("optical_cb", cb_pumps),
-                ("optical_ac", ac_pumps),
-                ("lf", 1),
-                ("detect_1", detects),
-                (f"rf_{rf_index}", 1),
-                ("detect_2", detects),
-            ]
-            sequence.setup_sequence()
-            m4i.setup_sequence_steps_only()
-            m4i.write_all_setup()
-            def worker():
-                start_time = time.time()
-                data = run_sequence(sequence, params, skip_setup=True)
-                return (start_time, data)
+                rigol.field_plate_output(
+                    amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
+                    ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
+                    on_time = on_time,
+                    set_params = True,
+                )
+            for jj, lf_index in enumerate(lf_indices):
 
-            start_time, data = run_expt_check_lock(worker)
-            end_time = time.time()
+                # E FIELD DURING OPTICAL (TODO: automate this list)
+                if params["field_plate"]["relative_to_lf"] == "before":
+                    params["sequence"]["sequence"] = [
+                        ("field_plate_trigger", 1),
+                        #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("break", 11),
+                        ("rf_abar_bbar", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_abar_bbar", 1),
+                        (f"detect{e_field}_3", detects),
+                        #("cleanout", cleanouts),
 
-            try:
-                temp = get_4k_platform_temp(end_time - start_time)
-            except:
-                temp = None
+                        ("field_plate_trigger", 1),
+                        #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("break", 11),
+                        ("rf_a_b", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_a_b", 1),
+                        (f"detect{e_field}_6", detects),
+                        #("cleanout", cleanouts),
+                    ]
 
-            data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
-            time.sleep(0.2)
+                # E FIELD DURING DETECTS
+                elif params["field_plate"]["relative_to_lf"] == "after":
+                    params["sequence"]["sequence"] = [
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("rf_abar_bbar", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_abar_bbar", 1),
+                        ("field_plate_trigger", 1),
+                       # ("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        (f"detect{e_field}_3", detects),
+                        ("break", 11),
+                        #("cleanout", cleanouts),
 
-            if jj == 0:
-                first_data_id = data_id
-            elif jj == detuning_counts*duration_counts - 1:
-                last_data_id = data_id
-        if not only_print_first_last:
-            print(f"({first_data_id}, {last_data_id})")
-        elif kk == 0 or kk == repeats - 1:
-            print(f"({first_data_id}, {last_data_id})")
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("rf_a_b", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_a_b", 1),
+                        ("field_plate_trigger", 1),
+                        #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        (f"detect{e_field}_6", detects),
+                        ("break", 11),
+                        #("cleanout", cleanouts),
+                    ]
+                sequence.setup_sequence()
+                m4i.setup_sequence_steps_only()
+                m4i.write_all_setup()
+
+                def worker():
+                    start_time = time.time()
+                    data = run_sequence(sequence, params, skip_setup=True)
+                    return (start_time, data)
+                start_time, data = run_expt_check_lock(worker)
+                end_time = time.time()
+                try:
+                    temp = get_4k_platform_temp(end_time - start_time)
+                except:
+                    temp = None
+                data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
+                #time.sleep(0.4)
+                if jj == 0:
+                    first_data_id = data_id
+                elif jj == lf_counts - 1:
+                    last_data_id = data_id
+            if not only_print_first_last:
+                print(f"({first_data_id}, {last_data_id})")
+            elif kk == 0 or kk == repeats - 1:
+                print(f"({first_data_id}, {last_data_id})")
 
 default_params["rf"]["T_ch"] = 21 * ureg.ms
 default_params["rf"]["amplitude"] = 3875
@@ -275,56 +341,6 @@ while True:
 #     elif kk == len(lf_frequencies) - 1:
 #         last_data_id = data_id
 # print(f"({first_data_id}, {last_data_id})")
-
-## Scan the RF Frequencies
-params = default_params.copy()
-
-params["lf"].update({
-    "center_frequencies": [119.23 * ureg.MHz],
-    "amplitudes": [5000],
-    "wait_times": [0.0 * ureg.ms],
-    "durations": [0.5 * ureg.ms],
-    "detunings": [0. * ureg.kHz],
-    "phase_diffs": [0],
-})
-params["sequence"]["sequence"] = [
-    ("optical_cb", cb_pumps),
-    ("optical_ac", ac_pumps),
-    (f"lf_0", 1),
-    ("field_plate_trigger", 1),
-    # ("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
-    ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-    (f"detect_3", detects),
-    ("break", 11),
-    #("cleanout", cleanouts),
-
-    ("optical_cb", cb_pumps),
-    ("optical_ac", ac_pumps),
-    (f"lf_0", 1),
-    ("field_plate_trigger", 1),
-    #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
-    ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-    (f"detect_6", detects),
-    ("break", 11),
-    #("cleanout", cleanouts),
-]
-lf_frequencies = np.arange(-100, 100, 10) * ureg.kHz
-for kk in tqdm(range(len(lf_frequencies))):
-    params["lf"]["detunings"] = [lf_frequencies[kk]]
-    sequence = get_sequence(params)
-    def worker():
-        start_time = time.time()
-        data = run_sequence(sequence, params)
-        return (start_time, data)
-    start_time, data = run_expt_check_lock(worker)
-    data_id = save_data(sequence, params, *data)
-    time.sleep(1)
-    if kk == 0:
-        first_data_id = data_id
-        print(first_data_id)
-    elif kk == len(lf_frequencies) - 1:
-        last_data_id = data_id
-print(f"({first_data_id}, {last_data_id})")
 
 ## Scan the LF Frequencies
 # params = default_params.copy()

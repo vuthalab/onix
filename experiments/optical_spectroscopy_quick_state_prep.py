@@ -59,10 +59,10 @@ def get_4k_platform_temp(average_time = 60):
 ac_pumps = 25
 cb_pumps = 25
 
-detects = 128
+detects = 1
 
 detuning_counts = 1
-duration_counts = 10
+duration_counts = 20
 
 default_params = {
     "name": "Optical Spectroscopy Quick State Prep",
@@ -73,25 +73,39 @@ default_params = {
     },
     "optical": {
         "ao_amplitude": 2000,
-        "amplitudes": [2000 for kk in range(detuning_counts * duration_counts)],
-        "durations": [(kk + 1) * 5 * ureg.us for jj in range(detuning_counts) for kk in range(duration_counts)],
-        "detunings": [0 * ureg.kHz for jj in range(detuning_counts) for kk in range(duration_counts)],
+        # "amplitudes": [kk * 2000 / duration_counts for kk in range(detuning_counts * duration_counts)],
+        "amplitudes": np.linspace(700, 1000, duration_counts),
+        # "amplitudes": np.linspace(400, 700, duration_counts),
+        "durations": [100 * ureg.us for jj in range(detuning_counts) for kk in range(duration_counts)],
+        "detunings": [0 * ureg.MHz for jj in range(detuning_counts) for kk in range(duration_counts)],
     },
     "detect": {
         "transition": "ac",
-        "detunings": np.array([0.0], dtype=float) * ureg.MHz,
+        "detunings": np.array([0], dtype=float) * ureg.MHz,
+        # "detunings": np.linspace(-1, 1, 40) * ureg.MHz,
+        # "detunings": np.arange(-0.2, 0.2, 0.05) * ureg.MHz,
         "on_time": 40 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
         "ao_amplitude": 200,
         "simultaneous": False,
-        "cycles": {}
+        "cycles": {},
+        "fid": {
+            "use": True,
+            "pump_amplitude": 733,
+            "pump_time": 45 * ureg.us,
+            "probe_detuning": -10 * ureg.MHz,
+            "probe_amplitude": 180,
+            "probe_time": 100 * ureg.us,
+            "wait_time": 1 * ureg.us,
+            "phase": 0,
+        }
     },
     "rf": {
-        "amplitude": 8000,
+        "amplitude": 3875,
         "T_0": 0.3 * ureg.ms,
         "T_e": 0.15 * ureg.ms,
-        "T_ch": 10 * ureg.ms,
+        "T_ch": 21 * ureg.ms,
         "scan_range": 45 * ureg.kHz,
     },
     "lf": {
@@ -110,11 +124,12 @@ default_params = {
             ("optical_cb", cb_pumps),
             ("optical_ac", ac_pumps),
             ("lf", 1),
+            #("detect_1", detects),
             ("rf_a_b", 1),
             ("rf_abar_bbar", 1),
-            ("detect_1", detects),
+            #("detect_2", detects),
             ("optical_0", 1),
-            ("detect_2", detects),
+            ("detect_3", detects),
         ]
     }
 }
@@ -129,6 +144,89 @@ setup_digitizer(
     ch2_range=default_params["digitizer"]["ch2_range"],
     sample_rate=default_params["digitizer"]["sample_rate"],
 )
+
+## FID test
+# def run_1_fid_experiment(only_print_first_last=False, repeats=1):
+#     params = default_params.copy()
+#     sequence = get_sequence(params)
+#
+#     for kk in range(repeats):
+#         params["sequence"]["sequence"] = [
+#             ("detect_1", detects),
+#         ]
+#         sequence.setup_sequence()
+#         m4i.setup_sequence(sequence)
+#         def worker():
+#             start_time = time.time()
+#             data = run_sequence(sequence, params, skip_setup=True)
+#             return (start_time, data)
+#
+#         start_time, data = run_expt_check_lock(worker)
+#         end_time = time.time()
+#
+#         data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time})
+#         print(data_id)
+#
+# pump_amplitudes = np.linspace(200, 1000, 10)
+# pump_durations = np.linspace(1, 50, 10) * ureg.us
+# total_repeats = len(pump_amplitudes) * len(pump_durations)
+# center_frequencies = [kk * 0.05 * ureg.MHz + 75 * ureg.MHz - 6.5 * ureg.MHz for kk in range(total_repeats)]
+# for kk, amplitude in enumerate(pump_amplitudes):
+#     for ll, duration in enumerate(pump_durations):
+#         index_center_freq = ll * len(pump_amplitudes) + kk
+#         default_params["ao"]["center_frequency"] = center_frequencies[index_center_freq]
+#         default_params["detect"]["fid"]["pump_amplitude"] = pump_amplitudes[kk]
+#         default_params["detect"]["fid"]["pump_time"] = pump_durations[ll]
+#         default_params = update_parameters_from_shared(default_params)
+#         default_sequence = get_sequence(default_params)
+#         default_sequence.setup_sequence()
+#         setup_digitizer(
+#             default_sequence.analysis_parameters["digitizer_duration"],
+#             default_sequence.num_of_record_cycles(),
+#             default_params["sequence_repeats_per_transfer"],
+#             ch1_range=default_params["digitizer"]["ch1_range"],
+#             ch2_range=default_params["digitizer"]["ch2_range"],
+#             sample_rate=default_params["digitizer"]["sample_rate"],
+#         )
+#         run_1_fid_experiment()
+
+
+# def run_1_fid_experiment(only_print_first_last=False, repeats=1):
+#     params = default_params.copy()
+#     sequence = get_sequence(params)
+#
+#     for kk in range(repeats):
+#         params["sequence"]["sequence"] = [
+#             ("detect_1", detects),
+#         ]
+#         sequence.setup_sequence()
+#         m4i.setup_sequence(sequence)
+#         def worker():
+#             start_time = time.time()
+#             data = run_sequence(sequence, params, skip_setup=True)
+#             return (start_time, data)
+#
+#         start_time, data = run_expt_check_lock(worker)
+#         end_time = time.time()
+#
+#         data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time})
+#         print(data_id)
+#
+# for _ in range(200):
+#     default_params = update_parameters_from_shared(default_params)
+#     default_sequence = get_sequence(default_params)
+#     default_sequence.setup_sequence()
+#     setup_digitizer(
+#         default_sequence.analysis_parameters["digitizer_duration"],
+#         default_sequence.num_of_record_cycles(),
+#         default_params["sequence_repeats_per_transfer"],
+#         ch1_range=default_params["digitizer"]["ch1_range"],
+#         ch2_range=default_params["digitizer"]["ch2_range"],
+#         sample_rate=default_params["digitizer"]["sample_rate"],
+#     )
+#     run_1_fid_experiment()
+
+
 
 ## Repeat the sequence
 default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
@@ -146,6 +244,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             sequence.setup_sequence()
             m4i.setup_sequence_steps_only()
             m4i.write_all_setup()
+            params["optical"]["this_amplitude"] = params["optical"]["amplitudes"][jj]
             params["optical"]["this_detuning"] = params["optical"]["detunings"][jj]
             params["optical"]["this_duration"] = params["optical"]["durations"][jj]
 
@@ -153,9 +252,12 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 ("optical_cb", cb_pumps),
                 ("optical_ac", ac_pumps),
                 ("lf", 1),
-                ("detect_1", detects),
+                # ("detect_1", detects),
+                ("rf_a_b", 1),
+                ("rf_abar_bbar", 1),
+                # ("detect_2", detects),
                 (f"optical_{index}", 1),
-                ("detect_2", detects),
+                ("detect_3", detects),
             ]
             sequence.setup_sequence()
             m4i.setup_sequence_steps_only()
@@ -186,4 +288,4 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             print(f"({first_data_id}, {last_data_id})")
 
 while True:
-    run_1_experiment()
+    run_1_experiment(repeats=100)

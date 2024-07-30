@@ -25,8 +25,11 @@ def get_sequence(params):
 ## parameters
 default_params = {
     "name": "RF Spectroscopy",
-    "sequence_repeats_per_transfer": 50,
+    "sequence_repeats_per_transfer": 5,
     "data_transfer_repeats": 1,
+    "ao": {
+        "center_frequency": 79 * ureg.MHz,
+    },
     "eos": {
         "ac": {
             "name": "eo_ac",
@@ -46,13 +49,13 @@ default_params = {
     },
     "rf": {
         "transition": "ab",
-        "amplitude": 8000,  # 4200
-        "detuning": (65) * ureg.kHz,
-        "duration": 2 * ureg.ms,
+        "amplitude": 10000,  # 4200
+        "detuning": 60 * ureg.kHz,
+        "duration": 0.17 * ureg.ms,
     },
     "chasm": {
         "transitions": ["bb"], #, "rf_both"
-        "scan": 3 * ureg.MHz,
+        "scan": 2 * ureg.MHz,
         "durations": 1000 * ureg.us,
         "repeats": 50,
         "detunings": 0 * ureg.MHz,
@@ -61,21 +64,21 @@ default_params = {
     "antihole": {
         "transitions": ["ac", "ca"], #, "rf_b" (for rf assist)
         "durations": [1000 * ureg.us, 1000 * ureg.us],
-        "repeats": 100,
+        "repeats": 80,
         "ao_amplitude": 2000,
     },
     "detect": {
         "transition": "bb",
-        "detunings": (np.linspace(-2.5, 2.5, 20)) * ureg.MHz, #np.array([-2, 0]) * ureg.MHz, #  # np.array([-2, 0]) * ureg.MHz,
-        "on_time": 5 * ureg.us, #5
-        "off_time": 1 * ureg.us,
+        "detunings": (np.linspace(-1.2, 1.2, 10)) * ureg.MHz, #np.array([-2, 0]) * ureg.MHz, #  # np.array([-2, 0]) * ureg.MHz,
+        "on_time": 10 * ureg.us, #5
+        "off_time": 2 * ureg.us,
         "cycles": {
             "chasm": 0,
-            "antihole": 64,
-            "rf": 64,
+            "antihole": 256,
+            "rf": 256,
         },
         "delay": 8 * ureg.us,
-        "ao_amplitude": 400,
+        "ao_amplitude": 180,
     },
     "field_plate": {
         "amplitude": 4500 * 1.,
@@ -122,17 +125,17 @@ first_data_id = None
 ## scan freq
 params = default_params.copy()
 first_data_id = None
-rf_frequencies = np.linspace(-250, 250, 100)
-rf_frequencies *= ureg.kHz
+rf_frequencies = np.linspace(-250, 250, 30) * ureg.kHz
+rf_durations = np.linspace(0, 0.5, 40) * ureg.ms
 # f_check = f_lock_Quarto(location='/dev/ttyACM0')
 # field_plate_amplitude = 4500
-
-for _ in tqdm(range(1)):
+# rf_durations = np.array([0.01282051282051282]) * ureg.kHz
+for _ in tqdm(range(100)):
     # for run_n, amplitude in [(1, field_plate_amplitude), (2, -field_plate_amplitude)]:
     # print(run_n)
     # params["field_plate"]["amplitude"] = amplitude
-    # expt_start_time = time.time()
-    for kk in range(len(rf_frequencies)):
+    expt_start_time = time.time()
+    for kk in range(len(rf_durations)):
 
         # print_unlock = False
         # while True:
@@ -145,7 +148,8 @@ for _ in tqdm(range(1)):
 
 
 
-        params["rf"]["detuning"] = rf_frequencies[kk]
+        # params["rf"]["detuning"] = rf_frequencies[kk]
+        params["rf"]["duration"] = rf_durations[kk]
         sequence = get_sequence(params)
         data = run_sequence(sequence, params)
         data_id = save_data(sequence, params, *data)

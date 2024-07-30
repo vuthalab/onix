@@ -22,6 +22,9 @@ token = os.environ.get("INFLUXDB_TOKEN")
 org = "onix"
 url = "http://onix-pc:8086"
 query_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
+def set_heater_output_power(self, channel, val):
+    self._set_variable(f"{channel}.value", val)
+
 query_api = query_client.query_api()
 
 
@@ -76,19 +79,17 @@ default_params = {
     "detect": {
         "transition": "ac",
         "detunings": np.array([0.0], dtype=float) * ureg.MHz,
-        "on_time": 10 * ureg.us,
+        # "detunings": np.flip(np.linspace(-10, 10, 100)) * ureg.MHz,
+        "on_time": 40 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
-        "ao_amplitude": 180,
+        "ao_amplitude": 200,
         "simultaneous": False,
-        "cycles": {
-            '3': 256,
-            '6': 256.
-        },
+        "cycles": {},
         "fid": {
-            "use": False,
-            "pump_amplitude": 500,
-            "pump_time": 100 * ureg.us,
+            "use": True,
+            "pump_amplitude": 733,
+            "pump_time": 45 * ureg.us,
             "probe_detuning": -10 * ureg.MHz,
             "probe_amplitude": 180,
             "probe_time": 30 * ureg.us,
@@ -97,10 +98,10 @@ default_params = {
         }
     },
     "rf": {
-        "amplitude": 8000,
+        "amplitude": 3875,
         "T_0": 0.3 * ureg.ms,
         "T_e": 0.15 * ureg.ms,
-        "T_ch": 10 * ureg.ms,
+        "T_ch": 21 * ureg.ms,
         "scan_range": 45 * ureg.kHz,
     },
     "lf": {
@@ -193,7 +194,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 params["field_plate"]["amplitude"] = default_field_plate_amplitude
             if params["field_plate"]["method"] == "ttl":
                 if params["field_plate"]["relative_to_lf"] == "before":
-                    on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence!!!!)))))
+                    on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence code!!!)))))
                 elif params["field_plate"]["relative_to_lf"] == "after":
                     on_time = 10e-6 + sequence.field_plate_on_time.to("s").magnitude
 
@@ -205,7 +206,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 )
             for jj, lf_index in enumerate(lf_indices):
 
-                # E FIELD DURING OPTICAL
+                # E FIELD DURING OPTICAL (TODO: automate this list)
                 if params["field_plate"]["relative_to_lf"] == "before":
                     params["sequence"]["sequence"] = [
                         ("field_plate_trigger", 1),
@@ -275,7 +276,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 except:
                     temp = None
                 data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
-                time.sleep(0.2)
+                #time.sleep(0.4)
                 if jj == 0:
                     first_data_id = data_id
                 elif jj == lf_counts - 1:
@@ -285,16 +286,22 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             elif kk == 0 or kk == repeats - 1:
                 print(f"({first_data_id}, {last_data_id})")
 
-## 2D RF amplitude and duration scan
-duration_list = [10, 10 * np.sqrt(2), 20, 20 * np.sqrt(2)]
-amplitude_list = [2000, 2000 * np.sqrt(2), 4000, 4000* np.sqrt(2), 8000, 1000]
+default_params["rf"]["T_ch"] = 21 * ureg.ms
+default_params["rf"]["amplitude"] = 3875
 
-for duration in duration_list:
-    for amplitude in amplitude_list:
-        default_params["rf"]["T_ch"] = duration * ureg.ms
-        default_params["rf"]["amplitude"] = amplitude
-        print(f"Amplitude = {amplitude} \t Duration = {duration} ms")
-        run_1_experiment(repeats = 8)
+while True:
+    run_1_experiment()
+
+## 2D RF amplitude and duration scan
+# duration_list = np.linspace(, 23,4)
+# amplitude_list = np.linspace(2500, 8000, 5)
+#
+# for amplitude in amplitude_list:
+#     for duration in duration_list:
+#         default_params["rf"]["T_ch"] = duration * ureg.ms
+#         default_params["rf"]["amplitude"] = amplitude
+#         print(f"Amplitude = {amplitude} \t Duration = {duration} ms")
+#         run_1_experiment(repeats = 8)
 
 
 ## RAMP TIME SCANS FOR BEFORE AND AFTER LF
@@ -347,34 +354,6 @@ for duration in duration_list:
 #         first_data_id = data_id
 #         print(first_data_id)
 #     elif kk == len(lf_frequencies) - 1:
-#         last_data_id = data_id
-# print(f"({first_data_id}, {last_data_id})")
-
-## Scan the LF Durations
-# params = default_params.copy()
-# lf_durations = np.arange(0.001, 0.1, 0.003)
-# lf_durations *= ureg.ms
-# sequence = get_sequence(params)
-# sequence.setup_sequence()
-# m4i.setup_sequence(sequence)
-# for kk in tqdm(range(len(lf_durations))):
-#     params["lf"]["durations"] = [lf_durations[kk]]
-#     del sequence._segments["lf_0"]
-#     sequence._define_lf()
-#     m4i.change_segment("lf_0")
-#     m4i.setup_sequence_steps_only()
-#     m4i.write_all_setup()
-#     def worker():
-#         start_time = time.time()
-#         data = run_sequence(sequence, params, skip_setup=True)
-#         return (start_time, data)
-#     start_time, data = run_expt_check_lock(worker)
-#     data_id = save_data(sequence, params, *data)
-#     time.sleep(1)
-#     if kk == 0:
-#         first_data_id = data_id
-#         print(first_data_id)
-#     elif kk == len(lf_durations) - 1:
 #         last_data_id = data_id
 # print(f"({first_data_id}, {last_data_id})")
 
