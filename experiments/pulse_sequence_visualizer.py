@@ -64,11 +64,14 @@ def plot(seq: list[tuple], vis='schem', scale="int"):
                                    tdig[fig][0].append('0')
                             if tdig[fig][0][-2:] in (['0', '1'], ['1', '0'], ['1', '1'], '0', '1'):
                                    tdig[fig][1].append(running_total)
-                     ind = plots.index(channel)
 
                      # Add graph labels
                      name = clean_txt(evnt[0])
-                     tdig[channel][2].append(name)
+                     try:
+                            tdig[channel][2].append(name)
+                            ind = plots.index(channel)
+                     except KeyError:
+                            ind = 0
                      tags.append(f'[{ind}^:{running_total}][{ind}^:{running_total + evtime}] {name}')
                      tags.append(f'[{ind}:{running_total}]+[{ind}:{running_total + evtime}] {evnt[1]}')
                      running_total += evtime
@@ -126,7 +129,8 @@ def plot(seq: list[tuple], vis='schem', scale="int"):
 
 if __name__ == "__main__":
        inp = [('optical_ac', 25), ('rf_abar_bbar', 1), ('lf_8', 1), ('rf_abar_bbar', 1), ('detect_3', 256),
+              # ('break', 10),
               ('optical_cb', 25), ('optical_ac', 25), ('rf_a_b', 1), ('lf_8', 1), ('rf_a_b', 1), ('detect_6', 256),
               ('optical_cb', 25)]
 
-       plot(inp, scale="log")
+       plot(inp, scale="int")
