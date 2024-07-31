@@ -27,7 +27,7 @@ wm = WM()
 app = pg.mkQApp("Laser control")
 q = Quarto(find_quarto("frequency", return_all=True)[1])
 device_lock = threading.Lock()
-discriminator_slope = 1.5e-5
+discriminator_slope = 4.2e-5 
 laser = LaserLinewidth(GET_CAVITY_DATA_LENGTH, 2e-6, discriminator_slope) 
 
 frequency_setpoint = 516847.177 # frequency we want to be near, for purposes of determining when we have mode hopped
@@ -427,7 +427,7 @@ def update_wavemeter():
             color = "#E61414" # red
         else:
             color = "#33FF33" # green
-        wavemeter_text_label.setText(f"Wavemeter: {wm_freq:.4f} MHz", color = color)
+        wavemeter_text_label.setText(f"Wavemeter: {wm_freq:.4f} GHz", color = color)
 
     
 

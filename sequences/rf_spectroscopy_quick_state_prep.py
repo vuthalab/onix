@@ -4,6 +4,7 @@ from onix.sequences.sequence import (
     AWGConstant,
     AWGHSHPulse,
     AWGSinePulse,
+    AWGSineSweep,
     Segment,
     SegmentEmpty,
     Sequence,
@@ -16,7 +17,7 @@ from onix.awg_maps import get_channel_from_name, get_ttl_channel_from_name
 from onix.units import ureg
 from onix.headers.rigol_field_plate import Rigol
 
-class LFSpectroscopyQuickStatePrep(Sequence):
+class RFSpectroscopyQuickStatePrep(Sequence):
     def __init__(self, parameters: dict[str, Any]):
         parameters["eos"] = None
         parameters["field_plate"]["during"] = {
@@ -96,69 +97,36 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         
 
     def _define_rf(self):
-        rf_channel = get_channel_from_name(self._rf_parameters["name"])
-        amplitude = self._rf_parameters["amplitude"]
-        T_0 = self._rf_parameters["T_0"]
-        T_e = self._rf_parameters["T_e"]
-        T_ch = self._rf_parameters["T_ch"]
         lower_state = self._rf_parameters["transition"][0]
         upper_state = self._rf_parameters["transition"][1]
         offset = self._rf_parameters["offset"]
         center_frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + offset
-        scan_range = self._rf_parameters["scan_range"]
-        
-        abar_bbar_detuning = -57 * ureg.kHz
-        pulse_center_abar_bbar = center_frequency + self._rf_parameters["offset"] + abar_bbar_detuning
-        segment = Segment("rf_abar_bbar", duration=2*T_0 + T_ch)
-        pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, pulse_center_abar_bbar, scan_range)
-        segment.add_awg_function(rf_channel, pulse)
-        self.add_segment(segment)
-
-        a_b_detuning = 53 * ureg.kHz
-        pulse_center_a_b = center_frequency + self._rf_parameters["offset"] + a_b_detuning
-        segment = Segment("rf_a_b", duration=2*T_0 + T_ch)
-        pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, pulse_center_a_b, scan_range)
-        segment.add_awg_function(rf_channel, pulse)
-        self.add_segment(segment)
-
-    def _define_lf(self):
-        lf_channel = get_channel_from_name(self._lf_parameters["name"])
-        center_frequencies =  self._lf_parameters["center_frequencies"]
-        amplitudes =  self._lf_parameters["amplitudes"]
-        detunings = self._lf_parameters["detunings"]
-        durations = self._lf_parameters["durations"]
-        phase_diffs = self._lf_parameters["phase_diffs"]
-        wait_times = self._lf_parameters["wait_times"]
+        rf_channel = get_channel_from_name(self._rf_parameters["name"])
+        detunings = self._rf_parameters["detunings"]
+        amplitudes = self._rf_parameters["amplitudes"]
+        durations = self._rf_parameters["durations"]
         for kk in range(len(detunings)):
-            center_frequency = center_frequencies[kk]
             detuning = detunings[kk]
             duration = durations[kk]
             amplitude = amplitudes[kk]
-            phase_diff = phase_diffs[kk]
-            wait_time = wait_times[kk]
-            if wait_time <= 0 * ureg.s:
-                segment = Segment(f"lf_{kk}", duration=duration)
-                pulse = AWGSinePulse(center_frequency + detuning, amplitude)
-                segment.add_awg_function(lf_channel, pulse)
-            else:
-                segment = Segment(f"lf_{kk}")
-                wait_in_piov2 = (wait_time / duration).to("").magnitude
-                pulse = AWGCompositePulse(
-                    np.array([1, wait_in_piov2, 1]) * duration,
-                    center_frequency + detuning,
-                    np.array([amplitude, 0, amplitude]),
-                    np.array([0, 0, phase_diff]),
-                )
-                segment.add_awg_function(lf_channel, pulse)
+            segment = Segment(f"rf_{kk}", duration=duration)
+            print(f"RF -- {center_frequency + detuning}")
+            pulse = AWGSinePulse(center_frequency + detuning, amplitude)
+            # pulse = AWGSineSweep(center_frequency + detuning - 5 * ureg.kHz, center_frequency + detuning + 5 * ureg.kHz, amplitude, 0, duration)
+            segment.add_awg_function(rf_channel, pulse)
             self.add_segment(segment)
-        
-        # pi/2 pulse for lf
-        # segment = Segment("lf_piov2")
-        # amplitude = self._lf_parameters["piov2_params"]["amplitude"]
-        # duration = self._lf_parameters["piov2_params"]["duration"]
-        # pulse = AWGSinePulse(141.146 * ureg.kHz, amplitude, 0, 0, duration)
-        # segment.add_awg_function(lf_channel, pulse)
-        # self.add_segment(segment)
+
+    def _define_lf(self):
+        lf_channel = get_channel_from_name(self._lf_parameters["name"])
+        center_frequency =  self._lf_parameters["center_frequency"]
+        amplitude =  self._lf_parameters["amplitude"]
+        detuning = self._lf_parameters["detuning"]
+        duration = self._lf_parameters["duration"]
+        segment = Segment(f"lf", duration=duration)
+        print(f"LF -- {center_frequency+detuning}")
+        pulse = AWGSinePulse(center_frequency + detuning, amplitude)
+        segment.add_awg_function(lf_channel, pulse)
+        self.add_segment(segment)
 
     def _define_cleanout(self):
         duration = self._cleanout_parameters["duration"]
@@ -216,7 +184,6 @@ class LFSpectroscopyQuickStatePrep(Sequence):
 
     def setup_sequence(self):
         segment_steps = []
-        self.analysis_parameters["detect_groups"] = []
         for name, repeats in self._sequence_parameters["sequence"]:
             if name.startswith("detect"):
                 if "opposite" in name:
@@ -240,7 +207,6 @@ class LFSpectroscopyQuickStatePrep(Sequence):
 
     def num_of_record_cycles(self):
         total_cycles = 0
-        print(self.analysis_parameters["detect_groups"])
         for name, cycles in self.analysis_parameters["detect_groups"]:
             total_cycles += cycles
         return total_cycles

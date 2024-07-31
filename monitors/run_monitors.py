@@ -36,6 +36,8 @@ pressure_gauge = FRG730()
 high_freq_time = 1
 low_freq_time = 280
 send_permanent = True
+print("Connected to all devices.")
+ctc_error = []
 
 while True:
     time_str = datetime.now().strftime("%H:%M:%S")
@@ -75,6 +77,7 @@ while True:
         print(traceback.format_exc())
 
     try:
+        ctc_error.clear()
         point = Point("temperatures")
         for channel in channels:
             value = c.read(channel)
@@ -85,6 +88,16 @@ while True:
     except:
         print(time_str + ": CTC100 error.")
         print(traceback.format_exc())
+        ctc_error.append(0)
+        if len(ctc_error) >= 10:
+            try: 
+                c.close()
+            except:
+                pass
+            try:
+                c = CTC100("192.168.0.202")
+            except:
+                print(time_str + ": Couldn't reconnect to CTC100.")
 
     try:    # uploading data from temperature sensors
         ruuvi_data_dict = asyncio.run(ruuvi_g.get_data(ruuvi_dont_save))

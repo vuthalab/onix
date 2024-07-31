@@ -13,7 +13,7 @@ from onix.analysis.power_spectrum import PowerSpectrum
 
 from onix.experiments.shared import m4i
 
-discriminator_slope = 1.5e-5
+discriminator_slope = 3.33e-5 # Changed July 29, 2024. Previously was 1.5e-5
 laser = LaserLinewidth(2000, 2e-6, discriminator_slope)
 spec = PowerSpectrum(2000, 2e-6)
 
