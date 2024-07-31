@@ -129,7 +129,7 @@ def plot(seq: list[tuple], vis='schem', scale="int"):
 
 if __name__ == "__main__":
        inp = [('optical_ac', 25), ('rf_abar_bbar', 1), ('lf_8', 1), ('rf_abar_bbar', 1), ('detect_3', 256),
-              # ('break', 10),
+              ('break', 10),
               ('optical_cb', 25), ('optical_ac', 25), ('rf_a_b', 1), ('lf_8', 1), ('rf_a_b', 1), ('detect_6', 256),
               ('optical_cb', 25)]
 
