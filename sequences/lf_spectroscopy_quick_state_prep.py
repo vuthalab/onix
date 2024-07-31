@@ -106,7 +106,7 @@ class LFSpectroscopyQuickStatePrep(Sequence):
         offset = self._rf_parameters["offset"]
         center_frequency = energies["7F0"][upper_state] - energies["7F0"][lower_state] + offset
         scan_range = self._rf_parameters["scan_range"]
-
+        
         abar_bbar_detuning = -57 * ureg.kHz
         pulse_center_abar_bbar = center_frequency + self._rf_parameters["offset"] + abar_bbar_detuning
         segment = Segment("rf_abar_bbar", duration=2*T_0 + T_ch)
@@ -151,6 +151,14 @@ class LFSpectroscopyQuickStatePrep(Sequence):
                 )
                 segment.add_awg_function(lf_channel, pulse)
             self.add_segment(segment)
+        
+        # pi/2 pulse for lf
+        # segment = Segment("lf_piov2")
+        # amplitude = self._lf_parameters["piov2_params"]["amplitude"]
+        # duration = self._lf_parameters["piov2_params"]["duration"]
+        # pulse = AWGSinePulse(141.146 * ureg.kHz, amplitude, 0, 0, duration)
+        # segment.add_awg_function(lf_channel, pulse)
+        # self.add_segment(segment)
 
     def _define_cleanout(self):
         duration = self._cleanout_parameters["duration"]
@@ -208,6 +216,7 @@ class LFSpectroscopyQuickStatePrep(Sequence):
 
     def setup_sequence(self):
         segment_steps = []
+        self.analysis_parameters["detect_groups"] = []
         for name, repeats in self._sequence_parameters["sequence"]:
             if name.startswith("detect"):
                 if "opposite" in name:
@@ -231,6 +240,7 @@ class LFSpectroscopyQuickStatePrep(Sequence):
 
     def num_of_record_cycles(self):
         total_cycles = 0
+        print(self.analysis_parameters["detect_groups"])
         for name, cycles in self.analysis_parameters["detect_groups"]:
             total_cycles += cycles
         return total_cycles

@@ -64,7 +64,7 @@ cb_pumps = 25
 cleanouts = 0
 detects = 256
 lf_counts = 9
-freq_counts = 1
+freq_counts = 2
 
 default_params = {
     "name": "LF Spectroscopy Quick State Prep",
@@ -80,14 +80,14 @@ default_params = {
         "transition": "ac",
         "detunings": np.array([0.0], dtype=float) * ureg.MHz,
         # "detunings": np.flip(np.linspace(-10, 10, 100)) * ureg.MHz,
-        "on_time": 40 * ureg.us,
+        "on_time": 10 * ureg.us,  #40,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
-        "ao_amplitude": 200,
+        "ao_amplitude": 180, # 200,
         "simultaneous": False,
         "cycles": {},
         "fid": {
-            "use": True,
+            "use": False,
             "pump_amplitude": 733,
             "pump_time": 45 * ureg.us,
             "probe_detuning": -10 * ureg.MHz,
@@ -105,10 +105,10 @@ default_params = {
         "scan_range": 45 * ureg.kHz,
     },
     "lf": {
-        "center_frequencies": [(141.146 + (jj * 0.1)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
-        "amplitudes": [1000 for kk in range(lf_counts * freq_counts)],
+        "center_frequencies": [(140.7 + (jj * 0.2)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
+        "amplitudes": [1500 for kk in range(lf_counts * freq_counts)],
         "wait_times": [0.35 * ureg.ms for kk in range(lf_counts * freq_counts)],
-        "durations": [0.05 * ureg.ms for kk in range(lf_counts * freq_counts)],
+        "durations": [0.035 * ureg.ms for kk in range(lf_counts * freq_counts)],
         "detunings": [0. * ureg.kHz for kk in range(lf_counts * freq_counts)],
         "phase_diffs": list(np.linspace(0, 2*np.pi, lf_counts)) * freq_counts,
     },
@@ -276,7 +276,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 except:
                     temp = None
                 data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
-                #time.sleep(0.4)
+                #time.sleep(0.2)
                 if jj == 0:
                     first_data_id = data_id
                 elif jj == lf_counts - 1:
@@ -286,11 +286,22 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             elif kk == 0 or kk == repeats - 1:
                 print(f"({first_data_id}, {last_data_id})")
 
-default_params["rf"]["T_ch"] = 21 * ureg.ms
-default_params["rf"]["amplitude"] = 3875
-
+## Scan pi / 2 pulse duration
+carrier_frequencies = [0,1,2,3]
 while True:
-    run_1_experiment()
+    for ii in carrier_frequencies:
+        if ii == 0:
+            default_params["lf"]["center_frequencies"] = [(140.7 + (0.2 * jj)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
+            run_1_experiment(repeats = 1)
+        elif ii == 1:
+            default_params["lf"]["center_frequencies"] = [(141.1 + (0.2 * jj)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
+            run_1_experiment(repeats = 1)
+        elif ii == 2:
+            default_params["lf"]["center_frequencies"] = [(141.5 + (0.2 * jj)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
+            run_1_experiment(repeats = 1)
+        elif ii == 3:
+            default_params["lf"]["center_frequencies"] = [(141.9 + (0.2 * jj)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
+            run_1_experiment(repeats = 1)
 
 ## 2D RF amplitude and duration scan
 # duration_list = np.linspace(, 23,4)

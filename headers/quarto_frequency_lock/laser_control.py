@@ -427,7 +427,7 @@ def update_wavemeter():
             color = "#E61414" # red
         else:
             color = "#33FF33" # green
-        wavemeter_text_label.setText(f"Wavemeter: {wm_freq:.4f} MHz", color = color)
+        wavemeter_text_label.setText(f"Wavemeter: {wm_freq:.4f} GHz", color = color)
 
     
 
