@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from schemdraw import logic
 import schemdraw
+from onix.data_tools import get_experiment_data
+from onix.units import ureg 
 
 # Turns input call into human Latex
 def clean_txt(txt):
@@ -14,6 +16,8 @@ def clean_txt(txt):
        if txt == "rf_a_b":
               return r"$a - b$"
        if txt[:6] == 'detect':
+              if txt[7:15] == 'opposite':
+                     return rf"$o-detect_{txt[16:]}$"
               return rf"$detect_{txt[7:]}$"
        return txt
 
@@ -31,7 +35,7 @@ def contrast(signal):
        return c_sig
 
 
-def plot(seq: list[tuple], vis='schem', scale="int"):
+def plot(raw_data, vis='schem', scale="int"):
        """
 
        :param seq: Sequence of lasers fired
@@ -39,7 +43,14 @@ def plot(seq: list[tuple], vis='schem', scale="int"):
        :param scale: Size of events ('int', 'log', 'real')
        :return: Plot of the Pulse Sequence
        """
-       plots = ['ac', 'rf', 'lf']  # , 'ef']
+       if type(raw_data) is int:
+              data, headers = get_experiment_data(raw_data)
+       else:
+              headers = raw_data
+       seq = headers["params"]["sequence"]["sequence"]
+       times = t_scale(params)
+       plots = ['op', 'rf', 'lf']  # , 'ef']
+       t_dict = {"op":times[0], "de":times[1], "rf":times[2], "lf":times[3]}
        names = ['580nm laser', 'RF', 'LF']  # , 'Electric Field']
 
        if vis == 'schem':
@@ -48,13 +59,17 @@ def plot(seq: list[tuple], vis='schem', scale="int"):
               tags = []
               for evnt in seq:
                      # Time scale display
-                     channel = 'ac' if evnt[0][:-2] in ['optical_', 'detect'] else evnt[0][:2]
+                     channel = evnt[0][:2]
+                     cycle_len = t_dict[channel]
                      if scale == 'real':
-                            evtime = evnt[1]
+                            evtime = evnt[1]*cycle_len
                      elif scale == "int":
-                            evtime = 1
+                            evtime = 2
                      elif scale == "log":
-                            evtime = np.log(evnt[1])/5 + 0.5
+                            evtime = np.log(evnt[1]*cycle_len)/5 + 1
+
+                     if channel == "de":
+                            channel = 'op'
 
                      # Add each event to respective channel
                      for fig in tdig:
@@ -72,8 +87,9 @@ def plot(seq: list[tuple], vis='schem', scale="int"):
                             ind = plots.index(channel)
                      except KeyError:
                             ind = 0
+
                      tags.append(f'[{ind}^:{running_total}][{ind}^:{running_total + evtime}] {name}')
-                     tags.append(f'[{ind}:{running_total}]+[{ind}:{running_total + evtime}] {evnt[1]}')
+                     tags.append(f'[{ind}:{running_total}]+[{ind}:{running_total + evtime}] {round(evnt[1]*cycle_len, 2)}ms')
                      running_total += evtime
 
        # Final filtering
@@ -89,13 +105,14 @@ def plot(seq: list[tuple], vis='schem', scale="int"):
               tdig.pop(chnl)
 
        # Plot graph
+       schemdraw.config(fontsize = 1)
        with schemdraw.Drawing():
               logic.TimingDiagram(
-                     {'signal': [{'name': f'{i}', 'wave': tdig[i][0], 'async': tdig[i][1]}
-                                  for i in tdig],
+                     {'signal': [{'name': f'{i}', 'wave': tdig[i][0], 'async': tdig[i][1],}
+                                  for i in tdig], 
                      'edge': tags,
                      },
-                     ygap=.5, grid=False)
+                     ygap=.5, grid=False,  risetime= 0)
 
        # Perhaps this works, but was not developed past POC, so wouldn't use
        if vis == 'matplot':
@@ -109,7 +126,7 @@ def plot(seq: list[tuple], vis='schem', scale="int"):
               xaxis = np.arange(0, s_times+1, 1)
               graphs = {i:np.zeros(1) for i in plots}
               for evnt in seq:
-                     channel = "ac" if evnt[0][:-2] in ['optical_', 'detect'] else evnt[0][:2]
+                     channel = 'op' if evnt[0][:-2] in ['optical_', 'detect'] else evnt[0][:2]
                      if scale == "real":
                             evtime = evnt[1]
                      elif scale == "int":
@@ -127,10 +144,25 @@ def plot(seq: list[tuple], vis='schem', scale="int"):
               plt.show()
 
 
-if __name__ == "__main__":
-       inp = [('optical_ac', 25), ('rf_abar_bbar', 1), ('lf_8', 1), ('rf_abar_bbar', 1), ('detect_3', 256),
-              ('break', 10),
-              ('optical_cb', 25), ('optical_ac', 25), ('rf_a_b', 1), ('lf_8', 1), ('rf_a_b', 1), ('detect_6', 256),
-              ('optical_cb', 25)]
+def t_scale(params):
+       optical = 1*ureg.ms
+       detect = params["detect"]["on_time"] + params["detect"]["off_time"]
+       rf = 2*(params["rf"]["T_0"] + params["rf"]["T_ch"])
+       lf = params["lf"]["durations"][0] + params["lf"]["wait_times"][0]
+       # ef = 
+       print(type(params["lf"]["durations"]))
+       x = (t.to("ms").magnitude for t in [optical, detect, rf, lf])
+       return (optical.to("ms").magnitude, detect.to("ms").magnitude, rf.to("ms").magnitude, lf.to("ms").magnitude)
 
-       plot(inp, scale="int")
+if __name__ == "__main__":
+       data, headers = get_experiment_data(1625324)
+       params = headers["params"]
+       inp = params["sequence"]["sequence"]
+       # print(params)
+       # print(headers["params"]["ao"].keys())#["duration"])
+       # print(t_scale(headers["params"]))  # .keys())
+       # inp = [('optical_ac', 25), ('rf_abar_bbar', 1), ('lf_8', 1), ('rf_abar_bbar', 1), ('detect_3', 256),
+       #        # ('break', 10),
+       #        ('optical_cb', 25), ('optical_ac', 25), ('rf_a_b', 1), ('lf_8', 1), ('rf_a_b', 1), ('detect_6', 256),
+       #        ('optical_cb', 25)]
+       plot(1625324, scale="int")
