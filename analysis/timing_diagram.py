@@ -61,6 +61,7 @@ def plot(raw_data:int|list, scale="int"):
        for evnt in seq:
               # Time scale display
               channel = evnt[0][:2] 
+              #print(evnt)
               if channel in ['op', 'de', 'rf', 'lf']:
                      cycle_len = t_dict[channel]
                      if scale == 'real':
@@ -96,26 +97,26 @@ def plot(raw_data:int|list, scale="int"):
                             elif (not ef_t) and (ef[0] == [] or ef[0][-1] == 'd1'):
                                    ef[0].append('0'), ef[1].append(running_total)
 
-              # Add each event to respective channel
-              for fig in tdig:
-                     if fig == channel:
-                            tdig[fig][0].append('1')
-                     else:
-                            tdig[fig][0].append('0')
-                     if tdig[fig][0][-2:] in (['0', '1'], ['1', '0'], ['1', '1'], '0', '1'):
-                            tdig[fig][1].append(running_total)
+                     # Add each event to respective channel
+                     for fig in tdig:
+                            if fig == channel:
+                                   tdig[fig][0].append('1')
+                            else:
+                                   tdig[fig][0].append('0')
+                            if tdig[fig][0][-2:] in (['0', '1'], ['1', '0'], ['1', '1'], '0', '1'):
+                                   tdig[fig][1].append(running_total)
 
-              # Add graph labels
-              name = clean_txt(evnt[0])
-              try:
-                     tdig[channel][2].append(name)
-                     ind = plots.index(channel)
-              except KeyError:
-                     ind = 0
+                     # Add graph labels
+                     name = clean_txt(evnt[0])
+                     try:
+                            tdig[channel][2].append(name)
+                            ind = plots.index(channel)
+                     except KeyError:
+                            ind = 0
 
-              tags.append(f'[{ind}^:{running_total}][{ind}^:{running_total + evtime}] {name}')
-              tags.append(f'[{ind}:{running_total}]+[{ind}:{running_total + evtime}] {round(evnt[1]*cycle_len, 2)}ms')
-              running_total += evtime
+                     tags.append(f'[{ind}^:{running_total}][{ind}^:{running_total + evtime}] {name}')
+                     tags.append(f'[{ind}:{running_total}]+[{ind}:{running_total + evtime}] {round(evnt[1]*cycle_len, 2)}ms')
+                     running_total += evtime
        tdig['ef'] = ef
        
        # Final filtering
@@ -143,20 +144,11 @@ def plot(raw_data:int|list, scale="int"):
 def t_scale(params):
        optical = 1*ureg.ms
        detect = params["detect"]["on_time"] + params["detect"]["off_time"]
-       rf = 2*(params["rf"]["T_0"] + params["rf"]["T_ch"])
+       rf = 2*params["rf"]["T_0"] + params["rf"]["T_ch"]
        lf = params["lf"]["durations"][0] + params["lf"]["wait_times"][0]
        x = (t.to("ms").magnitude for t in [optical, detect, rf, lf])
        return (optical.to("ms").magnitude, detect.to("ms").magnitude, rf.to("ms").magnitude, lf.to("ms").magnitude)
 
 
 if __name__ == "__main__":
-       data, headers = get_experiment_data(1625324)
-
-       print(headers["params"]["field_plate"].keys())#["duration"])
-       # print(headers["params"]["field_plate"]["during"])
-       # print(t_scale(headers["params"]))  # .keys())
-       # inp = [('optical_ac', 25), ('rf_abar_bbar', 1), ('lf_8', 1), ('rf_abar_bbar', 1), ('detect_3', 256),
-       #        # ('break', 10),
-       #        ('optical_cb', 25), ('optical_ac', 25), ('rf_a_b', 1), ('lf_8', 1), ('rf_a_b', 1), ('detect_6', 256),
-       #        ('optical_cb', 25)]
-       plot(2025322, scale="int")
+       plot(2418714, scale="int")
