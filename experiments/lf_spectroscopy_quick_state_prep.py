@@ -64,7 +64,7 @@ cb_pumps = 25
 cleanouts = 0
 detects = 256
 lf_counts = 9
-freq_counts = 2
+freq_counts = 1
 
 default_params = {
     "name": "LF Spectroscopy Quick State Prep",
@@ -106,9 +106,9 @@ default_params = {
     },
     "lf": {
         "center_frequencies": [(140.7 + (jj * 0.2)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
-        "amplitudes": [1500 for kk in range(lf_counts * freq_counts)],
+        "amplitudes": [1000 for kk in range(lf_counts * freq_counts)],
         "wait_times": [0.35 * ureg.ms for kk in range(lf_counts * freq_counts)],
-        "durations": [0.035 * ureg.ms for kk in range(lf_counts * freq_counts)],
+        "durations": [0.05 * ureg.ms for kk in range(lf_counts * freq_counts)],
         "detunings": [0. * ureg.kHz for kk in range(lf_counts * freq_counts)],
         "phase_diffs": list(np.linspace(0, 2*np.pi, lf_counts)) * freq_counts,
     },
@@ -148,8 +148,8 @@ default_params = {
             ("lf_0", 1),
             ("rf_abar_bbar", 1),
             ("detect_3", detects),
-            ("optical_cb", cb_pumps),
             #("cleanout", cleanouts),
+            ("optical_cb", cb_pumps),
 
             ("optical_ac", ac_pumps),
             #("detect_4", detects),
@@ -160,8 +160,8 @@ default_params = {
             ("lf_0", 1),
             ("rf_a_b", 1),
             ("detect_6", detects),
-            ("optical_cb", cb_pumps),
             #("cleanout", cleanouts),
+            ("optical_cb", cb_pumps),
         ]
     }
 }
@@ -237,7 +237,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 # E FIELD DURING DETECTS
                 elif params["field_plate"]["relative_to_lf"] == "after":
                     params["sequence"]["sequence"] = [
-                        ("optical_cb", cb_pumps),
+
                         ("optical_ac", ac_pumps),
                         ("rf_abar_bbar", 1),
                         (f"lf_{lf_index}", 1),
@@ -248,8 +248,9 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                         (f"detect{e_field}_3", detects),
                         ("break", 11),
                         #("cleanout", cleanouts),
-
                         ("optical_cb", cb_pumps),
+
+
                         ("optical_ac", ac_pumps),
                         ("rf_a_b", 1),
                         (f"lf_{lf_index}", 1),
@@ -260,6 +261,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                         (f"detect{e_field}_6", detects),
                         ("break", 11),
                         #("cleanout", cleanouts),
+                        ("optical_cb", cb_pumps),
                     ]
                 sequence.setup_sequence()
                 m4i.setup_sequence_steps_only()
@@ -287,21 +289,17 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 print(f"({first_data_id}, {last_data_id})")
 
 ## Scan pi / 2 pulse duration
-carrier_frequencies = [0,1,2,3]
-while True:
-    for ii in carrier_frequencies:
-        if ii == 0:
-            default_params["lf"]["center_frequencies"] = [(140.7 + (0.2 * jj)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
-            run_1_experiment(repeats = 1)
-        elif ii == 1:
-            default_params["lf"]["center_frequencies"] = [(141.1 + (0.2 * jj)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
-            run_1_experiment(repeats = 1)
-        elif ii == 2:
-            default_params["lf"]["center_frequencies"] = [(141.5 + (0.2 * jj)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
-            run_1_experiment(repeats = 1)
-        elif ii == 3:
-            default_params["lf"]["center_frequencies"] = [(141.9 + (0.2 * jj)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
-            run_1_experiment(repeats = 1)
+pi_half_times = [6.25, 12.5, 25, 35, 50, 100] # us
+amplitudes = [8000, 4000, 2000, 1500, 1000, 500]
+carrier_frequencies = np.arange(140.7, 142.1, 0.2)
+
+for ii in range(len(pi_half_times)):
+    default_params["lf"]["durations"] = [pi_half_times[ii] * ureg.us for kk in range(lf_counts * freq_counts)]
+    default_params["lf"]["amplitude"] = [amplitudes[ii] for kk in range(lf_counts * freq_counts)]
+    for freq in carrier_frequencies:
+        default_params["lf"]["center_frequencies"] = [freq * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
+        run_1_experiment(repeats = 13)
+
 
 ## 2D RF amplitude and duration scan
 # duration_list = np.linspace(, 23,4)
