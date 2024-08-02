@@ -290,6 +290,7 @@ def save_data(
         "params": parameters,
         "detunings": sequence.analysis_parameters["detect_detunings"],
         "wavemeter": wavemeter_frequency(),
+        "sequence": sequence,
     }
     if extra_headers is None:
         extra_headers = {}
