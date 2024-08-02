@@ -19,7 +19,9 @@ def clean_txt(txt):
               return r"$a - b$"
        if txt[:6] == 'detect':
               return rf"$detect$"
-       return txt
+       if txt == "shutter_break":
+              return r"$shutter$ $break$"
+       return '$' + txt.strip("_") + "$"
 
 
 def plot(raw_data:int, scale:str ='int', detailed = False):
@@ -29,31 +31,31 @@ def plot(raw_data:int, scale:str ='int', detailed = False):
        :param scale: Size of events ('int', 'log', 'real')
        :return: Plot of the Pulse Sequence
        """
-       data, headers = get_experiment_data(2552361)
+       data, headers = get_experiment_data(raw_data)
        seq = headers["sequence"]
        # ef = [[], [], []]
        tdig = {i:[[],[], []] for i in headers["sequence"]._segments["__start"]._awg_pulses}
        trig_dig = {i:[[],[], []] for i in headers["sequence"]._segments["__start"]._ttl_pulses}
        running_total = 0
        tags = []
-
+       real_time = 0
        for evnt in seq._segment_steps:
               real_event = False
               # Time scale display
               cycle_len = seq._segments[evnt[0]].duration
               if scale == 'real':
-                     evtime, tiny_step = evnt[1]*cycle_len, headers["params"]["field_plate"]["ramp_time"].to("ms")
+                     evtime = evnt[1]*cycle_len 
               elif scale == "int":
-                     evtime, tiny_step = 1.5, 1
+                     evtime = 1.5
               elif scale == "log":
-                     evtime, tiny_step = np.log(evnt[1]*cycle_len) + 1, 1       
+                     evtime = np.log(evnt[1]*cycle_len) + 1       
               # Add each event to respective channel
               for fig in tdig:
                      if type(seq._segments[evnt[0]]._awg_pulses[fig]) is not AWGZero:
                             tdig[fig][0].append('1')
                             tdig[fig][1].append(running_total)
                             name = clean_txt(evnt[0])
-                            tdig[fig][2].append(((name,f"{round(evnt[1]*cycle_len, 2):~P}"), (running_total, running_total + evtime)))
+                            tdig[fig][2].append(((name,f"{round(evnt[1]*cycle_len, 2):#~}"), (running_total, running_total + evtime)))
                             real_event = True
                      elif tdig[fig][0] == [] or tdig[fig][0][-1] != '0':
                             tdig[fig][0].append('0')
@@ -65,7 +67,7 @@ def plot(raw_data:int, scale:str ='int', detailed = False):
                             trig_dig[fig][1].append(running_total)
                             name = clean_txt(evnt[0])
                             # print(name)
-                            trig_dig[fig][2].append(((name,f"{round(evnt[1]*cycle_len, 2):~P}"), (running_total, running_total + evtime)))
+                            trig_dig[fig][2].append(((name,f"{round(evnt[1]*cycle_len, 2):#~}"), (running_total, running_total + evtime)))
                             real_event = True
                      elif trig_dig[fig][0] == [] or trig_dig[fig][0][-1] != '0':
                             trig_dig[fig][0].append('0')
@@ -73,14 +75,16 @@ def plot(raw_data:int, scale:str ='int', detailed = False):
 
               if not real_event and detailed:
                      tags.append(f'[{0}^:{running_total}][{0}:{running_total + evtime}] {clean_txt(evnt[0])}')
-                     tags.append(f'[{0}:{running_total}]+[{0}:{running_total + evtime}] {round(evnt[1]*cycle_len, 2):#~P}')
+                     tags.append(f'[{0}:{running_total}]+[{0}:{running_total + evtime}] {round(evnt[1]*cycle_len, 2):#~}')
               
+              real_time += evnt[1]*cycle_len
+
               if real_event or detailed:
                      running_total += evtime
        
        # Final filtering
        dead_chnl = []
-       i = 0
+       i = 1
        for fig in tdig:
               tdig[fig][1].append(running_total)
               # From list to string (necesary to plot)
@@ -112,15 +116,16 @@ def plot(raw_data:int, scale:str ='int', detailed = False):
                      i += 1
        for chnl in dead_chnl:
               trig_dig.pop(chnl)
-
+       tags.append(f'[{i}:{0}]+[{i}:{running_total}] {real_time:#~}')
        with schemdraw.Drawing():
               logic.TimingDiagram(
-                     {'signal': [{'name': f'AWG:{awg_channels[i]['name']}', 'wave': tdig[i][0], 'async': tdig[i][1],}
-                                   for i in tdig] + [{'name': f'TTL: {ttl_channels[i]['name']}', 'wave': trig_dig[i][0], 'async': trig_dig[i][1],}
-                                   for i in trig_dig], 
+                     {'signal': [{'name': ' ', 'wave': "x6x", 'async': [0, running_total/9,running_total*8/9, running_total], 'data': [f'Data Set: {raw_data}']}, [['AWG']+[{'name': f'{awg_channels[i]['name']}', 'wave': tdig[i][0], 'async': tdig[i][1]}
+                                   for i in tdig]] + [['TTL'] + [{'name': f'{ttl_channels[i]['name']}', 'wave': trig_dig[i][0], 'async': trig_dig[i][1],}
+                                   for i in trig_dig]]], 
                      'edge': tags,
+                     'foot': {'text': ['tspan', f'Total Time = {real_time}']}
                      },
-                     ygap=.5, grid= False, risetime= 0)
+                     ygap=.5, grid= False, risetime= 0, )
 
 if __name__ == "__main__":
        plot(2552361, scale="int")
