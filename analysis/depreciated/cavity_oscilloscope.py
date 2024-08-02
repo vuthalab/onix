@@ -102,9 +102,9 @@ class Oscilloscope():
         ax.text(0.02, 0.1, results_str, transform=ax.transAxes)
         plt.grid()
         plt.show()
-        return fitter.results["tau"], fitter.errors["Tau"]
+        return fitter.results["tau"], fitter.errors["tau"]
 
 
-oscilloscope = Oscilloscope("/home/icarus/Documents/data/manual/2024_03/26")
+oscilloscope = Oscilloscope("/home/icarus/Documents/data/manual/2024_07/29")
 tau, err = oscilloscope.fit_ringdown()
 print(tau, err)

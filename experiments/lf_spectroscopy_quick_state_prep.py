@@ -63,7 +63,7 @@ ac_pumps = 25
 cb_pumps = 25
 cleanouts = 0
 detects = 256
-lf_counts = 9
+lf_counts = 7
 freq_counts = 1
 
 default_params = {
@@ -204,6 +204,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                     on_time = on_time,
                     set_params = True,
                 )
+
             for jj, lf_index in enumerate(lf_indices):
 
                 # E FIELD DURING OPTICAL (TODO: automate this list)
@@ -289,16 +290,10 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 print(f"({first_data_id}, {last_data_id})")
 
 ## Scan pi / 2 pulse duration
-pi_half_times = [6.25, 12.5, 25, 35, 50, 100] # us
-amplitudes = [8000, 4000, 2000, 1500, 1000, 500]
 carrier_frequencies = np.arange(140.7, 142.1, 0.2)
-
-for ii in range(len(pi_half_times)):
-    default_params["lf"]["durations"] = [pi_half_times[ii] * ureg.us for kk in range(lf_counts * freq_counts)]
-    default_params["lf"]["amplitude"] = [amplitudes[ii] for kk in range(lf_counts * freq_counts)]
-    for freq in carrier_frequencies:
-        default_params["lf"]["center_frequencies"] = [freq * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
-        run_1_experiment(repeats = 13)
+for freq in carrier_frequencies:
+    default_params["lf"]["center_frequencies"] = [freq * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
+    run_1_experiment(repeats = 13)
 
 
 ## 2D RF amplitude and duration scan
