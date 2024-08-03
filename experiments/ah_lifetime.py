@@ -73,7 +73,7 @@ default_params = {
         },
     },
     "rf": {
-        "amplitude": 0,
+        "amplitude": 5000,
     },
 }
 default_params = update_parameters_from_shared(default_params)
@@ -94,7 +94,7 @@ start_time = time.time()
 params = default_params.copy()
 first_data_id = None
 
-delta_detect_times = np.logspace(0.01, 1.1, num = 30)  * ureg.s
+delta_detect_times = np.logspace(0.01, 2, num = 10)  * ureg.s
 #delta_detect_times = [3600 * ureg.s]
 for delta_detect_time in delta_detect_times:
     params["detect"]["delta_detect_time"] = delta_detect_time

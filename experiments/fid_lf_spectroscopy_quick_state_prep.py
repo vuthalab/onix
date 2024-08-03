@@ -68,7 +68,7 @@ freq_counts = 1
 n_fid = 100
 
 default_params = {
-    "name": "LF Spectroscopy Quick State Prep",
+    "name": "FID, LF Spectroscopy Quick State Prep",
     "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "ao": {
@@ -88,13 +88,13 @@ default_params = {
         "simultaneous": False,
         "cycles": {},
         "fid": {
-            "use": False,
-            "pump_amplitude": 500,
-            "pump_time": 100 * ureg.us,
+            "use": True,
+            "pump_amplitude": 733,
+            "pump_time": 45 * ureg.us,
             "probe_detuning": -10 * ureg.MHz,
             "probe_amplitude": 180,
-            "probe_time": 30 * ureg.us,
-            "wait_time": 5 * ureg.us,
+            "probe_time": 50 * ureg.us,
+            "wait_time": 1 * ureg.us,
             "phase": 0,
         }
     },
@@ -112,6 +112,10 @@ default_params = {
         "durations": [0.05 * ureg.ms for kk in range(lf_counts * freq_counts)],
         "detunings": [0. * ureg.kHz for kk in range(lf_counts * freq_counts)],
         "phase_diffs": list(np.linspace(0, 2*np.pi, lf_counts)) * freq_counts,
+        "piov2_params": {
+            "amplitude": 1000,
+            "duration": 0.05 * ureg.ms,
+        }
     },
     "field_plate": {
         "method": "ttl",
@@ -139,31 +143,25 @@ default_params = {
         "ch2_range": 2,
     },
     "sequence": {
-        "sequence": [
-            ("optical_ac", ac_pumps),
-            ("optical_cb", cb_pumps),
-            ("rf_abar_bbar", 1),
-            ("lf_0", 1),
-            ("rf_abar_bbar", 1),
-
-            ("detect_3", detects),
-        ]
+        "sequence": [],
     }
 }
 default_params = update_parameters_from_shared(default_params)
-default_sequence = get_sequence(default_params)
-default_sequence.setup_sequence()
-setup_digitizer(
-    default_sequence.analysis_parameters["digitizer_duration"],
-    default_sequence.num_of_record_cycles(),
-    default_params["sequence_repeats_per_transfer"],
-    ch1_range=default_params["digitizer"]["ch1_range"],
-    ch2_range=default_params["digitizer"]["ch2_range"],
-    sample_rate=default_params["digitizer"]["sample_rate"],
-)
+def setup_digitizer_sequence(sequence):
+    setup_digitizer(
+        sequence.analysis_parameters["digitizer_duration"],
+        sequence.num_of_record_cycles(),
+        default_params["sequence_repeats_per_transfer"],
+        ch1_range=default_params["digitizer"]["ch1_range"],
+        ch2_range=default_params["digitizer"]["ch2_range"],
+        sample_rate=default_params["digitizer"]["sample_rate"],
+    )
+    print(sequence.analysis_parameters["digitizer_duration"], sequence.num_of_record_cycles())
 
-## Repeat the sequence
+## Repeat the sequence5
 default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
+
+did_not_do_first_setup_digitizer_sequence = True
 
 def run_1_experiment(only_print_first_last=False, repeats=50):
     params = default_params.copy()
@@ -178,75 +176,50 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             else:
                 params["field_plate"]["amplitude"] = default_field_plate_amplitude
             if params["field_plate"]["method"] == "ttl":
-                if params["field_plate"]["relative_to_lf"] == "before":
-                    on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence code!!!)))))
-                elif params["field_plate"]["relative_to_lf"] == "after":
-                    on_time = 10e-6 + sequence.field_plate_on_time.to("s").magnitude
+                params["sequence"]["sequence"] = [
+                    ("optical_cb", cb_pumps),
+                    ("optical_ac", ac_pumps),
+                    ("lfpiov2", 1),
+                    ("rf_abar_bbar", 1),
+                    (f"lf_0", 1),
+                    ("rf_abar_bbar", 1),
+                    ("break", 10000), # 50 ms wait
+                    ("field_plate_trigger", 1), # 50 us long, ttl
+                    ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))), # account for ramp time
+                    ("detect_3", 100),
+                    ("break", 11),
+                ]
+                sequence.setup_sequence()
+                on_time = 70e-6 + sequence.field_plate_on_time.to("s").magnitude
 
                 rigol.field_plate_output(
                     amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
                     ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
-                    on_time = on_time,
+                    on_time = on_time, # not including ramp time!
                     set_params = True,
                 )
+            else:
+                raise NotImplementedError()
+
             for jj, lf_index in enumerate(lf_indices):
-
-                # E FIELD DURING OPTICAL (TODO: automate this list)
-                if params["field_plate"]["relative_to_lf"] == "before":
-                    params["sequence"]["sequence"] = [
-                        ("field_plate_trigger", 1),
-                        #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
-                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        ("optical_cb", cb_pumps),
-                        ("optical_ac", ac_pumps),
-                        ("break", 11),
-                        ("rf_abar_bbar", 1),
-                        (f"lf_{lf_index}", 1),
-                        ("rf_abar_bbar", 1),
-                        (f"detect{e_field}_3", detects),
-                        #("cleanout", cleanouts),
-
-                        ("field_plate_trigger", 1),
-                        #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
-                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        ("optical_cb", cb_pumps),
-                        ("optical_ac", ac_pumps),
-                        ("break", 11),
-                        ("rf_a_b", 1),
-                        (f"lf_{lf_index}", 1),
-                        ("rf_a_b", 1),
-                        (f"detect{e_field}_6", detects),
-                        #("cleanout", cleanouts),
-                    ]
-
-                # E FIELD DURING DETECTS
-                elif params["field_plate"]["relative_to_lf"] == "after":
-                    params["sequence"]["sequence"] = [
-                        ("optical_cb", cb_pumps),
-                        ("optical_ac", ac_pumps),
-                        ("rf_abar_bbar", 1),
-                        (f"lf_{lf_index}", 1),
-                        ("rf_abar_bbar", 1),
-                        ("field_plate_trigger", 1),
-                       # ("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
-                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        (f"detect{e_field}_3", detects),
-                        ("break", 11),
-                        #("cleanout", cleanouts),
-
-                        ("optical_cb", cb_pumps),
-                        ("optical_ac", ac_pumps),
-                        ("rf_a_b", 1),
-                        (f"lf_{lf_index}", 1),
-                        ("rf_a_b", 1),
-                        ("field_plate_trigger", 1),
-                        #("break", int(params["field_plate"]["wait_time"]/(10 * ureg.us))),
-                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        (f"detect{e_field}_6", detects),
-                        ("break", 11),
-                        #("cleanout", cleanouts),
-                    ]
+                params["sequence"]["sequence"] = [
+                    ("optical_cb", cb_pumps),
+                    ("optical_ac", ac_pumps),
+                    ("lfpiov2", 1),
+                    ("rf_abar_bbar", 1),
+                    (f"lf_{lf_index}", 1),
+                    ("rf_abar_bbar", 1),
+                    ("break", 100000), # 50 ms wait
+                    ("field_plate_trigger", 1), # 50 us long, ttl
+                    ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))), # account for ramp time
+                    ("detect_3", 100),
+                    ("break", 11),
+                ]
                 sequence.setup_sequence()
+                global did_not_do_first_setup_digitizer_sequence
+                if did_not_do_first_setup_digitizer_sequence:
+                    setup_digitizer_sequence(sequence)
+                    did_not_do_first_setup_digitizer_sequence = False
                 m4i.setup_sequence_steps_only()
                 m4i.write_all_setup()
 
@@ -275,7 +248,7 @@ default_params["rf"]["T_ch"] = 21 * ureg.ms
 default_params["rf"]["amplitude"] = 3875
 
 while True:
-    run_1_experiment()
+    run_1_experiment(repeats=1000000)
 
 ## 2D RF amplitude and duration scan
 # duration_list = np.linspace(, 23,4)

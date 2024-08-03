@@ -62,7 +62,7 @@ cb_pumps = 25
 cleanouts = 0
 detects = 128
 
-scan_count = 30
+scan_count = 50
 
 default_params = {
     "name": "Simple LF Spectroscopy Quick State Prep",
@@ -103,18 +103,16 @@ default_params = {
         "offset": 30 * ureg.kHz,
     },
     "lf": {
-        "center_frequency": 141.146 * ureg.kHz,
+        "center_frequency": 141.146 * ureg.kHz, #250. * ureg.kHz, #141.146 * ureg.kHz,
 
-        "amplitudes": [1000 for kk in range(scan_count)],
+        "amplitudes": [10000 for kk in range(scan_count)],
 
         # FREQUENCY SCAN ( set scan count = 150 )
         # "durations": [2 * ureg.ms for kk in range(scan_count)],
-        # "detunings": [(-10 + (jj * 20/50)) * ureg.kHz for jj in range(scan_count)],
-        # "detunings": np.linspace(-8.5, 6.5, scan_count) * ureg.kHz,
+        # "detunings": np.linspace(-8, 5, scan_count) * ureg.kHz,
 
-        # TIME SCAN
-        # "durations": [(kk+1) * 0.02 * ureg.ms for kk in range(scan_count)],
-        "durations": np.linspace(0.01, 0.3, scan_count) * ureg.ms,
+        # TIME SCAN,
+        "durations": np.linspace(0.001, 0.1, scan_count) * ureg.ms,
         "detunings": [0 * ureg.kHz for jj in range(scan_count)],
 
         "this_detuning": None,
@@ -172,15 +170,6 @@ setup_digitizer(
 )
 
 ## Repeat the sequence
-default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
-
-amplitudes = [1000, 2500, 5000, 7500]
-T0s = np.flip([0.01, 0.05, 0.1, 0.15])
-Tes = np.flip([0.05, 0.1, 0.15, 0.2])
-Tchs = np.flip([0.75, 1, 2, 3, 4, 5, 6, 7, 8, 8.5, 9, 9.5, 10])
-
-
-
 def run_1_experiment(only__first_last=False, repeats=50):
     params = default_params.copy()
     sequence = get_sequence(params)
@@ -188,7 +177,7 @@ def run_1_experiment(only__first_last=False, repeats=50):
     m4i.setup_sequence(sequence)
 
     lf_indices = list(range(scan_count))
-    print("T0", params["rf"]["HSH"]["T_0"], "Te", params["rf"]["HSH"]["T_e"], "Tch", params["rf"]["HSH"]["T_ch"], "amplitude", params["rf"]["HSH"]["amplitude"])
+    # print("T0", params["rf"]["HSH"]["T_0"], "Te", params["rf"]["HSH"]["T_e"], "Tch", params["rf"]["HSH"]["T_ch"], "amplitude", params["rf"]["HSH"]["amplitude"])
 
     for kk in range(repeats):
         for jj, lf_index in enumerate(lf_indices):
@@ -225,20 +214,29 @@ def run_1_experiment(only__first_last=False, repeats=50):
                 temp = None
 
             data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
+            if only__first_last:
+                print(data_id)
             time.sleep(0.2)
             if kk == 0 and jj == 0:
                 start_id = data_id
             if kk == repeats-1 and jj == len(lf_indices)-1:
                 print(start_id, ",", data_id)
 
-for T0 in T0s:
-    for Te in Tes:
-        for Tch in Tchs:
-            for amplitude in amplitudes:
-                default_params["rf"]["HSH"]["amplitude"] = amplitude
-                default_params["rf"]["HSH"]["T_0"] = T0 * ureg.ms
-                default_params["rf"]["HSH"]["T_e"] = Te * ureg.ms
-                default_params["rf"]["HSH"]["T_ch"] = Tch * ureg.ms
-                start_time = time.time()
-                run_1_experiment(repeats=5)
-                print(time.time() - start_time)
+run_1_experiment(repeats=30, only__first_last=True)
+
+## HSH Scan
+# amplitudes = [1000, 2500, 5000, 7500]
+# T0s = np.flip([0.01, 0.05, 0.1, 0.15])
+# Tes = np.flip([0.05, 0.1, 0.15, 0.2])
+# Tchs = np.flip([0.75, 1, 2, 3, 4, 5, 6, 7, 8, 8.5, 9, 9.5, 10])
+# for T0 in T0s:
+#     for Te in Tes:
+#         for Tch in Tchs:
+#             for amplitude in amplitudes:
+#                 default_params["rf"]["HSH"]["amplitude"] = amplitude
+#                 default_params["rf"]["HSH"]["T_0"] = T0 * ureg.ms
+#                 default_params["rf"]["HSH"]["T_e"] = Te * ureg.ms
+#                 default_params["rf"]["HSH"]["T_ch"] = Tch * ureg.ms
+#                 start_time = time.time()
+#                 run_1_experiment(repeats=5)
+#                 print(time.time() - start_time)
