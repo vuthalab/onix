@@ -298,3 +298,25 @@ def save_data(
 
     data_id = save_experiment_data(parameters["name"], data, headers)
     return data_id
+
+def get_4k_platform_temp(average_time = 60):
+    if average_time > 10:
+        tables = query_api.query(
+                (
+                    f'from(bucket:"live") |> range(start: -{average_time}s) '
+                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
+                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
+                )
+                )
+        values =  np.array([record["_value"] for table in tables for record in table.records])
+        return np.average(values)
+    else:
+        tables = query_api.query(
+                (
+                    f'from(bucket:"live") |> range(start: -20s) '
+                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
+                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
+                )
+                )
+        values =  np.array([record["_value"] for table in tables for record in table.records])
+        return values[-1]

@@ -10,6 +10,7 @@ from onix.experiments.shared import (
     setup_digitizer,
     run_sequence,
     save_data,
+    get_4k_platform_temp,
 )
 from tqdm import tqdm
 from onix.headers.unlock_check import run_expt_check_lock
@@ -30,30 +31,6 @@ def get_sequence(params):
     sequence = LFQuickStatePrepAxion(params)
     return sequence
 
-## function to get 4K plate temp
-def get_4k_platform_temp(average_time = 60):
-    if average_time > 10:
-        tables = query_api.query(
-                (
-                    f'from(bucket:"live") |> range(start: -{average_time}s) '
-                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
-                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
-                )
-                )
-        values =  np.array([record["_value"] for table in tables for record in table.records])
-        return np.average(values)
-    else:
-        tables = query_api.query(
-                (
-                    f'from(bucket:"live") |> range(start: -20s) '
-                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
-                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
-                )
-                )
-        values =  np.array([record["_value"] for table in tables for record in table.records])
-        return values[-1]
-
-
 
 ## parameters
 ac_pumps = 25
@@ -62,7 +39,7 @@ cb_pumps = 25
 cleanouts = 0
 detects = 32  # switch
 
-scan_count = 4
+scan_count = 8
 
 default_params = {
     "name": "Simple LF Spectroscopy Quick State Prep",
@@ -90,7 +67,7 @@ default_params = {
             "amplitude": 3875,
             "T_0": 0.3 * ureg.ms,
             "T_e": 0.15 * ureg.ms,
-            "T_ch": 11 * ureg.ms,
+            "T_ch": 15 * ureg.ms,
             "scan_range": 45 * ureg.kHz,
         },
         "amplitude": 5000,
@@ -158,7 +135,7 @@ setup_digitizer(
 def run_1_experiment(repeats=5000):
     params = default_params.copy()
 
-    detects = 128
+    detects = 256
     print("single")
     params["detect"]["detunings"] = np.array([0.0]) * ureg.MHz
     params["sequence"]["sequence"] = [
