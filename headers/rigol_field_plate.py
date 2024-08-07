@@ -50,6 +50,7 @@ class Rigol():
         period = (on_time+ramp_time) * 1.1
         times = np.linspace(0, period, number_steps)
         ys = sign * amplitude/5 * (1/ramp_time*times*(times < ramp_time) + (times >= ramp_time)*(times < (on_time+ramp_time)))
+        self.write(":OUTPUT1:STATE OFF")
         self.write("SOURCE1:TRACE:DATA VOLATILE,"+ ",".join(map(str, ys)))
         if set_params:
             v_high = 10
@@ -59,10 +60,10 @@ class Rigol():
             self.write("SOURCE1:VOLTAGE:HIGH {:f}".format(v_high))
             self.write("SOURCE1:PERIOD {:f}".format(period))
             self.write("SOURCE1:BURSt:MODE TRIGgered")
-            self.set_ch_on_off(1, True)
 
         self.write("SOURCE1:BURSt ON")
-
+        self.write(":OUTPUT1:STATE ON")
+        
         
 # rigol = Rigol()
 # print(rigol.is_ch_on(1))
