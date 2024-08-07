@@ -10,6 +10,7 @@ from onix.experiments.shared import (
     setup_digitizer,
     run_sequence,
     save_data,
+    get_4k_platform_temp
 )
 from tqdm import tqdm
 from onix.headers.unlock_check import run_expt_check_lock
@@ -32,31 +33,6 @@ query_api = query_client.query_api()
 def get_sequence(params):
     sequence = LFSpectroscopyQuickStatePrep(params)
     return sequence
-
-## function to get 4K plate temp
-def get_4k_platform_temp(average_time = 60):
-    if average_time > 10:
-        tables = query_api.query(
-                (
-                    f'from(bucket:"live") |> range(start: -{average_time}s) '
-                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
-                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
-                )
-                )
-        values =  np.array([record["_value"] for table in tables for record in table.records])
-        return np.average(values)
-    else:
-        tables = query_api.query(
-                (
-                    f'from(bucket:"live") |> range(start: -20s) '
-                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
-                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
-                )
-                )
-        values =  np.array([record["_value"] for table in tables for record in table.records])
-        return values[-1]
-
-
 
 ## parameters
 ac_pumps = 25
@@ -105,7 +81,7 @@ default_params = {
         "scan_range": 45 * ureg.kHz,
     },
     "lf": {
-        "center_frequencies": [(140.7 + (jj * 0.2)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
+        "center_frequencies": [(141.146 + (jj * 0.2)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
         "amplitudes": [1000 for kk in range(lf_counts * freq_counts)],
         "wait_times": [0.35 * ureg.ms for kk in range(lf_counts * freq_counts)],
         "durations": [0.05 * ureg.ms for kk in range(lf_counts * freq_counts)],
@@ -289,11 +265,15 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             elif kk == 0 or kk == repeats - 1:
                 print(f"({first_data_id}, {last_data_id})")
 
+
+##
+run_1_experiment(repeats = int(9e9))
+
 ## Scan pi / 2 pulse duration
-carrier_frequencies = np.arange(140.7, 142.1, 0.2)
-for freq in carrier_frequencies:
-    default_params["lf"]["center_frequencies"] = [freq * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
-    run_1_experiment(repeats = 13)
+# carrier_frequencies = np.arange(140.7, 142.1, 0.2)
+# for freq in carrier_frequencies:
+#     default_params["lf"]["center_frequencies"] = [freq * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)]
+#     run_1_experiment(repeats = 13)
 
 
 ## 2D RF amplitude and duration scan
