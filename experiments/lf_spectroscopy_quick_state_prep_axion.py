@@ -33,8 +33,8 @@ def get_sequence(params):
 
 
 ## parameters
-ac_pumps = 50 #25
-cb_pumps = 50 #25
+ac_pumps = 25
+cb_pumps = 25
 
 cleanouts = 0
 detects = 32  # 32
@@ -171,11 +171,11 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                         ("optical_ac", ac_pumps),
                         ("break", 200),
                         ("lfpiov2", 1),
-                        ("detect{e_field}_1", detects),  # switch
+                        (f"detect{e_field}_1", detects),  # switch
                         ("rf_abarbbar", 1),
                         (f"lf_{lf_index}", 1),
                         ("rf_abarbbar", 1),
-                        ("detect{e_field}_2", detects),
+                        (f"detect{e_field}_2", detects),
                     ]
 
                 sequence.setup_sequence()
