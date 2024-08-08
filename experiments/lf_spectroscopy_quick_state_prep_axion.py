@@ -33,8 +33,8 @@ def get_sequence(params):
 
 
 ## parameters
-ac_pumps = 50
-cb_pumps = 50
+ac_pumps = 50 #25
+cb_pumps = 50 #25
 
 cleanouts = 0
 detects = 32  # 32
@@ -53,11 +53,11 @@ default_params = {
     },
     "detect": {
         "transition": "ac",
-        "detunings": np.array([-3, -1, 0, 1, 3]) * ureg.MHz,
+        "detunings": np.array([-6, -5, -4, -3, -2.5, -2, -1.7, -1.3, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.3, 1.7, 2, 2.5, 3, 4, 5, 6]) * ureg.MHz,
         "on_time": 100 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
-        "ao_amplitude": 180,
+        "ao_amplitude": 200,
         "simultaneous": False,
         "cycles": {}
     },
@@ -80,13 +80,13 @@ default_params = {
         "amplitude": 1000,
         "piov2_time": 50 * ureg.us,
         "wait_time": 350 * ureg.us,
-        "phase_diffs": np.flip(np.linspace(0, np.pi * 2, scan_count, endpoint=False)),
+        "phase_diffs": np.linspace(0, np.pi * 2, scan_count, endpoint=False)
     },
     "field_plate": {
         "method": "ttl",
         "relative_to_lf": "before",
-        "amplitude": 4500 * 2, #12800,
-        "stark_shift": 2.2 * 2 * ureg.MHz, #6.15 * ureg.MHz,
+        "amplitude": 12800, #* (32000/12800),
+        "stark_shift": 6.15 *ureg.MHz ,#* (32000/12800) * ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
         "use": True,
@@ -131,9 +131,84 @@ setup_digitizer(
     sample_rate=default_params["digitizer"]["sample_rate"],
 )
 
+
+## E Field Reversals
+default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
+
+def run_1_experiment(only_print_first_last=False, repeats=50):
+    params = default_params.copy()
+    sequence = get_sequence(params)
+    sequence.setup_sequence()
+    m4i.setup_sequence(sequence)
+    lf_indices = list(range(scan_count))
+    for kk in range(repeats):
+        for ll, e_field in enumerate(["_opposite", ""]):
+            #rigol.set_ch_on_off(1, False)
+            if ll == 0:
+                params["field_plate"]["amplitude"] = -default_field_plate_amplitude
+            else:
+                params["field_plate"]["amplitude"] = default_field_plate_amplitude
+            if params["field_plate"]["method"] == "ttl":
+                if params["field_plate"]["relative_to_lf"] == "before":
+                    on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence code!!!)))))
+                elif params["field_plate"]["relative_to_lf"] == "after":
+                    on_time = 10e-6 + sequence.field_plate_on_time.to("s").magnitude
+                print(f"Field plate amplitude = {params['field_plate']['amplitude']}")
+                rigol.field_plate_output(
+                    amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
+                    ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
+                    on_time = on_time,
+                    set_params = True,
+                )
+            for jj, lf_index in enumerate(lf_indices):
+
+                # E FIELD DURING OPTICAL (TODO: automate this list)
+                if params["field_plate"]["relative_to_lf"] == "before":
+                    params["sequence"]["sequence"] = [
+                        ("field_plate_trigger", 1),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("break", 200),
+                        ("lfpiov2", 1),
+                        ("detect{e_field}_1", detects),  # switch
+                        ("rf_abarbbar", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_abarbbar", 1),
+                        ("detect{e_field}_2", detects),
+                    ]
+
+                sequence.setup_sequence()
+                m4i.setup_sequence_steps_only()
+                m4i.write_all_setup()
+
+                def worker():
+                    start_time = time.time()
+                    data = run_sequence(sequence, params, skip_setup=True)
+                    return (start_time, data)
+                start_time, data = run_expt_check_lock(worker)
+                try:
+                    temp = get_4k_platform_temp(time.time() - start_time)
+                except:
+                    temp = None
+                data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
+                #time.sleep(0.5)
+                if jj == 0:
+                    first_data_id = data_id
+                elif jj == scan_count - 1:
+                    last_data_id = data_id
+            if not only_print_first_last:
+                print(f"({first_data_id}, {last_data_id})")
+            elif kk == 0 or kk == repeats - 1:
+                print(f"({first_data_id}, {last_data_id})")
+
+
+run_1_experiment(repeats=int(9e9))
+
+
 ## Repeat the sequence
-# def run_1_experiment(repeats=5000):
-#     params = default_params.copy()
+def run_1_experiment(repeats=5000):
+    params = default_params.copy()
 
     # detects = 256
     # print("single")
@@ -213,10 +288,10 @@ setup_digitizer(
     #             print(start_id)
     #         if jj == len(lf_indices)-1 and kk == repeats - 1:
     #             print(data_id)
-
+    #
     # ...
     # print("scan")
-
+    #
     # sequence = get_sequence(params)
     # sequence.setup_sequence()
     # m4i.setup_sequence(sequence)
@@ -267,128 +342,3 @@ setup_digitizer(
     #             start_id = data_id
     #         if jj == len(lf_indices)-1:
     #             print(start_id, ",", data_id)
-
-## E Field Reversals
-default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
-
-def run_1_experiment(only_print_first_last=False, repeats=50):
-    params = default_params.copy()
-    sequence = get_sequence(params)
-    sequence.setup_sequence()
-    m4i.setup_sequence(sequence)
-    lf_indices = list(range(scan_count))
-    for kk in range(repeats):
-        for ll, e_field in enumerate(["_opposite", ""]):
-            if ll == 0:
-                params["field_plate"]["amplitude"] = -default_field_plate_amplitude
-            else:
-                params["field_plate"]["amplitude"] = default_field_plate_amplitude
-            if params["field_plate"]["method"] == "ttl":
-                if params["field_plate"]["relative_to_lf"] == "before":
-                    on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence code!!!)))))
-                elif params["field_plate"]["relative_to_lf"] == "after":
-                    on_time = 10e-6 + sequence.field_plate_on_time.to("s").magnitude
-                print(params["field_plate"]["amplitude"])
-                rigol.field_plate_output(
-                    amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
-                    ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
-                    on_time = on_time,
-                    set_params = True,
-                )
-
-            for jj, lf_index in enumerate(lf_indices):
-
-                # E FIELD DURING OPTICAL (TODO: automate this list)
-                if params["field_plate"]["relative_to_lf"] == "before":
-                    params["sequence"]["sequence"] = [
-                        ("field_plate_trigger", 1),
-                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        ("optical_cb", cb_pumps),
-                        ("optical_ac", ac_pumps),
-                        ("break", 200),
-                        ("lfpiov2", 1),
-                        ("detect{e_field}_1", detects),  # switch
-                        ("rf_abarbbar", 1),
-                        (f"lf_{lf_index}", 1),
-                        ("rf_abarbbar", 1),
-                        ("detect{e_field}_2", detects),
-                    ]
-
-                sequence.setup_sequence()
-                m4i.setup_sequence_steps_only()
-                m4i.write_all_setup()
-
-                def worker():
-                    start_time = time.time()
-                    data = run_sequence(sequence, params, skip_setup=True)
-                    return (start_time, data)
-                start_time, data = run_expt_check_lock(worker)
-                end_time = time.time()
-                try:
-                    temp = get_4k_platform_temp(end_time - start_time)
-                except:
-                    temp = None
-                data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
-                time.sleep(0.5)
-                if jj == 0:
-                    first_data_id = data_id
-                elif jj == scan_count - 1:
-                    last_data_id = data_id
-            if not only_print_first_last:
-                print(f"({first_data_id}, {last_data_id})")
-            elif kk == 0 or kk == repeats - 1:
-                print(f"({first_data_id}, {last_data_id})")
-
-###
-def run_1_experiment_no_flip(only_print_first_last=False, repeats=50):
-    params = default_params.copy()
-    sequence = get_sequence(params)
-    sequence.setup_sequence()
-    m4i.setup_sequence(sequence)
-    lf_indices = list(range(scan_count))
-    for kk in range(repeats):
-        for jj, lf_index in enumerate(lf_indices):
-
-            # E FIELD DURING OPTICAL (TODO: automate this list)
-            if params["field_plate"]["relative_to_lf"] == "before":
-                params["sequence"]["sequence"] = [
-                    ("field_plate_trigger", 1),
-                    ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                    ("optical_cb", cb_pumps),
-                    ("optical_ac", ac_pumps),
-                    ("break", 200),
-                    ("lfpiov2", 1),
-                    ("detect_1", detects),  # switch
-                    ("rf_abarbbar", 1),
-                    (f"lf_{lf_index}", 1),
-                    ("rf_abarbbar", 1),
-                    ("detect_2", detects),
-                ]
-
-            sequence.setup_sequence()
-            m4i.setup_sequence_steps_only()
-            m4i.write_all_setup()
-
-            def worker():
-                start_time = time.time()
-                data = run_sequence(sequence, params, skip_setup=True)
-                return (start_time, data)
-            start_time, data = run_expt_check_lock(worker)
-            end_time = time.time()
-            try:
-                temp = get_4k_platform_temp(end_time - start_time)
-            except:
-                temp = None
-            data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
-            #time.sleep(0.2)
-            if jj == 0:
-                first_data_id = data_id
-            elif jj == scan_count - 1:
-                last_data_id = data_id
-        if not only_print_first_last:
-            print(f"({first_data_id}, {last_data_id})")
-        elif kk == 0 or kk == repeats - 1:
-            print(f"({first_data_id}, {last_data_id})")
-
-
-run_1_experiment(repeats=50000000)

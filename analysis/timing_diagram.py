@@ -143,8 +143,11 @@ def plot(raw_data:int|list, scale="int"):
 
 def t_scale(params):
        optical = 1*ureg.ms
-       detect = params["detect"]["on_time"] + params["detect"]["off_time"]
-       rf = 2*params["rf"]["T_0"] + params["rf"]["T_ch"]
+       detect = (params["detect"]["on_time"] + params["detect"]["off_time"] + params["detect"]["delay"])
+       try:
+           rf = 2*params["rf"]["T_0"] + params["rf"]["T_ch"]
+       except:
+           rf = 2*params["rf"]["HSH"]["T_0"] + params["rf"]["HSH"]["T_ch"]
        lf = params["lf"]["durations"][0] + params["lf"]["wait_times"][0]
        x = (t.to("ms").magnitude for t in [optical, detect, rf, lf])
        return (optical.to("ms").magnitude, detect.to("ms").magnitude, rf.to("ms").magnitude, lf.to("ms").magnitude)
