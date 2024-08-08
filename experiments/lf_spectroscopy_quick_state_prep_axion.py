@@ -35,7 +35,7 @@ def get_sequence(params):
 ## parameters
 ac_pumps = 25
 cb_pumps = 25
-
+chasms = 20
 cleanouts = 0
 detects = 32  # 32
 
@@ -51,9 +51,14 @@ default_params = {
     "optical": {
         "ao_amplitude": 2000,
     },
+    "chasm": {
+        "scan": 5 * ureg.MHz, # 3 MHz
+        "durations": 10 * ureg.ms, # 10 ms
+        "ao_amplitude": 2000,
+    },
     "detect": {
         "transition": "ac",
-        "detunings": np.array([-6, -5, -4, -3, -2.5, -2, -1.7, -1.3, -1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1, 1.3, 1.7, 2, 2.5, 3, 4, 5, 6]) * ureg.MHz,
+        "detunings": np.array([0, 0.1, -0.1, 0.2, -0.2, 0.4, -0.4, 0.7, -0.7, 1, -1, 2, -2]) * ureg.MHz,
         "on_time": 100 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
@@ -85,8 +90,8 @@ default_params = {
     "field_plate": {
         "method": "ttl",
         "relative_to_lf": "before",
-        "amplitude": 12800, #* (32000/12800),
-        "stark_shift": 6.15 *ureg.MHz ,#* (32000/12800) * ureg.MHz,
+        "amplitude": 4500/2, #12800,
+        "stark_shift": 1.1 *ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
         "use": True,
@@ -105,6 +110,7 @@ default_params = {
     },
     "sequence": {
         "sequence": [
+            #("chasm", chasms),
             ("field_plate_trigger", 1),
             ("break", int((3 * ureg.ms) / (10 * ureg.us))),
             ("optical_cb", cb_pumps),
@@ -143,7 +149,6 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
     lf_indices = list(range(scan_count))
     for kk in range(repeats):
         for ll, e_field in enumerate(["_opposite", ""]):
-            #rigol.set_ch_on_off(1, False)
             if ll == 0:
                 params["field_plate"]["amplitude"] = -default_field_plate_amplitude
             else:
@@ -165,6 +170,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 # E FIELD DURING OPTICAL (TODO: automate this list)
                 if params["field_plate"]["relative_to_lf"] == "before":
                     params["sequence"]["sequence"] = [
+                        #("chasm", chasms),
                         ("field_plate_trigger", 1),
                         ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
                         ("optical_cb", cb_pumps),

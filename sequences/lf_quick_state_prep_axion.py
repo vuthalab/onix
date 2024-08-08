@@ -12,7 +12,7 @@ from onix.sequences.sequence import (
 )
 import numpy as np
 from onix.models.hyperfine import energies
-from onix.sequences.shared import detect_segment
+from onix.sequences.shared import detect_segment, chasm_segment
 from onix.awg_maps import get_channel_from_name, get_ttl_channel_from_name
 from onix.units import ureg
 
@@ -28,6 +28,8 @@ class LFQuickStatePrepAxion(Sequence):
         }
         super().__init__()
         self._ao_parameters = parameters["ao"]
+        self._eos_parameters = parameters["eos"]
+        self._chasm_parameters = parameters["chasm"]
         self._field_plate_parameters = parameters["field_plate"]
         self._shutter_parameters = parameters["shutter"]
         self._optical_parameters = parameters["optical"]
@@ -37,12 +39,29 @@ class LFQuickStatePrepAxion(Sequence):
         self._lf_parameters = parameters["lf"]
         self._sequence_parameters = parameters["sequence"]
         self._cleanout_parameters = parameters["cleanout"]
+        self._define_chasm()
         self._define_optical()
         self._define_detect()
         self._define_rf()
         self._define_breaks()
         self._define_lf()
         self._define_field_plate_trigger()
+
+    def _define_chasm(self):
+        ao_channel = get_channel_from_name(self._ao_parameters["name"])
+        amplitude = self._chasm_parameters["ao_amplitude"]
+        detuning_ac = 0 * ureg.MHz
+        frequency_ac = self._ao_parameters["center_frequency"] + (
+            detuning_ac / self._ao_parameters["order"]
+        )
+        scan_range = self._chasm_parameters["scan"]
+        start_frequency = frequency_ac - scan_range
+        end_frequency = frequency_ac + scan_range
+        duration = self._chasm_parameters["durations"]
+        segment = Segment("chasm", duration=duration)
+        pulse = AWGSineSweep(start_frequency, end_frequency, amplitude, start_time = 0, end_time = duration)
+        segment.add_awg_function(ao_channel, pulse)
+        self.add_segment(segment)
 
     def _define_optical(self):
         optical_sequence_duration = 1 * ureg.ms
