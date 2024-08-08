@@ -1,7 +1,9 @@
+import time
+from typing import Literal
+
 import numpy as np
 import vxi11
-from typing import Literal
-import time
+
 
 class Rigol():
     def __init__(self, address="192.168.0.123"):
@@ -32,7 +34,7 @@ class Rigol():
         """
         Set ch [1, 2] on with boolean.
         """
-        self.write(f"OUTPUT{ch} {"ON" if state else "OFF"}")
+        self.write(f"OUTPUT{ch} {'ON' if state else 'OFF'}")
 
 
 
