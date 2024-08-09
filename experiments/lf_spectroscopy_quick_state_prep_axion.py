@@ -34,8 +34,8 @@ def get_sequence(params):
 
 ## parameters
 ac_pumps = 25
-cb_pumps = 25
-chasms = 20
+cb_pumps = 25*6
+chasms = 100 # 50?
 cleanouts = 0
 detects = 32  # 32
 
@@ -46,7 +46,7 @@ default_params = {
     "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "ao": {
-        "center_frequency": 75 * ureg.MHz,
+        "center_frequency": 73.15 * ureg.MHz,
     },
     "optical": {
         "ao_amplitude": 2000,
@@ -54,15 +54,15 @@ default_params = {
     "chasm": {
         "scan": 5 * ureg.MHz, # 3 MHz
         "durations": 10 * ureg.ms, # 10 ms
-        "ao_amplitude": 2000,
+        "ao_amplitude": 3000,
     },
     "detect": {
         "transition": "ac",
-        "detunings": np.array([0, 0.1, -0.1, 0.2, -0.2, 0.4, -0.4, 0.7, -0.7, 1, -1, 2, -2]) * ureg.MHz,
+        "detunings": np.array([-1,-0.7,-0.5,-0.4,-0.15,0,0.15,0.3, 0.5,0.7,0.9]) * ureg.MHz,
         "on_time": 100 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
-        "ao_amplitude": 200,
+        "ao_amplitude": 130,
         "simultaneous": False,
         "cycles": {}
     },
@@ -90,7 +90,7 @@ default_params = {
     "field_plate": {
         "method": "ttl",
         "relative_to_lf": "before",
-        "amplitude": 4500/2, #12800,
+        "amplitude": 4500/2,
         "stark_shift": 1.1 *ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
@@ -110,9 +110,10 @@ default_params = {
     },
     "sequence": {
         "sequence": [
-            #("chasm", chasms),
             ("field_plate_trigger", 1),
             ("break", int((3 * ureg.ms) / (10 * ureg.us))),
+            #("chasm", chasms),
+            #("detect_1", detects),
             ("optical_cb", cb_pumps),
             ("optical_ac", ac_pumps),
             ("break", 11),
@@ -170,9 +171,10 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 # E FIELD DURING OPTICAL (TODO: automate this list)
                 if params["field_plate"]["relative_to_lf"] == "before":
                     params["sequence"]["sequence"] = [
-                        #("chasm", chasms),
                         ("field_plate_trigger", 1),
                         ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        #(f"detect{e_field}_1", detects),
+                        #("chasm", chasms),
                         ("optical_cb", cb_pumps),
                         ("optical_ac", ac_pumps),
                         ("break", 200),
@@ -181,6 +183,27 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                         ("rf_abarbbar", 1),
                         (f"lf_{lf_index}", 1),
                         ("rf_abarbbar", 1),
+                        (f"detect{e_field}_2", detects),
+                    ]
+
+
+                # E FIELD DURING DETECT (TODO: automate this list)
+                if params["field_plate"]["relative_to_lf"] == "after":
+                    params["sequence"]["sequence"] = [
+                        ("chasm", chasms),
+                        #(f"detect{e_field}_1", detects),
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("break", 200),
+                        ("lfpiov2", 1),
+                        ("field_plate_trigger", 1),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        (f"detect{e_field}_1", detects),  # switch
+                        ("rf_abarbbar", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_abarbbar", 1),
+                        ("field_plate_trigger", 1),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
                         (f"detect{e_field}_2", detects),
                     ]
 
@@ -198,7 +221,8 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 except:
                     temp = None
                 data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
-                #time.sleep(0.5)
+                time.sleep(1)
+                print(data_id)
                 if jj == 0:
                     first_data_id = data_id
                 elif jj == scan_count - 1:

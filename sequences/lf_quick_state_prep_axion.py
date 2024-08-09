@@ -60,6 +60,7 @@ class LFQuickStatePrepAxion(Sequence):
         duration = self._chasm_parameters["durations"]
         segment = Segment("chasm", duration=duration)
         pulse = AWGSineSweep(start_frequency, end_frequency, amplitude, start_time = 0, end_time = duration)
+        print(start_frequency, end_frequency, amplitude)
         segment.add_awg_function(ao_channel, pulse)
         self.add_segment(segment)
 
