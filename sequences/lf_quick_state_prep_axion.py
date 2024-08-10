@@ -50,18 +50,29 @@ class LFQuickStatePrepAxion(Sequence):
     def _define_chasm(self):
         ao_channel = get_channel_from_name(self._ao_parameters["name"])
         amplitude = self._chasm_parameters["ao_amplitude"]
+
         detuning_ac = 0 * ureg.MHz
         frequency_ac = self._ao_parameters["center_frequency"] + (
             detuning_ac / self._ao_parameters["order"]
         )
         scan_range = self._chasm_parameters["scan"]
-        start_frequency = frequency_ac - scan_range
-        end_frequency = frequency_ac + scan_range
+        start_frequency = frequency_ac - scan_range/self._ao_parameters["order"]
+        end_frequency = frequency_ac + scan_range/self._ao_parameters["order"]
         duration = self._chasm_parameters["durations"]
         segment = Segment("chasm", duration=duration)
         pulse = AWGSineSweep(start_frequency, end_frequency, amplitude, start_time = 0, end_time = duration)
-        print(start_frequency, end_frequency, amplitude)
+        
         segment.add_awg_function(ao_channel, pulse)
+
+        # detuning_cb = -18 * ureg.MHz
+        # frequency_cb = self._ao_parameters["center_frequency"] + (
+        #     detuning_cb / self._ao_parameters["order"]
+        # )
+        # start_frequency = frequency_cb - scan_range
+        # end_frequency = frequency_cb + scan_range
+        # pulse = AWGSineSweep(start_frequency, end_frequency, amplitude, start_time = duration, end_time = 2*duration)        
+
+        # segment.add_awg_function(ao_channel, pulse)
         self.add_segment(segment)
 
     def _define_optical(self):
@@ -146,11 +157,13 @@ class LFQuickStatePrepAxion(Sequence):
             duration = self._rf_parameters["duration"]
             segment = Segment(f"rf_ab", duration=duration)
             pulse = AWGSinePulse(center_frequency + detuning_ab, amplitude)
+            print(center_frequency+detuning_ab)
             segment.add_awg_function(rf_channel, pulse)
             self.add_segment(segment)
 
             segment = Segment(f"rf_abarbbar", duration=duration)
             pulse = AWGSinePulse(center_frequency + detuning_abarbbar, amplitude)
+            print(center_frequency+detuning_abarbbar)
             segment.add_awg_function(rf_channel, pulse)
             self.add_segment(segment)
 
@@ -179,6 +192,7 @@ class LFQuickStatePrepAxion(Sequence):
 
         segment = Segment(f"lfpiov2", duration=0.05*ureg.ms)
         pulse = AWGSinePulse(141.146 * ureg.kHz, 1000)
+        # pulse = AWGSinePulse(100 * ureg.kHz, 1000)
         segment.add_awg_function(lf_channel, pulse)
         self.add_segment(segment)
 
