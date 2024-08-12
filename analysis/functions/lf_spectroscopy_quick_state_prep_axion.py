@@ -89,7 +89,7 @@ def get_experiment_result(data_number):
         pop_other_state_1 = - data["2"]
     return (header, detunings, pop_other_state_1, total_pop_1)
 
-def get_results(data_identification):
+def get_results(data_identification, fitted_freq_offset = np.inf, fitted_amp_difference = np.inf, chi_cutoff = np.inf):
     """
     Input the data identification for one Ramsey fringe. Fits the optical holes. 
 
@@ -106,12 +106,12 @@ def get_results(data_identification):
                 detunings,
                 unumpy.nominal_values(pop_other_state),
                 p0 = {"f1":-stark_shift, "f2": stark_shift},
-                fitted_freq_offset = np.inf,
-                fitted_amp_difference = np.inf,
-                chi_cutoff = np.inf
+                fitted_freq_offset = fitted_freq_offset,
+                fitted_amp_difference = fitted_amp_difference,
+                chi_cutoff = chi_cutoff
                 )
             if fitter is None:
-                return None
+                return None, None
             else:
                 headers.append(header)
                 results.append(

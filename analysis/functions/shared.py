@@ -7,6 +7,8 @@ from onix.analysis.helper import group_and_average_data
 Shared analysis functions used for every experiment. 
 """
 
+analysis_dnum = 613
+
 def data_identification_to_list(data_identification):
     if isinstance(data_identification, tuple):
         return range(data_identification[0], data_identification[1] + 1)
