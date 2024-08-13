@@ -228,11 +228,10 @@ def _flatten_dict(d, flattened_dict, current_path=[]):
     for key, value in d.items():
         new_path = current_path + [key]
         _flatten_dict(value,flattened_dict, new_path)
-
+        
 def compare_experiments(data_number1, data_number2):
     """
     Prints parameters of two experiments which are different. 
-    TODO: Will falsely return parameters as different if they are lists with quantities, for example lf phase differences, and rf pump scan detunings. 
     """
     _, headers1 = get_experiment_data(data_number1)
     _, headers2 = get_experiment_data(data_number2)
@@ -240,28 +239,41 @@ def compare_experiments(data_number1, data_number2):
     _flatten_dict(headers1["params"], flattened1)
     flattened2 = {}
     _flatten_dict(headers2["params"], flattened2)
+    
     for kk in flattened1:
-        if type(flattened1[kk]) == pint.Quantity:
-            vals = flattened1[kk].magnitude
         try:
-            if flattened1[kk] == flattened2[kk]:
-                continue
+            # if flattened1[kk] is a list of quantities:
+            if all(isinstance(x, pint.Quantity) for x in flattened1[kk]) is True:
+                # to check if a list of quantities are the same you must do this
+                if str(flattened1[kk].magnitude) == str(flattened2[kk].magnitude):
+                    continue
+                else:
+                    print(f"{kk}: {flattened1[kk]} \t {flattened2[kk]}")
             else:
-                print(f"{kk}: {flattened1[kk]} \t {flattened2[kk]}")
+                continue
         except:
             try:
-                print(f"{kk}: {flattened1[kk]} \t {flattened2[kk]}")
+                if flattened1[kk] == flattened2[kk]:
+                    continue
+                else:
+                    print(f"{kk}: {flattened1[kk]} \t {flattened2[kk]}")
             except:
-                continue
+                 # if flattened1 has keys which flattened2 does not
+                try:
+                    print(f"{kk}: {flattened1[kk]} \t {flattened2[kk]}")
+                except:
+                    continue
+                
     keys1 = set(flattened1.keys())
     keys2 = set(flattened2.keys())
-    missing1 = keys1 - keys2
-    missing2 = keys2 - keys2
+    missing1 = keys1 - keys2 # keys in experiment 1 params but not experiment 2 params
+    missing2 = keys2 - keys1
 
     if len(missing1) != 0:
         print(f"{data_number2} is missing:")
         for i in missing1:
             print("\t" + i)
+            
     if len(missing2) != 0:
         print(f"{data_number1} is missing:")
         for i in missing2:
