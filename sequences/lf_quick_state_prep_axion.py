@@ -88,6 +88,7 @@ class LFQuickStatePrepAxion(Sequence):
         segment.add_awg_function(ao_channel, pulse)
         self.add_segment(segment)
 
+
         detuning_cb = -18 * ureg.MHz
         frequency_cb = self._ao_parameters["center_frequency"] + (
             detuning_cb / self._ao_parameters["order"]
