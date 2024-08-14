@@ -35,7 +35,7 @@ def get_sequence(params):
 ## parameters
 ac_pumps = 25
 cb_pumps = 25
-chasms = 40
+chasms = 0
 cleanouts = 0
 detects = 32
 scan_count = 8
@@ -45,7 +45,7 @@ default_params = {
     "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "ao": {
-        "center_frequency": 80 * ureg.MHz, #73.15 * ureg.MHz,
+        "center_frequency": 72 * ureg.MHz, #73.15 * ureg.MHz,
     },
     "optical": {
         "ao_amplitude": 2000,
@@ -59,7 +59,7 @@ default_params = {
     },
     "detect": {
         "transition": "ac",
-        #"detunings": np.array([-3. , -2. , -1.7, -1.5, -1.3, -1.1, -0.9, -0.7, -0.2,  0.2,  0.7, 0.9,  1.1,  1.3,  1.5,  1.7,  2. ,  3. ]) * ureg.MHz,
+        #"detunings": np.array([-3.0, -2.0, -1.7, -1.5, -1.3, -1.1, -0.9, -0.7, -0.2, 0.2, 0.7, 0.9, 1.1, 1.3, 1.5, 1.7, 2.0, 3.0]) * ureg.MHz,
         "detunings": np.linspace(-10, 10, 50) * ureg.MHz,
         "on_time": 100 * ureg.us,
         "off_time": 2 * ureg.us,
@@ -76,7 +76,7 @@ default_params = {
             "T_ch": 15 * ureg.ms,
             "scan_range": 45 * ureg.kHz,
         },
-        "detuning_ab": 53 * ureg.kHz,
+        "detuning_ab": 53 * ureg.kHz, ## fix
         "detuning_abarbbar": -57 * ureg.kHz,
         "amplitude": 5000,
         "duration":15 * ureg.ms,
@@ -93,11 +93,11 @@ default_params = {
     "field_plate": {
         "method": "ttl",
         "relative_to_lf": "before",
-        "amplitude": 4500,
-        "stark_shift": 2.2 *ureg.MHz,
+        "amplitude": 2250,
+        "stark_shift": 1.1 *ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
-        "use": True,
+        "use": False, # this should probably be true, but previously I had put it as false
     },
     "digitizer": {
         "sample_rate": 25e6,
@@ -119,7 +119,7 @@ default_params = {
             (f"detect_2", detects),
         ]
     },
-    "sleep": 0 * ureg.s,
+    "sleep": 1 * ureg.s,
 }
 default_params = update_parameters_from_shared(default_params)
 default_sequence = get_sequence(default_params)
@@ -289,17 +289,17 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 # E FIELD DURING STATE PREP
                 if params["field_plate"]["relative_to_lf"] == "before":
                     params["sequence"]["sequence"] = [
-                        ("chasm", chasms),
-                        ("field_plate_trigger", 1),
-                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        ("optical_cb", cb_pumps),
-                        ("optical_ac", ac_pumps),
-                        ("break", 200),
-                        ("lfpiov2", 1),
+                        #("chasm", chasms),
+                        #("field_plate_trigger", 1),
+                        #("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        #("optical_cb", cb_pumps),
+                        #("optical_ac", ac_pumps),
+                        #("break", 200),
+                        #("lfpiov2", 1),
                         (f"detect{e_field}_1", detects),
-                        ("rf_abarbbar", 1),
-                        (f"lf_{lf_index}", 1),
-                        ("rf_abarbbar", 1),
+                        #("rf_abarbbar", 1),
+                        #(f"lf_{lf_index}", 1),
+                        #("rf_abarbbar", 1),
                         (f"detect{e_field}_2", detects),
                     ]
 
@@ -332,10 +332,10 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 print(f"({first_data_id}, {last_data_id})")
 
 ###
-#run_1_experiment_one_E_field(repeats = int(9e9))
+run_1_experiment(repeats = int(9e9))
 ###
-cb_detunings = np.array([-19, -18.5, -18, -17.5, -17])
-for cb_detuning in cb_detunings:
-    print("cb detuning: ", cb_detuning)
-    default_params["optical"]["cb_detuning"] = cb_detuning * ureg.MHz
-    run_1_experiment(True, 600)
+# cb_detunings = np.array([-19, -18.5, -18, -17.5, -17])
+# for cb_detuning in cb_detunings:
+#     print("cb detuning: ", cb_detuning)
+#     default_params["optical"]["cb_detuning"] = cb_detuning * ureg.MHz
+#     run_1_experiment(True, 600)

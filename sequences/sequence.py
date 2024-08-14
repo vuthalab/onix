@@ -297,6 +297,61 @@ class AWGSinePulse(AWGFunction):
     @property
     def max_amplitude(self):
         return self._amplitude
+    
+class AWGTwoSinePulse(AWGFunction):
+    def __init__(
+        self,
+        frequency1: Union[float, Q_],
+        frequency2: Union[float, Q_],
+        amplitude: float,
+        phase: float = 0,
+        start_time: Optional[Union[float, Q_]] = None,
+        end_time: Optional[Union[float, Q_]] = None,
+    ):
+        super().__init__()
+        if isinstance(frequency1, numbers.Number):
+            frequency1 = frequency1 * ureg.Hz
+        self._frequency1: Q_ = frequency1
+        if isinstance(frequency2, numbers.Number):
+            frequency2 = frequency2 * ureg.Hz
+        self._frequency2: Q_ = frequency2
+        self._amplitude = amplitude/2 # divide by two so doesn't go past max allowable amplitude with 2 sinusoids
+        self._phase = phase
+        if isinstance(start_time, numbers.Number):
+            start_time = start_time * ureg.s
+        self._start_time: Union[Q_, None] = start_time
+        if isinstance(end_time, numbers.Number):
+            end_time = end_time * ureg.s
+        self._end_time: Union[Q_, None] = end_time
+
+    def output(self, times):
+        frequency1 = self._frequency1.to("Hz").magnitude
+        frequency2 = self._frequency2.to("Hz").magnitude
+        sine = self._amplitude * (np.sin(2 * np.pi * frequency1 * times + self._phase) + np.sin(2 * np.pi * frequency2 * times + self._phase))
+        if self._start_time is not None:
+            start_time = self._start_time.to("s").magnitude
+            mask_start = np.heaviside(times - start_time, 0)
+        else:
+            mask_start = 1
+        if self._end_time is not None:
+            end_time = self._end_time.to("s").magnitude
+            mask_end = np.heaviside(end_time - times, 1)
+        else:
+            mask_end = 1
+        return sine * mask_start * mask_end
+
+    @property
+    def min_duration(self) -> Q_:
+        if self._end_time is not None:
+            return self._end_time
+        if self._start_time is not None:
+            return self._start_time
+        return 0 * ureg.s
+
+    @property
+    def max_amplitude(self):
+        return self._amplitude
+
 
 class AWGSimultaneousSinePulses(AWGFunction):
     def __init__(

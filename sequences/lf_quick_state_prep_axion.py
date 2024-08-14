@@ -4,6 +4,7 @@ from onix.sequences.sequence import (
     AWGConstant,
     AWGHSHPulse,
     AWGSinePulse,
+    AWGTwoSinePulse,
     AWGSineSweep,
     Segment,
     SegmentEmpty,
@@ -89,12 +90,20 @@ class LFQuickStatePrepAxion(Sequence):
         self.add_segment(segment)
 
 
-        detuning_cb = -18 * ureg.MHz
+        detuning_cb = self._optical_parameters["cb_detuning"]
         frequency_cb = self._ao_parameters["center_frequency"] + (
             detuning_cb / self._ao_parameters["order"]
         )
         segment = Segment("optical_cb", duration=optical_sequence_duration)
-        pulse = AWGSinePulse(frequency_cb, amplitude)
+
+        if self._optical_parameters["use_mirror_cb"]:
+            detuning_cb_mirror = -18 * ureg.MHz
+            frequency_cb_mirror = self._ao_parameters["center_frequency"] + (
+                detuning_cb_mirror / self._ao_parameters["order"]
+            )
+            pulse = AWGTwoSinePulse(frequency_cb, frequency_cb_mirror, amplitude)
+        else:
+            pulse = AWGSinePulse(frequency_cb, amplitude)
         segment.add_awg_function(ao_channel, pulse)
         self.add_segment(segment)
 
@@ -139,14 +148,14 @@ class LFQuickStatePrepAxion(Sequence):
             scan_range = self._rf_parameters["HSH"]["scan_range"]
 
             abar_bbar_detuning = -57 * ureg.kHz
-            pulse_center_abar_bbar = center_frequency + self._rf_parameters["offset"] + abar_bbar_detuning
+            pulse_center_abar_bbar = center_frequency + abar_bbar_detuning
             segment = Segment("rf_abarbbar", duration=2*T_0 + T_ch)
             pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, pulse_center_abar_bbar, scan_range)
             segment.add_awg_function(rf_channel, pulse)
             self.add_segment(segment)
 
             a_b_detuning = 53 * ureg.kHz
-            pulse_center_a_b = center_frequency + self._rf_parameters["offset"] + a_b_detuning
+            pulse_center_a_b = center_frequency + a_b_detuning
             segment = Segment("rf_ab", duration=2*T_0 + T_ch)
             pulse = AWGHSHPulse(amplitude, T_0, T_e, T_ch, pulse_center_a_b, scan_range)
             segment.add_awg_function(rf_channel, pulse)

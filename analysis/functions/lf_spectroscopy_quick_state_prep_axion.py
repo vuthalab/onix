@@ -258,3 +258,70 @@ def histogram_slopes(data_range, max, bins = 30, plot = True, title = None):
             ax.set_title(title)
     print(slopes_str)
     return slopes_E_pos, slopes_E_neg
+
+
+def hole_SNR_over_time(data_range, max, linear_term = False, errorbars = False, plot = True, title = None, note = None):
+    """
+    Fit the holes of these data sets to the sum of two Gaussians.
+    Plot the SNR on the amplitude of the holes over time. 
+    """
+
+    SNR_E_pos = []
+    SNR_E_neg = []
+    times_E_pos = []
+    times_E_neg = []
+
+    start_num = data_range[0]
+    package_size = data_range[1] - data_range[0] + 1
+    
+    e_start_pos = False
+    d, h = get_experiment_data(start_num)
+    if h["params"]["field_plate"]["amplitude"] > 0:
+        e_start_pos = True
+    
+    while start_num <= max:
+        for kk in range(package_size):
+            fitter = plot_hole(start_num+kk, errorbars = errorbars, linear_term = linear_term, plot = False)
+            avg_hole_height = np.mean([fitter.results["a1"], fitter.results["a2"]])
+            error = np.sqrt((0.5 * fitter.errors["a1"])**2 + (0.5 * fitter.errors["a2"])**2)
+            SNR_hole = avg_hole_height / error
+            d, h = get_experiment_data(start_num+kk)
+            t = h["start_time"]
+            if e_start_pos is True:
+                SNR_E_pos.append(SNR_hole)
+                times_E_pos.append(t)
+            else:
+                SNR_E_neg.append(SNR_hole)
+                times_E_neg.append(t)
+
+        for kk in range(package_size):
+            fitter = plot_hole(start_num+kk, errorbars = errorbars, linear_term = linear_term, plot = False)
+            avg_hole_height = np.mean([fitter.results["a1"], fitter.results["a2"]])
+            error = np.sqrt((0.5 * fitter.errors["a1"])**2 + (0.5 * fitter.errors["a2"])**2)
+            SNR_hole = avg_hole_height / error
+            d, h = get_experiment_data(start_num+kk)
+            t = h["start_time"]
+            if e_start_pos is True:
+                SNR_E_neg.append(SNR_hole)
+                times_E_neg.append(t)
+            else:
+                SNR_E_pos.append(SNR_hole)
+                times_E_pos.append(t)
+    
+        start_num += 2*package_size
+
+
+    if plot:
+        fig, ax = plt.subplots()
+        ax.plot(times_E_pos, SNR_E_pos, label = "$E>0$", alpha = 0.4)
+        ax.plot(times_E_neg, SNR_E_neg, label = "$E<0$", alpha = 0.4)
+        ax.text(0, 1.02, f"#{data_range[0]} - #{max}", transform = ax.transAxes)
+        ax.set_xlabel("Time (s) + offset")
+        ax.set_ylabel("SNR in fitted optical holes")
+        ax.legend()
+        ax.grid()
+        if title is not None:
+            ax.set_title(title)
+        if note is not None:
+            ax.text(0.2,0.2, note, transform = ax.transAxes)
+    return times_E_pos, times_E_neg, SNR_E_pos, SNR_E_neg

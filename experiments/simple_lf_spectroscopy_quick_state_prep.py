@@ -100,7 +100,7 @@ default_params = {
         "duration": 0.15 * ureg.ms,
         "detuning_ab": 50 * ureg.kHz,
         "detuning_abarbbar": -60 * ureg.kHz,
-        "offset": 30 * ureg.kHz,
+        "offset": 10 * ureg.kHz,
     },
     "lf": {
         "center_frequency": 141.146 * ureg.kHz, #250. * ureg.kHz, #141.146 * ureg.kHz,
