@@ -269,3 +269,13 @@ def inverse_fa_limit(frequency, theta_QCD_amplitude):
     frequency_natural = frequency * 2 * np.pi / frequency_natural_to_SI  # GeV
     a0_over_fa = theta_QCD_amplitude  # this is simply the definition of axions.
     return a0_over_fa * frequency_natural / np.sqrt(2 * rho_DM_natural)
+
+
+def axion_frequency_to_mass(frequency):
+    """Hz to eV"""
+    return 2 * np.pi * frequency * _c.hbar / _c.e
+
+
+def axion_mass_to_frequency(mass):
+    """eV to Hz"""
+    return mass * _c.e / (2 * np.pi * _c.hbar)
