@@ -201,9 +201,16 @@ class LFQuickStatePrepAxion(Sequence):
             segment.add_awg_function(lf_channel, pulse)
             self.add_segment(segment)
 
-        segment = Segment(f"lfpiov2", duration=0.05*ureg.ms)
-        pulse = AWGSinePulse(141.146 * ureg.kHz, 1000)
-        # pulse = AWGSinePulse(100 * ureg.kHz, 1000)
+        segment = Segment(f"lfpiov2")
+        piov2_time = 0.05 * ureg.ms
+        pulse = AWGCompositePulse(
+            [piov2_time * 119 / 90, piov2_time * 183 / 90, piov2_time * 211 / 90, piov2_time * 384 / 90, piov2_time * 211 / 90, piov2_time * 183 / 90, piov2_time * 119 / 90],
+            [141.2 * ureg.kHz] * 7,
+            [1000] * 7,
+            [np.pi, 0, np.pi, 0, np.pi, 0, np.pi],
+        )
+        # segment = Segment(f"lfpiov2", duration=0.05*ureg.ms)
+        # pulse = AWGSinePulse(141.2 * ureg.kHz, 1000)
         segment.add_awg_function(lf_channel, pulse)
         self.add_segment(segment)
 

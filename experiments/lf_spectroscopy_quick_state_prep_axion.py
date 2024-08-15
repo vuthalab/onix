@@ -35,9 +35,9 @@ def get_sequence(params):
 ## parameters
 ac_pumps = 25 #250*2
 cb_pumps = 25 #250*2
-chasms = 40#400*2
+chasms = 10#400*2
 cleanouts = 0
-detects = 32
+detects = 128
 scan_count = 8
 
 # four total experiments: (chasm , no chasm) x (mirror_cb, no mirror_cb)
@@ -70,17 +70,17 @@ default_params = {
         "on_time": 100 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
-        "ao_amplitude": 200,
+        "ao_amplitude": 220,
         "simultaneous": False,
     },
     "rf": {
         "HSH": {
             "use": True,
-            "amplitude": 3875,
+            "amplitude": 4000,
             "T_0": 0.3 * ureg.ms,
             "T_e": 0.15 * ureg.ms,
-            "T_ch": 15 * ureg.ms,
-            "scan_range": 45 * ureg.kHz,
+            "T_ch": 25 * ureg.ms,
+            "scan_range": 60 * ureg.kHz,
         },
         "detuning_ab": 55 * ureg.kHz, # 53
         "detuning_abarbbar": -60 * ureg.kHz, # -57
@@ -128,16 +128,12 @@ default_params = {
     "sleep": 0 * ureg.s,
 }
 default_params = update_parameters_from_shared(default_params)
-default_sequence = get_sequence(default_params)
-default_sequence.setup_sequence()
-
 
 
 ## E Field Reversals
 
 
 def run_1_experiment_one_E_field(only_print_first_last=False, repeats=50):
-
     default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
     params = default_params.copy()
     sequence = get_sequence(params)
@@ -152,59 +148,42 @@ def run_1_experiment_one_E_field(only_print_first_last=False, repeats=50):
     )
     m4i.setup_sequence(sequence)
     lf_indices = list(range(scan_count))
+    if params["field_plate"]["method"] == "ttl":
+        if params["field_plate"]["relative_to_lf"] == "before":
+            on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence code!!!)))))
+        elif params["field_plate"]["relative_to_lf"] == "after":
+            on_time = 10e-6 + sequence.field_plate_on_time.to("s").magnitude
+        rigol.field_plate_output(
+            amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
+            ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
+            on_time = on_time,
+            set_params = True,
+        )
 
     for kk in range(repeats):
-        if params["field_plate"]["method"] == "ttl":
-            if params["field_plate"]["relative_to_lf"] == "before":
-                on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence code!!!)))))
-            elif params["field_plate"]["relative_to_lf"] == "after":
-                on_time = 10e-6 + sequence.field_plate_on_time.to("s").magnitude
-
-            rigol.field_plate_output(
-                amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
-                ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
-                on_time = on_time,
-                set_params = True,
-            )
-
+        # for field in [4500, -4500]:
+        #     params["field_plate"]["amplitude"] = field
+        #     rigol.field_plate_output(
+        #         amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
+        #         ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
+        #         on_time = on_time,
+        #         set_params = True,
+        #     )
         for jj, lf_index in enumerate(lf_indices):
-
-            # E FIELD DURING OPTICAL
-            if params["field_plate"]["relative_to_lf"] == "after":
-                params["sequence"]["sequence"] = [
-                    ("chasm", chasms),
-                    ("optical_cb", cb_pumps),
-                    ("optical_ac", ac_pumps),
-                    ("break", 200),
-                    ("lfpiov2", 1),
-                    ("field_plate_trigger", 1),
-                    ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                    (f"detect_1", detects),
-                    ("rf_abarbbar", 1),
-                    (f"lf_{lf_index}", 1),
-                    ("rf_abarbbar", 1),
-                    ("field_plate_trigger", 1),
-                    ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                    (f"detect_2", detects),
-                ]
-
-
-            # E FIELD DURING STATE PREP
-            if params["field_plate"]["relative_to_lf"] == "before":
-                params["sequence"]["sequence"] = [
-                    ("chasm", chasms),
-                    ("field_plate_trigger", 1),
-                    ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                    ("optical_cb", cb_pumps),
-                    ("optical_ac", ac_pumps),
-                    ("break", 200),
-                    ("lfpiov2", 1),
-                    (f"detect_1", detects),
-                    ("rf_abarbbar", 1),
-                    (f"lf_{lf_index}", 1),
-                    ("rf_abarbbar", 1),
-                    (f"detect_2", detects),
-                ]
+            params["sequence"]["sequence"] = [
+                ("chasm", chasms),
+                ("field_plate_trigger", 1),
+                ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                ("optical_cb", cb_pumps),
+                ("optical_ac", ac_pumps),
+                ("break", 200),
+                ("lfpiov2", 1),
+                (f"detect_1", detects),
+                ("rf_abarbbar", 1),
+                (f"lf_{lf_index}", 1),
+                ("rf_abarbbar", 1),
+                (f"detect_2", detects),
+            ]
 
             sequence.setup_sequence()
             m4i.setup_sequence_steps_only()
@@ -234,111 +213,10 @@ def run_1_experiment_one_E_field(only_print_first_last=False, repeats=50):
         elif kk == 0 or kk == repeats - 1:
             print(f"({first_data_id}, {last_data_id})")
 
-def run_1_experiment(only_print_first_last=False, repeats=50):
-
-    default_field_plate_amplitude = default_params["field_plate"]["amplitude"]
-    params = default_params.copy()
-    sequence = get_sequence(params)
-    sequence.setup_sequence()
-    setup_digitizer(
-        sequence.analysis_parameters["digitizer_duration"],
-        sequence.num_of_record_cycles(),
-        params["sequence_repeats_per_transfer"],
-        ch1_range=params["digitizer"]["ch1_range"],
-        ch2_range=params["digitizer"]["ch2_range"],
-        sample_rate=params["digitizer"]["sample_rate"],
-    )
-    m4i.setup_sequence(sequence)
-    lf_indices = list(range(scan_count))
-
-    for kk in tqdm(range(repeats)):
-        for ll, e_field in enumerate(["_opposite", ""]):
-            if ll == 0:
-                params["field_plate"]["amplitude"] = -default_field_plate_amplitude
-            else:
-                params["field_plate"]["amplitude"] = default_field_plate_amplitude
-            if params["field_plate"]["method"] == "ttl":
-                if params["field_plate"]["relative_to_lf"] == "before":
-                    on_time = 10e-6 + (ac_pumps + cb_pumps) * 1e-3 # ms  ((((time is constant set in sequence code!!!)))))
-                elif params["field_plate"]["relative_to_lf"] == "after":
-                    on_time = 10e-6 + sequence.field_plate_on_time.to("s").magnitude
-
-                rigol.field_plate_output(
-                    amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
-                    ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
-                    on_time = on_time,
-                    set_params = True,
-                )
-
-            for jj, lf_index in enumerate(lf_indices):
-
-                # E FIELD DURING OPTICAL
-                if params["field_plate"]["relative_to_lf"] == "after":
-                    params["sequence"]["sequence"] = [
-                        ("chasm", chasms),
-                        ("optical_cb", cb_pumps),
-                        ("optical_ac", ac_pumps),
-                        ("break", 200),
-                        ("lfpiov2", 1),
-                        ("field_plate_trigger", 1),
-                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        (f"detect{e_field}_1", detects),
-                        ("rf_abarbbar", 1),
-                        (f"lf_{lf_index}", 1),
-                        ("rf_abarbbar", 1),
-                        ("field_plate_trigger", 1),
-                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        (f"detect{e_field}_2", detects),
-                    ]
-
-
-                # E FIELD DURING STATE PREP
-                if params["field_plate"]["relative_to_lf"] == "before":
-                    params["sequence"]["sequence"] = [
-                        ("chasm", chasms),
-                        ("field_plate_trigger", 1),
-                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        ("optical_cb", cb_pumps),
-                        ("optical_ac", ac_pumps),
-                        ("break", 200),
-                        ("lfpiov2", 1),
-                        (f"detect{e_field}_1", detects),
-                        ("rf_abarbbar", 1),
-                        (f"lf_{lf_index}", 1),
-                        ("rf_abarbbar", 1),
-                        (f"detect{e_field}_2", detects),
-                    ]
-
-                sequence.setup_sequence()
-                m4i.setup_sequence_steps_only()
-                m4i.write_all_setup()
-
-                def worker():
-                    start_time = time.time()
-                    data = run_sequence(sequence, params, skip_setup=True)
-                    return (start_time, data)
-                start_time, data = run_expt_check_lock(worker)
-                try:
-                    temp = get_4k_platform_temp(time.time() - start_time)
-                except:
-                    temp = None
-
-                data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
-
-                time.sleep(params["sleep"].to('s').magnitude)
-
-                if jj == 0:
-                    first_data_id = data_id
-                elif jj == scan_count - 1:
-                    last_data_id = data_id
-
-            if not only_print_first_last:
-                print(f"({first_data_id}, {last_data_id})")
-            elif kk == 0 or kk == repeats - 1:
-                print(f"({first_data_id}, {last_data_id})")
+run_1_experiment_one_E_field(repeats = 100)
 
 ###
-run_1_experiment(repeats = 10)
+#run_1_experiment(repeats = 10)
 
 # 1 hour = 600 repeats without delay
 ###
