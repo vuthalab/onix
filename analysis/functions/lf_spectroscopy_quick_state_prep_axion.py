@@ -4,6 +4,7 @@ from uncertainties import unumpy
 from onix.data_tools import get_experiment_data
 from onix.analysis.fitter import Fitter
 from onix.analysis.functions.shared import get_normalized_transmission, data_identification_to_list
+from onix.analysis.functions.lf_ramsey_shared import get_phase_fitter, averaging_ys
 
 """
 Functions for the LFQuickStatePrepAxion sequence / experiment. 
@@ -20,7 +21,7 @@ def double_gaussian_fit(f, f1, f2, a1, a2, sigma, b):
     
 def get_double_gaussian_fitter(fs, pops, errs = None, linear_term = False, p0: dict = None, fitted_freq_offset = np.inf, fitted_amp_difference = np.inf, chi_cutoff = np.inf):
     """
-    Fits optical holes to the sum of two Gaussians. Can add a linear term to account for slope.
+    Fits optical antiholes to the sum of two Gaussians. Can add a linear term to account for slope.
     Has a default initial guess which can be updated using p0 argument. Works best if stark splitting is input as initial guess.
 
     Fit is determined to be bad if any of the following occur:
@@ -91,7 +92,7 @@ def get_experiment_result(data_number):
 
 def get_results(data_identification, fitted_freq_offset = np.inf, fitted_amp_difference = np.inf, chi_cutoff = np.inf):
     """
-    Input the data identification for one Ramsey fringe. Fits the optical holes. 
+    Input the data identification for one Ramsey fringe. Fits the antiholes. 
 
     """
     data_list = data_identification_to_list(data_identification)
@@ -101,7 +102,6 @@ def get_results(data_identification, fitted_freq_offset = np.inf, fitted_amp_dif
         header, detunings, pop_other_state, total_pop = get_experiment_result(data_number)
         stark_shift = header["params"]["field_plate"]["stark_shift"].magnitude
         if len(detunings) > 2:
-            # change here to add filtering of bad hole fits
             fitter = get_double_gaussian_fitter(
                 detunings,
                 unumpy.nominal_values(pop_other_state),
@@ -125,9 +125,9 @@ def get_results(data_identification, fitted_freq_offset = np.inf, fitted_amp_dif
             results.append(pop_other_state)
     return headers, np.array(results)
 
-def plot_hole(data_number, linear_term = False, errorbars = True, plot = True, note = None, fitted_freq_offset = np.inf, fitted_amp_difference = np.inf, chi_cutoff = np.inf):
+def plot_antihole(data_number, linear_term = False, errorbars = True, plot = True, note = None, fitted_freq_offset = np.inf, fitted_amp_difference = np.inf, chi_cutoff = np.inf):
     """
-    Plots the optical holes for one experiment. 
+    Plots the optical antiholes for one experiment. 
     - Can add a linear term
     - Can add a note to the the plot where you might list some parameters of the experiment
     - Allows for you to specify what makes a bad fit. 
@@ -187,14 +187,14 @@ def plot_hole(data_number, linear_term = False, errorbars = True, plot = True, n
 
     return fitter
 
-def plot_hole_multi(data_number, linear_term = False, errorbars = True, plot = True, note = None, fitted_freq_offset = np.inf, fitted_amp_difference = np.inf, chi_cutoff = np.inf):
+def plot_antihole_multi(data_number, linear_term = False, errorbars = True, plot = True, note = None, fitted_freq_offset = np.inf, fitted_amp_difference = np.inf, chi_cutoff = np.inf):
     """
-    Plots all holes for one Ramsey fringe worth of experiments starting from data_number
+    Plots all antiholes for one Ramsey fringe worth of experiments starting from data_number
     """
     header = get_experiment_result(data_number)[0]
     counter = 0
     while counter < len(header["params"]["lf"]["phase_diffs"]):
-        plot_hole(
+        plot_antihole(
             data_number+counter, 
             linear_term = linear_term, 
             errorbars = errorbars, 
@@ -209,7 +209,7 @@ def plot_hole_multi(data_number, linear_term = False, errorbars = True, plot = T
 
 def histogram_slopes(data_range, max, bins = 30, plot = True, title = None):
     """
-    Fit the holes of these data sets to the sum of two Gaussians with linear background and background offset.
+    Fit the antholes of these data sets to the sum of two Gaussians with linear background and background offset.
     Histogram the results with E > 0 and E < 0 in different colors.
     """
 
@@ -226,14 +226,14 @@ def histogram_slopes(data_range, max, bins = 30, plot = True, title = None):
     
     while start_num <= max:
         for kk in range(package_size):
-            fitter = plot_hole(start_num+kk, linear_term = True, plot = False)
+            fitter = plot_antihole(start_num+kk, linear_term = True, plot = False)
             if e_start_pos is True:
                 slopes_E_pos.append(fitter.results["m"])
             else:
                 slopes_E_neg.append(fitter.results["m"])
 
         for kk in range(package_size):
-            fitter = plot_hole(start_num+kk, linear_term = True, plot = False)
+            fitter = plot_antihole(start_num+kk, linear_term = True, plot = False)
             if e_start_pos is True:
                 slopes_E_neg.append(fitter.results["m"])
             else:
@@ -260,10 +260,10 @@ def histogram_slopes(data_range, max, bins = 30, plot = True, title = None):
     return slopes_E_pos, slopes_E_neg
 
 
-def hole_SNR_over_time(data_range, max, linear_term = False, errorbars = False, plot = True, title = None, note = None):
+def antihole_SNR_over_time(data_range, max, linear_term = False, errorbars = False, plot = True, title = None, note = None):
     """
-    Fit the holes of these data sets to the sum of two Gaussians.
-    Plot the SNR on the amplitude of the holes over time. 
+    Fit the antiholes of these data sets to the sum of two Gaussians.
+    Plot the SNR on the amplitude of the antiholes over time. 
     """
 
     SNR_E_pos = []
@@ -281,31 +281,31 @@ def hole_SNR_over_time(data_range, max, linear_term = False, errorbars = False, 
     
     while start_num <= max:
         for kk in range(package_size):
-            fitter = plot_hole(start_num+kk, errorbars = errorbars, linear_term = linear_term, plot = False)
-            avg_hole_height = np.mean([fitter.results["a1"], fitter.results["a2"]])
+            fitter = plot_antihole(start_num+kk, errorbars = errorbars, linear_term = linear_term, plot = False)
+            avg_antihole_height = np.mean([fitter.results["a1"], fitter.results["a2"]])
             error = np.sqrt((0.5 * fitter.errors["a1"])**2 + (0.5 * fitter.errors["a2"])**2)
-            SNR_hole = avg_hole_height / error
+            SNR_antihole = avg_antihole_height / error
             d, h = get_experiment_data(start_num+kk)
             t = h["start_time"]
             if e_start_pos is True:
-                SNR_E_pos.append(SNR_hole)
+                SNR_E_pos.append(SNR_antihole)
                 times_E_pos.append(t)
             else:
-                SNR_E_neg.append(SNR_hole)
+                SNR_E_neg.append(SNR_antihole)
                 times_E_neg.append(t)
 
         for kk in range(package_size):
-            fitter = plot_hole(start_num+kk, errorbars = errorbars, linear_term = linear_term, plot = False)
-            avg_hole_height = np.mean([fitter.results["a1"], fitter.results["a2"]])
+            fitter = plot_antihole(start_num+kk, errorbars = errorbars, linear_term = linear_term, plot = False)
+            avg_antihole_height = np.mean([fitter.results["a1"], fitter.results["a2"]])
             error = np.sqrt((0.5 * fitter.errors["a1"])**2 + (0.5 * fitter.errors["a2"])**2)
-            SNR_hole = avg_hole_height / error
+            SNR_antihole = avg_antihole_height / error
             d, h = get_experiment_data(start_num+kk)
             t = h["start_time"]
             if e_start_pos is True:
-                SNR_E_neg.append(SNR_hole)
+                SNR_E_neg.append(SNR_antihole)
                 times_E_neg.append(t)
             else:
-                SNR_E_pos.append(SNR_hole)
+                SNR_E_pos.append(SNR_antihole)
                 times_E_pos.append(t)
     
         start_num += 2*package_size
@@ -317,7 +317,7 @@ def hole_SNR_over_time(data_range, max, linear_term = False, errorbars = False, 
         ax.plot(times_E_neg, SNR_E_neg, label = "$E<0$", alpha = 0.4)
         ax.text(0, 1.02, f"#{data_range[0]} - #{max}", transform = ax.transAxes)
         ax.set_xlabel("Time (s) + offset")
-        ax.set_ylabel("SNR in fitted optical holes")
+        ax.set_ylabel("SNR in fitted antiholes")
         ax.legend()
         ax.grid()
         if title is not None:
@@ -325,3 +325,4 @@ def hole_SNR_over_time(data_range, max, linear_term = False, errorbars = False, 
         if note is not None:
             ax.text(0.2,0.2, note, transform = ax.transAxes)
     return times_E_pos, times_E_neg, SNR_E_pos, SNR_E_neg
+

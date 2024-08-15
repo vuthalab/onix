@@ -77,7 +77,7 @@ def plot_raw_data(data, label = None, note = None):
     plt.show()
 
 
-def get_plotting_data(data_number, normalize=True, fitit=False, labels=None, return_monitor = False):
+def get_plotting_data(data_number, od = True, normalize=False, fitit=False, labels=None, return_monitor = False):
     # GET DATA
     data, headers = get_experiment_data(data_number)
     detunings_MHz = headers["detunings"].to("MHz").magnitude
@@ -110,7 +110,10 @@ def get_plotting_data(data_number, normalize=True, fitit=False, labels=None, ret
                 continue
 
         # NORMALIZE WITH MONITORS PD
-        if normalize:
+        if od:
+            y = 2 * np.log10 ( monitor / transmission )
+            y_err = np.sqrt( transmission_err**2 * (2 / (np.log(10)* transmission))**2 + monitor_err**2 * ( 2 / (np.log(10) * monitor))**2 )
+        elif normalize:
             y_err = (transmission/monitor)*np.sqrt((transmission_err/transmission)**2 + (monitor_err/monitor)**2)
             y = transmission / monitor
         elif return_monitor:
@@ -141,7 +144,7 @@ def get_plotting_data(data_number, normalize=True, fitit=False, labels=None, ret
     else:
         return (labels_new, xs, ys, ys_err)
     
-def plot_antihole_data(data, normalize=True, fitit=False, errors=False, labels=None, return_monitor = False, divide_first_two=False):
+def plot_antihole_data(data, od = True, normalize=False, fitit=False, errors=False, labels=None, return_monitor = False, divide_first_two=False):
     """
     input data: integer data number, or tuple data numbers for range, or list of data numbers
     """
@@ -156,7 +159,7 @@ def plot_antihole_data(data, normalize=True, fitit=False, errors=False, labels=N
     markers = [".","x","+","s""v","^","<",">",",","1","2","3","4","8","p","P","h","H"]
     fig, ax = plt.subplots()
     for j, data_number in enumerate(data_numbers):
-        plotting_data = get_plotting_data(data_number, normalize=normalize, fitit=fitit, labels=labels, return_monitor = return_monitor)
+        plotting_data = get_plotting_data(data_number, od = od, normalize=normalize, fitit=fitit, labels=labels, return_monitor = return_monitor)
         
         for i, label in enumerate(plotting_data[0]):
             color = colors[j]
@@ -172,7 +175,9 @@ def plot_antihole_data(data, normalize=True, fitit=False, errors=False, labels=N
         ax.scatter(plotting_data[1][0], plotting_data[2][0]/plotting_data[2][1], marker="o", label=f"div", color='k')
     
     ax.set_xlabel("Optical detuning (MHz)")
-    if normalize:
+    if od:
+        ax.set_ylabel("Optical Depth + offset")
+    elif normalize:
         ax.set_ylabel("Normalized transmission (V/V)")
     else:
         if return_monitor is False:
