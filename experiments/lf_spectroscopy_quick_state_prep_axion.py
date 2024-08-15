@@ -38,7 +38,7 @@ cb_pumps = 25 #250*2
 chasms = 10#400*2
 cleanouts = 0
 detects = 128
-scan_count = 8
+scan_count = 4
 
 # four total experiments: (chasm , no chasm) x (mirror_cb, no mirror_cb)
 # chasms = 0, 40
