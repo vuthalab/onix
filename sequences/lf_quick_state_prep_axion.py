@@ -79,13 +79,14 @@ class LFQuickStatePrepAxion(Sequence):
     def _define_optical(self):
         optical_sequence_duration = 1 * ureg.ms
         ao_channel = get_channel_from_name(self._ao_parameters["name"])
-        amplitude = self._optical_parameters["ao_amplitude"]
+        amplitude_ac = self._optical_parameters["ao_amplitude_ac"]
+        amplitude_cb = self._optical_parameters["ao_amplitude_cb"]
         detuning_ac = 0 * ureg.MHz
         frequency_ac = self._ao_parameters["center_frequency"] + (
             detuning_ac / self._ao_parameters["order"]
         )
         segment = Segment("optical_ac", duration=optical_sequence_duration)
-        pulse = AWGSinePulse(frequency_ac, amplitude)
+        pulse = AWGSinePulse(frequency_ac, amplitude_ac)
         segment.add_awg_function(ao_channel, pulse)
         self.add_segment(segment)
 
@@ -101,9 +102,9 @@ class LFQuickStatePrepAxion(Sequence):
             frequency_cb_mirror = self._ao_parameters["center_frequency"] + (
                 detuning_cb_mirror / self._ao_parameters["order"]
             )
-            pulse = AWGTwoSinePulse(frequency_cb, frequency_cb_mirror, amplitude)
+            pulse = AWGTwoSinePulse(frequency_cb, frequency_cb_mirror, amplitude_cb) # /2
         else:
-            pulse = AWGSinePulse(frequency_cb, amplitude)
+            pulse = AWGSinePulse(frequency_cb, amplitude_cb) # /2
         segment.add_awg_function(ao_channel, pulse)
         self.add_segment(segment)
 

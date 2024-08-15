@@ -33,22 +33,28 @@ def get_sequence(params):
 
 
 ## parameters
-ac_pumps = 25
-cb_pumps = 25
-chasms = 0
+ac_pumps = 25 #250*2
+cb_pumps = 25 #250*2
+chasms = 40#400*2
 cleanouts = 0
 detects = 32
 scan_count = 8
+
+# four total experiments: (chasm , no chasm) x (mirror_cb, no mirror_cb)
+# chasms = 0, 40
+# use_mirror_cb": False, True
+# use ao_amplitude_cb = 1000 for all 4 experiments.
 
 default_params = {
     "name": "Simple LF Spectroscopy Quick State Prep",
     "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "ao": {
-        "center_frequency": 72 * ureg.MHz, #73.15 * ureg.MHz,
+        "center_frequency": 80 * ureg.MHz, #73.15 * ureg.MHz,
     },
     "optical": {
-        "ao_amplitude": 2000,
+        "ao_amplitude_ac": 2000, #3200
+        "ao_amplitude_cb": 2000,
         "cb_detuning": -18 * ureg.MHz,
         "use_mirror_cb": False,
     },
@@ -59,8 +65,8 @@ default_params = {
     },
     "detect": {
         "transition": "ac",
-        #"detunings": np.array([-3.0, -2.0, -1.7, -1.5, -1.3, -1.1, -0.9, -0.7, -0.2, 0.2, 0.7, 0.9, 1.1, 1.3, 1.5, 1.7, 2.0, 3.0]) * ureg.MHz,
-        "detunings": np.linspace(-10, 10, 50) * ureg.MHz,
+        # "detunings": np.array([0,0.2, -0.2, 0.4, -0.4, 0.6, -0.6, -1.2, 1.2, -2,2, -0.8, 0.8]) * ureg.MHz,
+        "detunings": np.linspace(-2.5, 2.5, 15) * ureg.MHz,
         "on_time": 100 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
@@ -76,8 +82,8 @@ default_params = {
             "T_ch": 15 * ureg.ms,
             "scan_range": 45 * ureg.kHz,
         },
-        "detuning_ab": 53 * ureg.kHz, ## fix
-        "detuning_abarbbar": -57 * ureg.kHz,
+        "detuning_ab": 55 * ureg.kHz, # 53
+        "detuning_abarbbar": -60 * ureg.kHz, # -57
         "amplitude": 5000,
         "duration":15 * ureg.ms,
         "offset": 30 * ureg.kHz,
@@ -93,11 +99,11 @@ default_params = {
     "field_plate": {
         "method": "ttl",
         "relative_to_lf": "before",
-        "amplitude": 2250,
-        "stark_shift": 1.1 *ureg.MHz,
+        "amplitude": 4500,
+        "stark_shift": 2.2 *ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
-        "use": False, # this should probably be true, but previously I had put it as false
+        "use": True,
     },
     "digitizer": {
         "sample_rate": 25e6,
@@ -119,7 +125,7 @@ default_params = {
             (f"detect_2", detects),
         ]
     },
-    "sleep": 1 * ureg.s,
+    "sleep": 0 * ureg.s,
 }
 default_params = update_parameters_from_shared(default_params)
 default_sequence = get_sequence(default_params)
@@ -289,17 +295,17 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 # E FIELD DURING STATE PREP
                 if params["field_plate"]["relative_to_lf"] == "before":
                     params["sequence"]["sequence"] = [
-                        #("chasm", chasms),
-                        #("field_plate_trigger", 1),
-                        #("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                        #("optical_cb", cb_pumps),
-                        #("optical_ac", ac_pumps),
-                        #("break", 200),
-                        #("lfpiov2", 1),
+                        ("chasm", chasms),
+                        ("field_plate_trigger", 1),
+                        ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                        ("optical_cb", cb_pumps),
+                        ("optical_ac", ac_pumps),
+                        ("break", 200),
+                        ("lfpiov2", 1),
                         (f"detect{e_field}_1", detects),
-                        #("rf_abarbbar", 1),
-                        #(f"lf_{lf_index}", 1),
-                        #("rf_abarbbar", 1),
+                        ("rf_abarbbar", 1),
+                        (f"lf_{lf_index}", 1),
+                        ("rf_abarbbar", 1),
                         (f"detect{e_field}_2", detects),
                     ]
 
@@ -332,7 +338,9 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 print(f"({first_data_id}, {last_data_id})")
 
 ###
-run_1_experiment(repeats = int(9e9))
+run_1_experiment(repeats = 10)
+
+# 1 hour = 600 repeats without delay
 ###
 # cb_detunings = np.array([-19, -18.5, -18, -17.5, -17])
 # for cb_detuning in cb_detunings:

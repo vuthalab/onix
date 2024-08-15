@@ -315,7 +315,7 @@ class AWGTwoSinePulse(AWGFunction):
         if isinstance(frequency2, numbers.Number):
             frequency2 = frequency2 * ureg.Hz
         self._frequency2: Q_ = frequency2
-        self._amplitude = amplitude/2 # divide by two so doesn't go past max allowable amplitude with 2 sinusoids
+        self._amplitude = amplitude # divide by two so doesn't go past max allowable amplitude with 2 sinusoids
         self._phase = phase
         if isinstance(start_time, numbers.Number):
             start_time = start_time * ureg.s
