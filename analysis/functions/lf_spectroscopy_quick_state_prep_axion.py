@@ -140,7 +140,7 @@ def plot_antihole(data_number, linear_term = False, errorbars = True, plot = Tru
         errs = None
 
     d, h = get_experiment_data(data_number)
-    stark_shift = h["params"]["field_plate"]["stark_shift"].magnitude
+    stark_shift = h["params"]["field_plate"]["stark_shift"].to('MHz').magnitude
     
 
     fitter = get_double_gaussian_fitter(
@@ -295,7 +295,7 @@ def antihole_SNR_over_time(data_range, max, linear_term = False, errorbars = Fal
                 times_E_neg.append(t)
 
         for kk in range(package_size):
-            fitter = plot_antihole(start_num+kk, errorbars = errorbars, linear_term = linear_term, plot = False)
+            fitter = plot_antihole(start_num+kk+package_size, errorbars = errorbars, linear_term = linear_term, plot = False)
             avg_antihole_height = np.mean([fitter.results["a1"], fitter.results["a2"]])
             error = np.sqrt((0.5 * fitter.errors["a1"])**2 + (0.5 * fitter.errors["a2"])**2)
             SNR_antihole = avg_antihole_height / error
