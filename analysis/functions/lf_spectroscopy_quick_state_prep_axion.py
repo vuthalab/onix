@@ -29,8 +29,9 @@ def get_double_gaussian_fitter(fs, pops, errs = None, linear_term = False, p0: d
     - fitted amplitudes are more than a factor of fitted_amp_difference different
     - chi^2 > chi_cutoff
 
-    If the fit is bad, or cannot fit at all, return None. 
+    If the fit is bad, or cannot fit at all, return None.
     """
+    # set default p0
     guess = {
             "f1": -np.average(np.abs(fs)),
             "f2": np.average(np.abs(fs)),
@@ -40,29 +41,37 @@ def get_double_gaussian_fitter(fs, pops, errs = None, linear_term = False, p0: d
             "b": np.min(pops),
         }
 
+    # if linear term add guess for the slope
     if linear_term:
         fitter = Fitter(double_gaussian_fit_linear_term)
         guess["m"] = (pops[-1] - pops[0]) / (fs[-1] - fs[0])
     else:
         fitter = Fitter(double_gaussian_fit)
 
+    # set data to fitter
     if errs is None:    
         fitter.set_data(fs, pops)
     else:
         fitter.set_data(fs, pops, errs)
         
+    # set bounds
     fitter.set_bounds("a1", 0, np.inf)
     fitter.set_bounds("a2", 0, np.inf)
     fitter.set_bounds("sigma", 0, np.inf)
     
+    # update guess dictionary with your inputs
     if p0 is not None:
         for i in p0:
             guess[i] = p0[i]
+        if (("f1" not in p0) or ("f2" not in p0)) and fitted_freq_offset < np.inf:
+            raise Exception("Filtering bad fits based off offset from initial guess while not providing an initial guess.")
+
             
     fitter.set_p0(guess)
   
     try: 
         fitter.fit()
+        # metrics for how bad the fit is; how far our fitted centers are from the initial guess and the ratio of the peak heights
         freq1_diff = np.abs(fitter.results["f1"] - guess["f1"])
         freq2_diff = np.abs(fitter.results["f2"] - guess["f2"])
         amplitude_diff = fitter.results["a1"] / fitter.results["a2"]
@@ -130,8 +139,9 @@ def plot_antihole(data_number, linear_term = False, errorbars = True, plot = Tru
     Plots the optical antiholes for one experiment. 
     - Can add a linear term
     - Can add a note to the the plot where you might list some parameters of the experiment
-    - Allows for you to specify what makes a bad fit. 
+    - Allows for you to specify what makes a bad fit. Bad fits will instead return None.
     """
+    # get data from this experiment
     header, detunings, pop_other_state, total_pop = get_experiment_result(data_number)
     vals = unumpy.nominal_values(pop_other_state)
     errs = unumpy.std_devs(pop_other_state)
@@ -139,10 +149,10 @@ def plot_antihole(data_number, linear_term = False, errorbars = True, plot = Tru
     if not errorbars:
         errs = None
 
+    # get Stark shift and input as the initial guess for the center frequencies of the antiantiholes
     d, h = get_experiment_data(data_number)
     stark_shift = h["params"]["field_plate"]["stark_shift"].to('MHz').magnitude
     
-
     fitter = get_double_gaussian_fitter(
         detunings, 
         vals, 
@@ -158,7 +168,7 @@ def plot_antihole(data_number, linear_term = False, errorbars = True, plot = Tru
     if plot: 
         fig, ax = plt.subplots()
         f_axis = np.linspace(np.min(detunings), np.max(detunings), 1000)
-        
+        # plot data (errorbar or scatter plot) with fitter results on the plot.
         if errorbars:
             ax.errorbar(detunings, vals, errs, fmt="o", ls="")
             if fitter is not None:
@@ -166,9 +176,10 @@ def plot_antihole(data_number, linear_term = False, errorbars = True, plot = Tru
         else:
             ax.scatter(detunings, vals)
             if fitter is not None:
+                # don't print the useless last line "reduced chi^2 is undefined" when you use a fitter without errors
                 ax.text(0.8,1.02, "\n".join(fitter.all_results_str().split('\n')[:-1]), transform = ax.transAxes)
         
-        
+        # add the fitted curve to the plot, or else label as a bad fit
         if fitter is not None:
             ax.plot(f_axis, fitter.fitted_value(f_axis), alpha = 0.5)
         else:
@@ -219,12 +230,22 @@ def histogram_slopes(data_range, max, bins = 30, plot = True, title = None):
     start_num = data_range[0]
     package_size = data_range[1] - data_range[0] + 1
     
+    # determine whether the experiment started with positive or negative E field 
     e_start_pos = False
     d, h = get_experiment_data(start_num)
     if h["params"]["field_plate"]["amplitude"] > 0:
         e_start_pos = True
     
     while start_num <= max:
+        """
+        starting at start_num take the first package_size worth of data numbers and fit them
+        append the times and slopes to the appropriate lists
+
+        go through the next package_size data numbers and append their times and slopes to the opposite E field list
+        
+        increase start_num by 2 * package_size
+        """
+        
         for kk in range(package_size):
             fitter = plot_antihole(start_num+kk, linear_term = True, plot = False)
             if e_start_pos is True:
@@ -241,8 +262,8 @@ def histogram_slopes(data_range, max, bins = 30, plot = True, title = None):
     
         start_num += 2*package_size
     
-    figures = 2 # number of significant digits to print mean and standard deviation
-
+    # label the plot with the means and standard deviations rounded to figures number of significant figures
+    figures = 2 
     slopes_str = f"Mean E>0 = {np.mean(slopes_E_pos):.{figures}g} \t STDEV E>0 = {np.std(slopes_E_pos):.{figures}g} \n Mean E<0 = {np.mean(slopes_E_neg):.{figures}g} \t STDEV E<0 = {np.std(slopes_E_neg):.{figures}g}"
     if plot:
         fig, ax = plt.subplots()
@@ -274,12 +295,21 @@ def antihole_SNR_over_time(data_range, max, linear_term = False, errorbars = Fal
     start_num = data_range[0]
     package_size = data_range[1] - data_range[0] + 1
     
+    # determine whether the experiment started with positive or negative E field 
     e_start_pos = False
     d, h = get_experiment_data(start_num)
     if h["params"]["field_plate"]["amplitude"] > 0:
         e_start_pos = True
     
     while start_num <= max:
+        """
+        starting at start_num take the first package_size worth of data numbers and fit them
+        append the times and SNRs to the appropriate lists
+
+        go through the next package_size data numbers and append their times and SNRs to the opposite E field list
+        
+        increase start_num by 2 * package_size
+        """
         for kk in range(package_size):
             fitter = plot_antihole(start_num+kk, errorbars = errorbars, linear_term = linear_term, plot = False)
             avg_antihole_height = np.mean([fitter.results["a1"], fitter.results["a2"]])

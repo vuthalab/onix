@@ -28,7 +28,10 @@ def plot_raw_data(data, label = None, note = None):
     """
     Plot the raw voltages from the transmission and monitor photodiodes. 
     """
+    # Two subplots, one for transmission and one for monitor
     fig, ax = plt.subplots(1, 2, figsize = (12, 5))
+
+    # take whatever format of data you input and transform into a list
     if isinstance(data, int):
         data_numbers = [data]
     elif isinstance(data, tuple):
@@ -36,6 +39,7 @@ def plot_raw_data(data, label = None, note = None):
     elif isinstance(data, list):
         data_numbers = data
 
+    # if you are only plotting one data number, you can plot the different detects with different colors
     if len(data_numbers) == 1:
         transmission_data = get_plotting_data(data_numbers[0], normalize=False, fitit=False, return_monitor = False) 
         for i, label in enumerate(transmission_data[0]):
@@ -44,6 +48,8 @@ def plot_raw_data(data, label = None, note = None):
         monitor_data = get_plotting_data(data_numbers[0], normalize=False, fitit=False, return_monitor = True)
         for i, label in enumerate(monitor_data[0]):
             ax[1].scatter(monitor_data[1][i], monitor_data[2][i], label=f"{data_numbers[0]} - {label}")
+    
+    # if you have mulitple data numbers each data number will be one color, with each detect being a different marker
     else:        
         colors = [f"C{i}" for i in range(10)]
         markers = [".","x","o","+","s""v","^","<",">",",","1","2","3","4","8","p","P","h","H"]
@@ -191,7 +197,7 @@ def plot_antihole_data(data, od = True, normalize=False, fitit=False, errors=Fal
 
 # def print_data_number(data_number):
 #     """
-#     easier to read headers dictionary with this
+#     old function which is still not as readable as the new one
 #     """
 #     _, headers = get_experiment_data(data_number)
 #     pp = pprint.PrettyPrinter(depth=4)
@@ -204,11 +210,14 @@ def _print_dict(d, indent_level=0):
     if not isinstance(d, dict):
         return
     
+    # every level into the dictionary we go we will indent once further for readibility
     indent = '    ' * indent_level 
     for key, value in d.items():
-        #print(f"{indent}{key}: ")
+        # if your value is not a dictionary, you can print it with the appropriate indent level
         if not isinstance(d[key], dict):
             print(f"{indent}{key}: {d[key]}")
+        
+        # if your value is another dictionary, print the key, and then go through this function one more time with another level of indentation
         else:
             print(f"{indent}{key}: ")
         _print_dict(value, indent_level + 1)
@@ -223,7 +232,7 @@ def print_data_number(data_number):
 def _flatten_dict(d, flattened_dict, current_path=[]):
     """
     Iterates through a dictionary of dictionaries and puts everythign into one dictionary.
-    For example, if params["detect"]["transition"] = "ac" this function will enter "detect transition" into the flattened_dict.
+    For example, if params["detect"]["transition"] = "ac" this function will enter "detect transition" = "ac" into the flattened_dict.
     """
     if not isinstance(d, dict):
         name = " ".join(current_path)
@@ -236,8 +245,9 @@ def _flatten_dict(d, flattened_dict, current_path=[]):
         
 def compare_experiments(data_number1, data_number2):
     """
-    Prints parameters of two experiments which are different. 
+    Compares the params dictionary of two expeirments and prints the parameters which are different, as well as those params that belong to only one experiment.  
     """
+    # get the params dictionaries for both experiments and flatten them to make comparison easy
     _, headers1 = get_experiment_data(data_number1)
     _, headers2 = get_experiment_data(data_number2)
     flattened1 = {}
@@ -247,33 +257,41 @@ def compare_experiments(data_number1, data_number2):
     
     for kk in flattened1:
         try:
-            # if flattened1[kk] is a list of quantities:
+            # if flattened1[kk] is a list of quantities
             if all(isinstance(x, pint.Quantity) for x in flattened1[kk]) is True:
-                # to check if a list of quantities are the same you must do this
-                if str(flattened1[kk].magnitude) == str(flattened2[kk].magnitude):
+
+                # convert to the same unit, and then to compare quantities with units you must take the magnitude and compare strings
+                if str(flattened1[kk].magnitude) == str(flattened2[kk].to(flattened1[kk].units).magnitude):
                     continue
+                
                 else:
+                    # if the quantities are different, print the full key and the two values
                     print(f"{kk}: {flattened1[kk]} \t {flattened2[kk]}")
+
             else:
                 continue
+
         except:
+            # if we don't have lists of quantities, just compare the values
             try:
                 if flattened1[kk] == flattened2[kk]:
                     continue
                 else:
                     print(f"{kk}: {flattened1[kk]} \t {flattened2[kk]}")
+                    
             except:
                  # if flattened1 has keys which flattened2 does not
-                try:
-                    print(f"{kk}: {flattened1[kk]} \t {flattened2[kk]}")
-                except:
-                    continue
+                continue
                 
+    # get the keys in each flattened dictionary
     keys1 = set(flattened1.keys())
     keys2 = set(flattened2.keys())
-    missing1 = keys1 - keys2 # keys in experiment 1 params but not experiment 2 params
+
+    # keys in one dictionary that are not in the other
+    missing1 = keys1 - keys2
     missing2 = keys2 - keys1
 
+    # print the missing keys
     if len(missing1) != 0:
         print(f"{data_number2} is missing:")
         for i in missing1:
