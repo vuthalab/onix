@@ -35,10 +35,10 @@ def get_sequence(params):
 ## parameters
 ac_pumps = 25 #250*2
 cb_pumps = 25 #250*2
-chasms = 40#400*2
+chasms = 10 #10#400*2
 cleanouts = 0
-detects = 32
-scan_count = 4
+detects = 500
+scan_count = 8
 
 # four total experiments: (chasm , no chasm) x (mirror_cb, no mirror_cb)
 # chasms = 0, 40
@@ -53,25 +53,38 @@ default_params = {
         "center_frequency": 80 * ureg.MHz, #73.15 * ureg.MHz,
     },
     "optical": {
-        "ao_amplitude_ac": 2000, #3200
-        "ao_amplitude_cb": 1000,
+        "ao_amplitude_ac": 2000,
+        "ao_amplitude_cb": 2000,
         "cb_detuning": -18 * ureg.MHz,
         "use_mirror_cb": False,
     },
     "chasm": {
-        "scan": 5 * ureg.MHz, # 5 MHz
-        "durations": 5 * ureg.ms, # 10 ms
+        "scan": 8 * ureg.MHz, # 5 MHz
+        "durations": 8 * ureg.ms, # 10 ms
         "ao_amplitude": 2000,
     },
     "detect": {
         "transition": "ac",
         # "detunings": np.array([0,0.2, -0.2, 0.4, -0.4, 0.6, -0.6, -1.2, 1.2, -2,2, -0.8, 0.8]) * ureg.MHz,
-        "detunings": np.linspace(-2.5, 2.5, 15) * ureg.MHz,
-        "on_time": 100 * ureg.us,
+        "detunings": np.array([2.3]) * ureg.MHz,
+        "on_time": 10 * ureg.us,
         "off_time": 2 * ureg.us,
         "delay": 8 * ureg.us,
-        "ao_amplitude": 200,
+        "ao_amplitude": 220,
         "simultaneous": False,
+        "fid": {
+            "use": True,
+            "save_avg": True,
+            "pump_amplitude": 733,
+            "pump_time": 45 * ureg.us,
+            "num_jumps": 40,
+            "pump_scan": 0.2 * ureg.MHz,
+            "probe_detuning": 10 * ureg.MHz,
+            "probe_amplitude": 180,
+            "probe_time": 50 * ureg.us,
+            "wait_time": 1 * ureg.us,
+            "phase": 0,
+        }
     },
     "rf": {
         "HSH": {
@@ -85,7 +98,7 @@ default_params = {
         "detuning_ab": 55 * ureg.kHz, # 53
         "detuning_abarbbar": -60 * ureg.kHz, # -57
         "amplitude": 5000,
-        "duration":15 * ureg.ms,
+        "duration": 15 * ureg.ms,
         "offset": 30 * ureg.kHz,
     },
     "lf": {
@@ -99,29 +112,32 @@ default_params = {
     "field_plate": {
         "method": "ttl",
         "relative_to_lf": "before",
-        "amplitude": 4500,
-        "stark_shift": 2.2 *ureg.MHz,
+        "amplitude": 4500*1.05,
+        "stark_shift": 2.2*1.05* ureg.MHz, #2.2 *ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
-        "use": True,
+        "use": False,
     },
     "digitizer": {
-        "sample_rate": 25e6,
+        "sample_rate": 100e6,
         "ch1_range": 2,
         "ch2_range": 2,
     },
     "sequence": {
         "sequence": [
-            ("field_plate_trigger", 1),
-            ("break", 300),
+            # ("field_plate_trigger", 1),
+            # ("break", 300),
             ("optical_cb", cb_pumps),
             ("optical_ac", ac_pumps),
             ("break", 200),
             ("lfpiov2", 1),
-            (f"detect_1", detects),
+            ("field_plate_trigger", 1),
+            ("break", 300),
             ("rf_ab", 1),
             (f"lf_0", 1),
             ("rf_abarbbar", 1),
+            ("field_plate_trigger", 1),
+            ("break", 300),
             (f"detect_2", detects),
         ]
     },
@@ -161,59 +177,81 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
         )
 
     for kk in tqdm(range(repeats)):
-        for field in [4500, -4500]:
-            params["field_plate"]["amplitude"] = field
-            rigol.field_plate_output(
-                amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
-                ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
-                on_time = on_time,
-                set_params = True,
-            )
-            for jj, lf_index in enumerate(lf_indices):
-                params["sequence"]["sequence"] = [
-                    ("chasm", chasms),
-                    ("field_plate_trigger", 1),
-                    ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                    ("optical_cb", cb_pumps),
-                    ("optical_ac", ac_pumps),
-                    ("break", 200),
-                    ("lfpiov2", 1),
-                    (f"detect_1", detects),
-                    ("rf_abarbbar", 1),
-                    (f"lf_{lf_index}", 1),
-                    ("rf_abarbbar", 1),
-                    (f"detect_2", detects),
-                ]
+        # for field in [4500, -4500]:
+        #     params["field_plate"]["amplitude"] = field
+        #     rigol.field_plate_output(
+        #         amplitude = 2.5 * params["field_plate"]["amplitude"] / 2**15,
+        #         ramp_time = params["field_plate"]["ramp_time"].to("s").magnitude,
+        #         on_time = on_time,
+        #         set_params = True,
+        #     )
+        for jj, lf_index in enumerate(lf_indices):
+            params["sequence"]["sequence"] = [
+                ("chasm", chasms),
+                # ("field_plate_trigger", 1),
+                # ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                ("optical_cb", cb_pumps),
+                ("optical_ac", ac_pumps),
+                ("break", 200),
 
-                sequence.setup_sequence()
-                m4i.setup_sequence_steps_only()
-                m4i.write_all_setup()
+                #("field_plate_trigger", 1),
+                #("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                #(f"detect_1", detects),
+                #("break", 11),
 
-                def worker():
-                    start_time = time.time()
-                    data = run_sequence(sequence, params, skip_setup=True)
-                    return (start_time, data)
-                start_time, data = run_expt_check_lock(worker)
-                try:
-                    temp = get_4k_platform_temp(time.time() - start_time)
-                except:
-                    temp = None
+                ("lfpiov2", 1),
+                ("rf_abarbbar", 1),
+                (f"lf_{lf_index}", 1),
+                ("rf_abarbbar", 1),
 
-                data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
+                ("field_plate_trigger", 1),
+                ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                (f"detect_2", detects),
+                ("break", 11),
+            ]
 
-                time.sleep(params["sleep"].to('s').magnitude)
+            sequence.setup_sequence()
+            m4i.setup_sequence_steps_only()
+            m4i.write_all_setup()
 
-                if jj == 0:
-                    first_data_id = data_id
-                elif jj == scan_count - 1:
-                    last_data_id = data_id
+            def worker():
+                start_time = time.time()
+                data = run_sequence(sequence, params, skip_setup=True)
+                return (start_time, data)
+            start_time, data = run_expt_check_lock(worker)
+            try:
+                temp = get_4k_platform_temp(time.time() - start_time)
+            except:
+                temp = None
 
-            if not only_print_first_last:
-                print(f"({first_data_id}, {last_data_id})")
-            elif kk == 0 or kk == repeats - 1:
-                print(f"({first_data_id}, {last_data_id})")
+            data_id = save_data(sequence, params, *data, extra_headers={"start_time": start_time, "temp": temp})
 
-run_1_experiment(repeats = 600)
+            time.sleep(params["sleep"].to('s').magnitude)
+
+            if jj == 0:
+                first_data_id = data_id
+            elif jj == scan_count - 1:
+                last_data_id = data_id
+
+        if not only_print_first_last:
+            print(f"({first_data_id}, {last_data_id})")
+        elif kk == 0 or kk == repeats - 1:
+            print(f"({first_data_id}, {last_data_id})")
+
+run_1_experiment(only_print_first_last=False, repeats = 10000)
+
+
+# pump_times = np.linsapce(1, 50, 10) * ureg.us
+# pump_amplitudes = np.linspace(200, 1000, 10)
+#
+# for pump_time in pump_times:
+#     for pump_amplitude in pump_amplitudes:
+#         default_params["detect"]["fid"]["pump_time"] = pump_times
+#         default_params["detect"]["fid"]["pump_amplitude"] = pump_amplitude
+#         print(f"Detuning = {detuning} \t Amplitude = {amplitude}")
+#         s = time.time()
+#         run_1_experiment(repeats = 1, only_print_first_last = True)
+#         print(f"Took {time.time() - s}")
 
 ###
 #run_1_experiment(repeats = 10)

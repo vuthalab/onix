@@ -382,7 +382,7 @@ class AWGSimultaneousSinePulses(AWGFunction):
 
     def output(self, times):
         frequencies = self._frequencies.to("Hz").magnitude
-        sine = np.sum([self._amplitude * np.sin(2 * np.pi * frequency * times + self._phase) for frequency in frequencies], axis=1)
+        sine = np.sum([self._amplitude * np.sin(2 * np.pi * frequency * times + self._phase) for frequency in frequencies], axis=1) # possible error; this might need to be axis = 0
         if self._start_time is not None:
             start_time = self._start_time.to("s").magnitude
             mask_start = np.heaviside(times - start_time, 0)
@@ -406,6 +406,61 @@ class AWGSimultaneousSinePulses(AWGFunction):
     @property
     def max_amplitude(self):
         return self._amplitude*len(self._frequencies)
+    
+
+class AWGProductSinePulses(AWGFunction):
+    def __init__(
+        self,
+        frequencies: Union[float, List[float], Q_, List[Q_]],
+        amplitude: float,
+        phase: float = 0,
+        start_time: Optional[Union[float, Q_]] = None,
+        end_time: Optional[Union[float, Q_]] = None,
+    ):
+        super().__init__()
+        if isinstance(frequencies, numbers.Number):
+            frequencies = frequencies * ureg.Hz
+        elif not isinstance(frequencies, Q_):
+            for kk in range(len(frequencies)):
+                if isinstance(frequencies[kk], numbers.Number):
+                    frequencies[kk] = frequencies[kk] * ureg.Hz
+            frequencies = Q_.from_list(frequencies, "Hz")
+        self._frequencies: Q_ = frequencies
+        self._amplitude = amplitude
+        self._phase = phase
+        if isinstance(start_time, numbers.Number):
+            start_time = start_time * ureg.s
+        self._start_time: Union[Q_, None] = start_time
+        if isinstance(end_time, numbers.Number):
+            end_time = end_time * ureg.s
+        self._end_time: Union[Q_, None] = end_time
+
+    def output(self, times):
+        frequencies = self._frequencies.to("Hz").magnitude
+        sine = self._amplitude * np.prod([ np.sin(2 * np.pi * frequency * times + self._phase) for frequency in frequencies], axis=0)
+        if self._start_time is not None:
+            start_time = self._start_time.to("s").magnitude
+            mask_start = np.heaviside(times - start_time, 0)
+        else:
+            mask_start = 1
+        if self._end_time is not None:
+            end_time = self._end_time.to("s").magnitude
+            mask_end = np.heaviside(end_time - times, 1)
+        else:
+            mask_end = 1
+        return sine * mask_start * mask_end
+
+    @property
+    def min_duration(self) -> Q_:
+        if self._end_time is not None:
+            return self._end_time
+        if self._start_time is not None:
+            return self._start_time
+        return 0 * ureg.s
+
+    @property
+    def max_amplitude(self):
+        return self._amplitude
 
 
 

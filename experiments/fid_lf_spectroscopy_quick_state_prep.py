@@ -10,6 +10,7 @@ from onix.experiments.shared import (
     setup_digitizer,
     run_sequence,
     save_data,
+    get_4k_platform_temp
 )
 from tqdm import tqdm
 from onix.headers.unlock_check import run_expt_check_lock
@@ -32,31 +33,6 @@ query_api = query_client.query_api()
 def get_sequence(params):
     sequence = LFSpectroscopyQuickStatePrep(params)
     return sequence
-
-## function to get 4K plate temp
-def get_4k_platform_temp(average_time = 60):
-    if average_time > 10:
-        tables = query_api.query(
-                (
-                    f'from(bucket:"live") |> range(start: -{average_time}s) '
-                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
-                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
-                )
-                )
-        values =  np.array([record["_value"] for table in tables for record in table.records])
-        return np.average(values)
-    else:
-        tables = query_api.query(
-                (
-                    f'from(bucket:"live") |> range(start: -20s) '
-                    '|> filter(fn: (r) => r["_measurement"] == "temperatures")'
-                    '|> filter(fn: (r) => r["_field"] == " 4k platform")'
-                )
-                )
-        values =  np.array([record["_value"] for table in tables for record in table.records])
-        return values[-1]
-
-
 
 ## parameters
 ac_pumps = 25
@@ -91,27 +67,28 @@ default_params = {
             "use": True,
             "pump_amplitude": 733,
             "pump_time": 45 * ureg.us,
-            "probe_detuning": -10 * ureg.MHz,
-            "probe_amplitude": 180,
+            "probe_detuning": -10 * ureg.MHz, # scan
+            "probe_amplitude": 180, # scan
             "probe_time": 50 * ureg.us,
             "wait_time": 1 * ureg.us,
             "phase": 0,
         }
     },
     "rf": {
-        "amplitude": 3875,
+        "amplitude": 4000,
         "T_0": 0.3 * ureg.ms,
         "T_e": 0.15 * ureg.ms,
-        "T_ch": 21 * ureg.ms,
-        "scan_range": 45 * ureg.kHz,
+        "T_ch": 25 * ureg.ms,
+        "scan_range": 60 * ureg.kHz,
+        "offset": 30 * ureg.kHz,
     },
     "lf": {
-        "center_frequencies": [(141.146 + (jj * 0.1)) * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
+        "center_frequencies": [141.146 * ureg.kHz for jj in range(freq_counts) for kk in range(lf_counts)],
         "amplitudes": [1000 for kk in range(lf_counts * freq_counts)],
         "wait_times": [0.35 * ureg.ms for kk in range(lf_counts * freq_counts)],
         "durations": [0.05 * ureg.ms for kk in range(lf_counts * freq_counts)],
         "detunings": [0. * ureg.kHz for kk in range(lf_counts * freq_counts)],
-        "phase_diffs": list(np.linspace(0, 2*np.pi, lf_counts)) * freq_counts,
+        "phase_diffs": list(np.linspace(0, 2*np.pi, lf_counts, endpoint = False)) * freq_counts,
         "piov2_params": {
             "amplitude": 1000,
             "duration": 0.05 * ureg.ms,
@@ -119,9 +96,9 @@ default_params = {
     },
     "field_plate": {
         "method": "ttl",
-        "relative_to_lf": "after", #"before"= during optical, "after"=during detect
-        "amplitude": 4500,
-        "stark_shift": 2.2 * ureg.MHz,
+        "relative_to_lf": "before", #"before"= during optical, "after"=during detect
+        "amplitude": 4500 * 1.7,
+        "stark_shift": 2.2 * 1.7 * ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
         "use": True,
@@ -244,11 +221,22 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             elif kk == 0 or kk == repeats - 1:
                 print(f"({first_data_id}, {last_data_id})")
 
-default_params["rf"]["T_ch"] = 21 * ureg.ms
-default_params["rf"]["amplitude"] = 3875
+# default_params["rf"]["T_ch"] = 21 * ureg.ms
+# default_params["rf"]["amplitude"] = 3875
 
-while True:
-    run_1_experiment(repeats=1000000)
+
+
+probe_detunings = np.linspace(-15, -5, 11) * ureg.MHz
+probe_amplitudes = np.linspace(100, 300, 11)
+
+for detuning in probe_detunings:
+    for amplitude in probe_amplitudes:
+        default_params["detect"]["fid"]["probe_detuning"] = detuning
+        default_params["detect"]["fid"]["probe_amplitudes"] = amplitude
+        print(f"Detuning = {detuning} \t Amplitude = {amplitude}")
+        s = time.time()
+        run_1_experiment(repeats = 10, only_print_first_last = True)
+        print(f"Took {time.time() - s}")
 
 ## 2D RF amplitude and duration scan
 # duration_list = np.linspace(, 23,4)

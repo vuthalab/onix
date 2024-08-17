@@ -153,12 +153,12 @@ class LFSpectroscopyQuickStatePrep(Sequence):
             self.add_segment(segment)
         
         # pi/2 pulse for lf
-        # segment = Segment("lfpiov2")
-        # amplitude = self._lf_parameters["piov2_params"]["amplitude"]
-        # duration = self._lf_parameters["piov2_params"]["duration"]
-        # pulse = AWGSinePulse(141.146 * ureg.kHz, amplitude, 0, 0, duration)
-        # segment.add_awg_function(lf_channel, pulse)
-        # self.add_segment(segment)
+        segment = Segment("lfpiov2")
+        amplitude = self._lf_parameters["piov2_params"]["amplitude"]
+        duration = self._lf_parameters["piov2_params"]["duration"]
+        pulse = AWGSinePulse(141.146 * ureg.kHz, amplitude, 0, 0, duration)
+        segment.add_awg_function(lf_channel, pulse)
+        self.add_segment(segment)
 
     def _define_cleanout(self):
         duration = self._cleanout_parameters["duration"]

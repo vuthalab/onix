@@ -14,6 +14,8 @@ from onix.sequences.sequence import (
     AWGConstant,
     AWGSineSweep,
     AWGSineTrain,
+    AWGMultiFunctions,
+    AWGProductSinePulses,
     MultiSegments,
     Segment,
     SegmentEmpty,
@@ -215,25 +217,71 @@ def detect_segment(
         # )
         raise NotImplementedError()
     elif "fid" in detect_parameters and detect_parameters["fid"]["use"]:
+        detect_detuning = detect_parameters["detunings"][0]
         probe_detuning = detect_parameters["fid"]["probe_detuning"]
         pump_amplitude = detect_parameters["fid"]["pump_amplitude"]
         pump_time = detect_parameters["fid"]["pump_time"]
+        pump_scan= detect_parameters["fid"]["pump_scan"]
         wait_time = detect_parameters["fid"]["wait_time"]
         probe_amplitude = detect_parameters["fid"]["probe_amplitude"]
         probe_time = detect_parameters["fid"]["probe_time"]
         phase = detect_parameters["fid"]["phase"] / ao_parameters["order"]
         ao_probe_frequency = ao_parameters["center_frequency"] + probe_detuning / ao_parameters["order"]
-        ao_pulse = AWGFIDPulse(
-            ao_frequencies,
-            pump_amplitude,
-            pump_time,
-            wait_time,
-            ao_probe_frequency,
-            probe_amplitude,
-            probe_time,
-            phase,
-            start_time = start_time + off_time / 2,
+        num_jumps = detect_parameters["fid"]["num_jumps"]
+ 
+        # ao_pulse = AWGFIDPulse(
+        #     ao_frequencies,
+        #     pump_amplitude,
+        #     pump_time,
+        #     wait_time,
+        #     ao_probe_frequency,
+        #     probe_amplitude,
+        #     probe_time,
+        #     phase,
+        #     start_time = start_time + off_time / 2,
+        # )
+
+        # pump_pulse = AWGSineSweep(
+        #     start_frequency= ao_parameters["center_frequency"] + (detect_detuning- pump_scan)/ ao_parameters["order"],
+        #     stop_frequency= ao_parameters["center_frequency"] + (detect_detuning + pump_scan) / ao_parameters["order"], 
+        #     amplitude= pump_amplitude,
+        #     start_time = 0,
+        #     end_time=  pump_time,
+        #     phase = 0
+        # )
+
+        # pump_pulse = AWGSineTrain(
+        #     on_time = pump_time / num_jumps, 
+        #     off_time = 0, 
+        #     frequencies= [ao_parameters["center_frequency"] + detect_detuning / ao_parameters["order"], ao_parameters["center_frequency"] - detect_detuning / ao_parameters["order"]]*int(num_jumps/2),
+        #     amplitudes = pump_amplitude, 
+        #     phases = [0, np.pi]*int(num_jumps/2) ,
+        #     start_time = 0
+        # )
+
+        pump_pulse = AWGProductSinePulses(
+            frequencies=[ao_parameters["center_frequency"], detect_detuning / ao_parameters["order"]],
+            amplitude = pump_amplitude,
+            phase = 0,
+            start_time = 0,
+            end_time = pump_time
         )
+
+
+
+        probe_pulse = AWGSinePulse(
+            frequency = ao_probe_frequency,
+            amplitude = probe_amplitude,
+            phase = phase,
+            start_time= 0,
+            end_time = probe_time
+        )
+
+        ao_pulse = AWGMultiFunctions([pump_pulse, probe_pulse], 
+                                     start_times = [start_time + off_time / 2, start_time + off_time / 2 + pump_time + wait_time], 
+                                     end_times = [start_time + off_time / 2 + pump_time, start_time + off_time / 2 + pump_time + wait_time + probe_time]
+                                     )
+
     else:
         ao_pulse = AWGSineTrain(
             on_time,

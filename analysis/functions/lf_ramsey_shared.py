@@ -261,8 +261,9 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
                 if headers is None:
                     offset += len(list(data_list))
                     continue
-            except Exception:
+            except Exception as e:
                 offset += len(list(data_list))
+                print(e)
                 continue
         
             for header in headers:

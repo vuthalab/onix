@@ -243,8 +243,12 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
         transmissions = np.array(digitizer_data[0])
         monitors = np.array(digitizer_data[1])
         if sequence.analysis_parameters["fid"]:
-            transmissions_avg = transmissions
-            transmissions_err = np.zeros(transmissions_avg.shape)
+            if params["detect"]["fid"]["save_avg"]:
+                transmissions_avg = np.array([np.average(transmissions, axis=0)])
+                transmissions_err = np.zeros(transmissions_avg.shape)
+            else:
+                transmissions_avg = transmissions
+                transmissions_err = np.zeros(transmissions_avg.shape)
         else:
             transmissions_avg, transmissions_err = average_data(
                 transmissions,
