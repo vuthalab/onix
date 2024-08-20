@@ -12,8 +12,6 @@ from onix.analysis.functions.shared import data_identification_to_list, analysis
 Shared analysis functions for any LF Ramsey spectroscopy. 
 """
 
-magnetic_field = 223e-4
-
 def averaging_ys(xs, ys):
     """
     Given multiple traces with the same phases this averages all traces into one. 
@@ -104,10 +102,14 @@ def plot_ramsey(data, get_results, do_average = True):
     ax.legend()
     ax.grid()
     plt.tight_layout()
-    plt.show()
+    #plt.show()
     print(f"SNR with 9 phase points = {fitter.results["A"]/fitter.errors["A"]}")
+    return fig, ax
 
+#############################################################################################################
+magnetic_field = 223e-4 # measured magnetic field, see https://electricatoms.wordpress.com/2024/06/26/improving-the-onix-magnetic-field-version-1/
 
+# compute nuclear spins for conversion from b, bbar or a, abar frequencies to W_T
 ground = hyperfine.states["7F0"]
 ground._Hamiltonian = ground.H_total(magnetic_field)
 e_g, s_g = ground.energies_and_eigenstates()
@@ -191,40 +193,47 @@ def combine_polarization_data(results):
 
 def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_old = True, save_new = True):
     """
-    Analyzes a collection of Ramsey phase scans. Again get_results depends on the specific sequence, so input get_results = get_results
+    Analyzes a collection of Ramsey phase scans. get_results depends on the specific sequence, so input get_results = get_results
     load_old determines if this will search for the processed data and load it
     save_new determines if this will save the processed data
     """
-    points_per_scan = data_range[1] - data_range[0]
+    points_per_scan = data_range[1] - data_range[0] + 1 
+
     first = data_range[0]
-    last = max
+    num_completed_scans = np.floor((max + 1 - data_range[0]) / points_per_scan)
+    last = int(num_completed_scans * points_per_scan + data_range[0] - 1) # ignore the unfinished last Ramsey fringe, if any
+    
     first_unprocessed = first
     all_old_data = False
     all_new_data = True
-
     loaded_data = None
-    path_to_save = get_analysis_file_path(analysis_dnum, f"{first}_{last}_processed.npz")
-    dir = os.path.dirname(path_to_save)
-    if load_old is True:
-        for file in os.listdir(dir):
-            try: 
+
+    path_to_save = get_analysis_file_path(analysis_dnum, f"{first}_{last}_processed.npz") # filepath we will end up saving our data to
+    directory_to_save = os.path.dirname(path_to_save) # directory where all of our processed data is saved
+    if load_old is True: # if load old data, search the processed data folder for filenames matching these data numbers
+        for file in os.listdir(directory_to_save):
+            try: # Sometimes we save data with longer filenames that just first_last_processed. These will cause errors in the below line.
                 start_str, stop_str, _ = file.split("_")
             except:
-                continue
+                continue 
             start = int(start_str)
             stop = int(stop_str)
-            if start == data_range[0]:
+            if start == data_range[0]: # if two datasets have the same start number, they ought to be the same
                 all_new_data = False
-                if stop == max:
+                if stop >= last: # recognizing that all data you are trying to load has already been analyzed
                     all_old_data = True
-                first_unprocessed = stop + 1
-                old_data_path = os.path.join(dir, file)
+                    if stop > last:
+                        print(stop)
+                        print("You are attempting to analyze a subset of an already-analyzed dataset. This has returned the larger dataset, not just the data numbers you asked for.")
+                first_unprocessed = stop + 1 # setting the datapoint we should start our analysis at
+                old_data_path = os.path.join(directory_to_save, file) # load old data
                 loaded_data = np.load(old_data_path, allow_pickle = True)
                 print("Existing data loaded")
                 break
         
-    current = first_unprocessed + points_per_scan
-    offset = 0
+    current = first_unprocessed + points_per_scan - 1 # end of the first unprocessed Ramsey fringe
+    offset = 0 # we will add points_per_scan to this as we analyze each Ramsey fringe
+    # temporary housing for all of the quanitities we will save from each Ramsey fringe 
     all_results = {
         "lf_center_freq": [],
         "freq_center": [],
@@ -244,14 +253,22 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
         "phi0": [],
     }
 
+    # if we have new data to analyze, analyze it
     if all_old_data is False:
-        while current + offset <= max:
-            data_range_now = (first_unprocessed + offset, first_unprocessed + points_per_scan + offset)
+        while current + offset <= last:
+            # data range corresponding to the next Ramsey fringe which needs to be analyzed
+            data_range_now = (first_unprocessed + offset, first_unprocessed + offset + points_per_scan - 1)
+
+            # if this data range intersects ignore_data_numbers, keep adding 1 to this data range until we are out of ignore_data_numbers
             if data_range_now[0] in ignore_data_numbers:
                 offset += 1
                 continue
+
+            # convert our data range into a list
             data_list = data_identification_to_list(data_range_now)
-            try:
+
+            try: 
+                # gets the headers and the fitted heights to our antiholes. Can filter out bad fits, although likely not necessary.
                 headers, results = get_results(
                     data_range_now, 
                     fitted_freq_offset = np.inf,
@@ -266,10 +283,12 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
                 print(e)
                 continue
         
+            # if temperature could not be saved for this experiment, set it to nan
             for header in headers:
                 if "temp" not in header or header["temp"] is None:
                     header["temp"] = np.nan
         
+            # this list will store the index of the phase points, for example [0,1,2,3] if we use 4 phase points, or 0-7 if we use 8
             index = []
             for header in headers:
                 sequence = header["params"]["sequence"]["sequence"]
@@ -277,7 +296,8 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
                     if name.startswith("lf") and not name.endswith("piov2"):
                         index.append(int(name.split("_")[-1]))
                         break
-                        
+
+            # get the relevant experiment parameters for this Ramsey fringe            
             center_freq = headers[0]["params"]["lf"]["center_frequency"].to("Hz").magnitude
             pulse_time_ms = headers[0]["params"]["lf"]["piov2_time"].to("ms").magnitude
             wait_time_ms = headers[0]["params"]["lf"]["wait_time"].to("ms").magnitude
@@ -299,12 +319,15 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
                 errs = unumpy.std_devs(results[:, kk])
                 try:
                     fitter = get_phase_fitter(phases, ys, None)
-                except:
-                    break
+                except Exception as e:
+                    print(f"Could not fit Ramsey fringe for data numbers #{first_unprocessed + offset} - #{first_unprocessed + offset + points_per_scan - 1}. \n Fix this and try the analysis again. \n Perhaps add these to ignore_data_numbers?")
+                    return "Fix the Ramsey fringe which could not be fit and try again.", 0
+                # move the fitted phi_0 to be between +- pi
                 phi0 = ufloat(fitter.results["phi_0"], fitter.errors["phi_0"])
                 phi0 = (np.pi + phi0) % (2 * np.pi) - np.pi
-                freq_center = phi0 / (2 * np.pi) / (total_time_ms * 1e-3) + probe_freq
+                freq_center = phi0 / (2 * np.pi) / (total_time_ms * 1e-3) + probe_freq # convert phi_0 to center frequency of transition
                 
+                # append all relevant data to all_results dictionary
                 neg_DdotE = kk == 0
                 E = E_field
                 D = (not neg_DdotE) == E
@@ -333,28 +356,201 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
                 all_results["rf_duration_ms"].append(rf_duration_ms)
                 all_results["phi0"].append(phi0)
             
+            # increment the offset to move to the next Ramsey fringe
             offset += len(list(data_list))
+        
+        # format our all_results dictionary, containing all newly-analyzed data, into a numpy array
         new_results, col_indices = combine_polarization_data(all_results)
 
+        # if there is no old data we loaded, return new_results
         if loaded_data is None:
             results = new_results
+        # concatenate loaded data and new data
         else:
-            results = np.concatenate((loaded_data["results"], new_results), axis = 0)
+            
+            if "results" in loaded_data:
+                results = np.concatenate((loaded_data["results"], new_results), axis = 0)
+            else:
+                # put the loaded data back into a nice array
+                f_plus_nominal = loaded_data["f_plus_nominal"]
+                f_plus_uncertainty = loaded_data["f_plus_uncertainty"]
+                f_minus_nominal = loaded_data["f_minus_nominal"]
+                f_minus_uncertainty = loaded_data["f_minus_uncertainty"]
+                phi_plus_nominal = loaded_data["phi_plus_nominal"]
+                phi_plus_uncertainty = loaded_data["phi_plus_uncertainty"]
+                phi_minus_nominal = loaded_data["phi_minus_nominal"]
+                phi_minus_uncertainty = loaded_data["phi_minus_uncertainty"]
+                Z_nominal = loaded_data["Z_nominal"]
+                Z_uncertainty = loaded_data["Z_uncertainty"]
+                W_T_nominal = loaded_data["W_T_nominal"]
+                W_T_uncertainty = loaded_data["W_T_uncertainty"]
+                start_time = loaded_data["start_time"]
+                end_time = loaded_data["end_time"]
+                temp = loaded_data["temp"]
+                lf_center_freq  = loaded_data["lf_center_freq"]
+                state = loaded_data["state"]
+                E = loaded_data["E"]
+                field_plate_amplitude = loaded_data["field_plate_amplitude"]
+                electric_field_shift_MHz = loaded_data["electric_field_shift_MHz"]
+                pulse_time_ms = loaded_data["pulse_time_ms"]
+                wait_time_ms = loaded_data["wait_time_ms"]
+                ramp_time_ms = loaded_data["ramp_time_ms"]
+                rf_amplitude = loaded_data["rf_amplitude"]
+                rf_duration_ms = loaded_data["rf_duration_ms"]
+                # TODO: the ordering is hard coded here. This should instead reference col_indices to always get the ordering right even if something changes.
+                loaded_data_results = np.array([
+                    np.array([
+                        ufloat(f_plus_nominal[i], f_plus_uncertainty[i]),
+                        ufloat(f_minus_nominal[i], f_minus_uncertainty[i]),
+                        start_time[i],
+                        end_time[i],
+                        temp[i],
+                        ufloat(phi_plus_nominal[i], phi_plus_uncertainty[i]),
+                        ufloat(phi_minus_nominal[i], phi_minus_uncertainty[i]),
+                        lf_center_freq[i],
+                        state[i],
+                        E[i],
+                        field_plate_amplitude[i],
+                        electric_field_shift_MHz[i],
+                        pulse_time_ms[i],
+                        wait_time_ms[i],
+                        ramp_time_ms[i],
+                        rf_amplitude[i],
+                        rf_duration_ms[i],
+                        ufloat(Z_nominal[i], Z_uncertainty[i]),
+                        ufloat(W_T_nominal[i], W_T_uncertainty[i])
+                        ]) for i in range(len(f_plus_nominal))
+                    ])
+                results = np.concatenate((loaded_data_results, new_results), axis = 0)
 
-        if all_new_data is False:
-            try:
-                os.remove(old_data_path)
-            except:
-                pass
+        # TODO: automate this. If there is any column which has unumpy values, create two lists, one with the nominal values and one with the uncertainties
+
+        f_plus_nominal = [unumpy.nominal_values(i).tolist() for i in results[:, col_indices["f+"]]]
+        f_plus_uncertainty = [unumpy.std_devs(i).tolist() for i in results[:, col_indices["f+"]]]
+
+        f_minus_nominal = [unumpy.nominal_values(i).tolist() for i in results[:, col_indices["f-"]]]
+        f_minus_uncertainty = [unumpy.std_devs(i).tolist() for i in results[:, col_indices["f-"]]]
+
+        phi_plus_nominal = [unumpy.nominal_values(i).tolist() for i in results[:, col_indices["phi0+"]]]
+        phi_plus_uncertainty = [unumpy.std_devs(i).tolist() for i in results[:, col_indices["phi0+"]]]
+
+        phi_minus_nominal = [unumpy.nominal_values(i).tolist() for i in results[:, col_indices["phi0-"]]]
+        phi_minus_uncertainty = [unumpy.std_devs(i).tolist() for i in results[:, col_indices["phi0-"]]]
+
+        Z_nominal = [unumpy.nominal_values(i).tolist() for i in results[:, col_indices["Z"]]]
+        Z_uncertainty = [unumpy.std_devs(i).tolist() for i in results[:, col_indices["Z"]]]
+
+        W_T_nominal = [unumpy.nominal_values(i).tolist() for i in results[:, col_indices["W_T"]]]
+        W_T_uncertainty = [unumpy.std_devs(i).tolist() for i in results[:, col_indices["W_T"]]]
+
+
+        # try to save the new data. If it saves without error, then delete the old file.
         if save_new:
-            np.savez(
-                path_to_save,
-                results=results,
-                col_indices=col_indices,
-            )
+            try:
+                #np.savez(path_to_save, results=results, col_indices=col_indices)
+                np.savez(path_to_save, 
+                         f_plus_nominal = f_plus_nominal, 
+                         f_plus_uncertainty = f_plus_uncertainty, 
+                         f_minus_nominal = f_minus_nominal, 
+                         f_minus_uncertainty = f_minus_uncertainty, 
+                         phi_plus_nominal = phi_plus_nominal, 
+                         phi_plus_uncertainty = phi_plus_uncertainty, 
+                         phi_minus_nominal = phi_minus_nominal, 
+                         phi_minus_uncertainty = phi_minus_uncertainty,
+                         Z_nominal = Z_nominal, 
+                         Z_uncertainty = Z_uncertainty,
+                         W_T_nominal = W_T_nominal, 
+                         W_T_uncertainty = W_T_uncertainty,
+                         start_time = results[:, col_indices["start_time"]],
+                         end_time = results[:, col_indices["end_time"]],
+                         temp = results[:, col_indices["temp"]],
+                         lf_center_freq  = results[:, col_indices["lf_center_freq"]],
+                         state = results[:, col_indices["state"]],
+                         E = results[:, col_indices["E"]],
+                         field_plate_amplitude = results[:, col_indices["field_plate_amplitude"]],
+                         electric_field_shift_MHz = results[:, col_indices["electric_field_shift_MHz"]],
+                         pulse_time_ms = results[:, col_indices["pulse_time_ms"]],
+                         wait_time_ms = results[:, col_indices["wait_time_ms"]],
+                         ramp_time_ms = results[:, col_indices["ramp_time_ms"]],
+                         rf_amplitude = results[:, col_indices["rf_amplitude"]],
+                         rf_duration_ms = results[:, col_indices["rf_duration_ms"]],
+                         )
+                if all_new_data is False:
+                    os.remove(old_data_path)
+            except Exception as e:
+                print(f"Could not save new data with exception {e}")
+                return results, col_indices
 
+    # if there is no new data, just return the previously loaded data
     else:
-        results = loaded_data["results"]
-        col_indices = loaded_data["col_indices"].tolist()
+        f_plus_nominal = loaded_data["f_plus_nominal"]
+        
+        f_plus_uncertainty = loaded_data["f_plus_uncertainty"]
+        f_minus_nominal = loaded_data["f_minus_nominal"]
+        f_minus_uncertainty = loaded_data["f_minus_uncertainty"]
+        phi_plus_nominal = loaded_data["phi_plus_nominal"]
+        phi_plus_uncertainty = loaded_data["phi_plus_uncertainty"]
+        phi_minus_nominal = loaded_data["phi_minus_nominal"]
+        phi_minus_uncertainty = loaded_data["phi_minus_uncertainty"]
+        Z_nominal = loaded_data["Z_nominal"]
+        Z_uncertainty = loaded_data["Z_uncertainty"]
+        W_T_nominal = loaded_data["W_T_nominal"]
+        W_T_uncertainty = loaded_data["W_T_uncertainty"]
+        start_time = loaded_data["start_time"]
+        end_time = loaded_data["end_time"]
+        temp = loaded_data["temp"]
+        lf_center_freq  = loaded_data["lf_center_freq"]
+        state = loaded_data["state"]
+        E = loaded_data["E"]
+        field_plate_amplitude = loaded_data["field_plate_amplitude"]
+        electric_field_shift_MHz = loaded_data["electric_field_shift_MHz"]
+        pulse_time_ms = loaded_data["pulse_time_ms"]
+        wait_time_ms = loaded_data["wait_time_ms"]
+        ramp_time_ms = loaded_data["ramp_time_ms"]
+        rf_amplitude = loaded_data["rf_amplitude"]
+        rf_duration_ms = loaded_data["rf_duration_ms"]
+        results = np.array([
+                    np.array([
+                        ufloat(f_plus_nominal[i], f_plus_uncertainty[i]),
+                        ufloat(f_minus_nominal[i], f_minus_uncertainty[i]),
+                        start_time[i],
+                        end_time[i],
+                        temp[i],
+                        ufloat(phi_plus_nominal[i], phi_plus_uncertainty[i]),
+                        ufloat(phi_minus_nominal[i], phi_minus_uncertainty[i]),
+                        lf_center_freq[i],
+                        state[i],
+                        E[i],
+                        field_plate_amplitude[i],
+                        electric_field_shift_MHz[i],
+                        pulse_time_ms[i],
+                        wait_time_ms[i],
+                        ramp_time_ms[i],
+                        rf_amplitude[i],
+                        rf_duration_ms[i],
+                        ufloat(Z_nominal[i], Z_uncertainty[i]),
+                        ufloat(W_T_nominal[i], W_T_uncertainty[i])
+                        ]) for i in range(len(f_plus_nominal))
+                    ])
+        col_indices = {'f+': 0,
+            'f-': 1,
+            'start_time': 2,
+            'end_time': 3,
+            'temp': 4,
+            'phi0+': 5,
+            'phi0-': 6,
+            'lf_center_freq': 7,
+            'state': 8,
+            'E': 9,
+            'field_plate_amplitude': 10,
+            'electric_field_shift_MHz': 11,
+            'pulse_time_ms': 12,
+            'wait_time_ms': 13,
+            'ramp_time_ms': 14,
+            'rf_amplitude': 15,
+            'rf_duration_ms': 16,
+            'Z': 17,
+            'W_T': 18,
+            }
 
     return results, col_indices
