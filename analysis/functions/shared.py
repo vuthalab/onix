@@ -18,9 +18,11 @@ def data_identification_to_list(data_identification):
         # it should be a list
         return data_identification
     
-def get_normalized_transmission(data_number):
+def get_normalized_transmission(data_number, fft_end_time_s = None, fft_average_scan = None, fft_first_N = None):
     data, header = get_experiment_data(data_number)
     if "fid" in header["params"]["detect"] and header["params"]["detect"]["fid"]["use"]:
+        if (fft_end_time_s is None) or (fft_average_scan is None):
+            raise Exception("FID analysis parameters missing.") 
         sample_rate = header["params"]["digitizer"]["sample_rate"]
         fid_params = header["params"]["detect"]["fid"]
         start_time = (fid_params["pump_time"] + fid_params["wait_time"]).to("s").magnitude + 7e-6

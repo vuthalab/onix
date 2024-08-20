@@ -99,7 +99,7 @@ def plot_spectrum(start_data_number, end_data_number = None, delay = 7e-6, num_d
     duration = times[mask][-1] - times[mask][0]
     N = duration / time_resolution + 1
     fs = np.fft.rfftfreq(len(data["transmissions_avg"][00][mask]), d=time_resolution)[1:]
-            
+    
     ys_sum_detect1 = np.zeros(len(fs)) * 1j
     ys_sum_detect2 = np.zeros(len(fs)) * 1j
     while index < num_experiments:
@@ -148,6 +148,8 @@ def plot_spectrum(start_data_number, end_data_number = None, delay = 7e-6, num_d
     ax.flatten()[-2].set_xlabel("Frequency (MHz)")
     plt.tight_layout()
     plt.show()
+    return fs
+    
 
 def plot_spectrum_coherent(start_data_number, end_data_number = None, delay = 7e-6, num_detects = 2):
     """
