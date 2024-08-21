@@ -4,7 +4,7 @@ import time
 
 laser = Quarto(find_quarto("frequency", return_all = True)[0])
 
-def run_expt_check_lock(run_expt_function, wait_between_attempts = 0.01):
+def run_expt_check_lock(run_expt_function, wait_between_attempts = 0.05):
     """
     Checks lock state. If locked, runs experiment. If the unlock counter increases during experiment, it will re-run the experiment. Waits for wait_between_attempts seconds
     before attempting to run experiment again.
