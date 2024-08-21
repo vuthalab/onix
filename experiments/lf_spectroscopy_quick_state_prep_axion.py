@@ -37,7 +37,7 @@ ac_pumps = 25 #250*2
 cb_pumps = 25 #250*2
 chasms = 10 #10#400*2
 cleanouts = 0
-detects = 500
+detects = 512
 scan_count = 8
 
 # four total experiments: (chasm , no chasm) x (mirror_cb, no mirror_cb)
@@ -65,23 +65,24 @@ default_params = {
     },
     "detect": {
         "transition": "ac",
-        # "detunings": np.array([0,0.2, -0.2, 0.4, -0.4, 0.6, -0.6, -1.2, 1.2, -2,2, -0.8, 0.8]) * ureg.MHz,
-        "detunings": np.array([2.3]) * ureg.MHz,
-        "on_time": 10 * ureg.us,
-        "off_time": 2 * ureg.us,
+        "detunings": np.linspace(-3.5, 3.5, 35) * ureg.MHz,
+        # "detunings": np.array([2.3]) * ureg.MHz,
+        "on_time": 5 * ureg.us,
+        "off_time": 1 * ureg.us,
         "delay": 8 * ureg.us,
         "ao_amplitude": 220,
         "simultaneous": False,
+        "save_avg": True,
         "fid": {
-            "use": True,
+            "use": False,
             "save_avg": True,
-            "pump_amplitude": 733,
-            "pump_time": 45 * ureg.us,
+            "pump_amplitude": 733 * 2,
+            "pump_time": 5 * ureg.us,
             "num_jumps": 40,
             "pump_scan": 0.2 * ureg.MHz,
             "probe_detuning": 10 * ureg.MHz,
-            "probe_amplitude": 180,
-            "probe_time": 50 * ureg.us,
+            "probe_amplitude": 220,
+            "probe_time": 15 * ureg.us,
             "wait_time": 1 * ureg.us,
             "phase": 0,
         }
@@ -112,14 +113,14 @@ default_params = {
     "field_plate": {
         "method": "ttl",
         "relative_to_lf": "before",
-        "amplitude": 4500*1.05,
-        "stark_shift": 2.2*1.05* ureg.MHz, #2.2 *ureg.MHz,
+        "amplitude": 4500*1.5,
+        "stark_shift": 2.2*1.5* ureg.MHz, #2.2 *ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
-        "use": False,
+        "use": True,
     },
     "digitizer": {
-        "sample_rate": 100e6,
+        "sample_rate": 25e6,
         "ch1_range": 2,
         "ch2_range": 2,
     },
@@ -133,6 +134,7 @@ default_params = {
             ("lfpiov2", 1),
             ("field_plate_trigger", 1),
             ("break", 300),
+            (f"detect_1", detects),
             ("rf_ab", 1),
             (f"lf_0", 1),
             ("rf_abarbbar", 1),
@@ -188,15 +190,15 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
         for jj, lf_index in enumerate(lf_indices):
             params["sequence"]["sequence"] = [
                 ("chasm", chasms),
-                # ("field_plate_trigger", 1),
-                # ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                ("field_plate_trigger", 1),
+                ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
                 ("optical_cb", cb_pumps),
                 ("optical_ac", ac_pumps),
                 ("break", 200),
 
                 #("field_plate_trigger", 1),
                 #("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
-                #(f"detect_1", detects),
+                (f"detect_1", detects),
                 #("break", 11),
 
                 ("lfpiov2", 1),
@@ -204,10 +206,10 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 (f"lf_{lf_index}", 1),
                 ("rf_abarbbar", 1),
 
-                ("field_plate_trigger", 1),
-                ("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
+                #("field_plate_trigger", 1),
+                #("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
                 (f"detect_2", detects),
-                ("break", 11),
+                #("break", 11),
             ]
 
             sequence.setup_sequence()
@@ -238,7 +240,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
         elif kk == 0 or kk == repeats - 1:
             print(f"({first_data_id}, {last_data_id})")
 
-run_1_experiment(only_print_first_last=False, repeats = 10000)
+run_1_experiment(only_print_first_last=False, repeats = 100000)
 
 
 # pump_times = np.linsapce(1, 50, 10) * ureg.us
