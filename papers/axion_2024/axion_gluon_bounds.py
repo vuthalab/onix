@@ -224,9 +224,9 @@ worse_exp_bounds = {
 
 model_indep_theory_bounds = {
     "SN1987A": (np.transpose(sn1987a)[0], np.transpose(sn1987a)[1]),
-    "Planck + BAO": (np.transpose(planck_and_bao)[0], np.transpose(planck_and_bao)[1]), 
 }
 
 model_dep_theory_bounds = {
+    "Planck + BAO": (np.transpose(planck_and_bao)[0], np.transpose(planck_and_bao)[1]), 
     "BBN": (np.transpose(bbn)[0], np.transpose(bbn)[1]),
 }

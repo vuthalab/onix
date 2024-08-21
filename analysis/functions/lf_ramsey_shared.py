@@ -197,7 +197,6 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
     load_old determines if this will search for the processed data and load it
     save_new determines if this will save the processed data
     """
-    print("new analysis")
     points_per_scan = data_range[1] - data_range[0] + 1 
 
     first = data_range[0]
@@ -224,9 +223,8 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
                 if stop >= last: # recognizing that all data you are trying to load has already been analyzed
                     all_old_data = True
                     if stop > last:
-                        print(stop)
-                        print("You are attempting to analyze a subset of an already-analyzed dataset. This has returned the larger dataset, not just the data numbers you asked for.")
-                first_unprocessed = stop + 1 # setting the datapoint we should start our analysis at
+                        print("You are attempting to analyze a subset of an already analyzed dataset. This has returned the larger dataset, not just the data numbers you asked for. Retry with load_old = False, save_new = False.")
+                first_unprocessed = stop + 1 # setting the datapoint where we should start our analysis
                 old_data_path = os.path.join(directory_to_save, file) # load old data
                 loaded_data = np.load(old_data_path, allow_pickle = True)
                 print("Existing data loaded")
