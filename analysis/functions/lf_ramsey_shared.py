@@ -1,12 +1,14 @@
-import numpy as np
 import os
+
 import matplotlib.pyplot as plt
-from onix.analysis.fitter import Fitter
+import numpy as np
 import onix.models.hyperfine as hyperfine
 import pandas
-from uncertainties import unumpy, ufloat
+from onix.analysis.fitter import Fitter
+from onix.analysis.functions.shared import (analysis_dnum,
+                                            data_identification_to_list)
 from onix.data_tools import get_analysis_file_path
-from onix.analysis.functions.shared import data_identification_to_list, analysis_dnum
+from uncertainties import ufloat, unumpy
 
 """
 Shared analysis functions for any LF Ramsey spectroscopy. 
@@ -98,12 +100,12 @@ def plot_ramsey(data, get_results, do_average = True):
     ax.set_xlabel("Ramsey phase difference")
     ax.set_ylabel("absorption - offset (arb. unit)")
     ax.text(0.8,1.02,f"#{data_range[0]} - #{data_range[1]}" , transform = ax.transAxes)
-    ax.text(0.6,1.02, f"SNR = {round(fitter.results["A"]/fitter.errors["A"],2)}", transform = ax.transAxes)
+    ax.text(0.6,1.02, f"SNR = {round(fitter.results['A']/fitter.errors['A'],2)}", transform = ax.transAxes)
     ax.legend()
     ax.grid()
     plt.tight_layout()
     #plt.show()
-    print(f"SNR with 9 phase points = {fitter.results["A"]/fitter.errors["A"]}")
+    print(f"SNR with 9 phase points = {fitter.results['A']/fitter.errors['A']}")
     return fig, ax
 
 #############################################################################################################
