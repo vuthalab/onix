@@ -10,6 +10,8 @@ from onix.headers.pcie_digitizer.pcie_digitizer import Digitizer
 from onix.units import Q_, ureg
 from onix.sequences.sequence import Sequence
 from onix.headers.wavemeter.wavemeter import WM
+from onix.analysis.helper import group_and_average_data
+from uncertainties import unumpy
 
 
 try:
@@ -270,6 +272,19 @@ def run_sequence(sequence: Sequence, params: dict, show_progress: bool = False, 
     transmissions_err = combine_data(transmissions_errs)
     monitors_avg = combine_data(monitors_avgs)
     monitors_err = combine_data(monitors_errs)
+    if params["detect"]["save_avg"]:
+        transmissions_avg, transmissions_err = group_and_average_data(transmissions_avg, params["detect"]["cycles"], return_err=True)
+        monitors_avg, monitors_err = group_and_average_data(monitors_avg, params["detect"]["cycles"], return_err=True)
+        normalized_avg = {}
+        normalized_err = {}
+        for kk in transmissions_avg:
+            if transmissions_avg[kk].ndim >= 1:
+                normalized_avg[kk] = transmissions_avg[kk] / monitors_avg[kk]
+                normalized_err[kk] = np.sqrt(
+                    (transmissions_err[kk] / monitors_avg[kk]) ** 2
+                    + (transmissions_avg[kk] * monitors_err[kk] / monitors_avg[kk]) ** 2
+                )
+        return normalized_avg, normalized_err, None, None
     return transmissions_avg, transmissions_err, monitors_avg, monitors_err
 
 
@@ -282,12 +297,18 @@ def save_data(
     monitors_err: Optional[np.ndarray] = None,
     extra_headers: dict = None,
 ):
-    data = {
-        "transmissions_avg": transmissions_avg,
-        "transmissions_err": transmissions_err,
-    }
-    if monitors_avg is not None:
-        data["monitors_avg"] = monitors_avg
+    if parameters["detect"]["save_avg"]:
+        data = {}
+        for kk in transmissions_avg:
+            data[f"normalized_avg_{kk}"] = transmissions_avg[kk]
+            data[f"normalized_err_{kk}"] = transmissions_err[kk]
+    else:
+        data = {
+            "transmissions_avg": transmissions_avg,
+            "transmissions_err": transmissions_err,
+        }
+        if monitors_avg is not None:
+            data["monitors_avg"] = monitors_avg
         data["monitors_err"] = monitors_err
 
     headers = {

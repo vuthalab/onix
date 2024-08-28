@@ -193,7 +193,7 @@ class LFQuickStatePrepAxion(Sequence):
             phase = phases[kk]
             segment = Segment(f"lf_{kk}")
             pulse = AWGCompositePulse(
-                [wait_time, piov2_time, wait_time],
+                [piov2_time, wait_time, piov2_time],
                 center_frequency + detuning,
                 np.array([amplitude, 0, amplitude]),
                 np.array([0, 0, phase]),

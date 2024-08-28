@@ -103,7 +103,7 @@ default_params = {
         "offset": 30 * ureg.kHz,
     },
     "lf": {
-        "center_frequency": 141.146 * ureg.kHz,
+        "center_frequency": 141.2 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "amplitude": 1000,
         "piov2_time": 50 * ureg.us,
@@ -199,9 +199,9 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                 #("field_plate_trigger", 1),
                 #("break", int(params["field_plate"]["ramp_time"]/(10 * ureg.us))),
                 (f"detect_1", detects),
-                #("break", 11),
 
                 ("lfpiov2", 1),
+                #("break", 11),
                 ("rf_abarbbar", 1),
                 (f"lf_{lf_index}", 1),
                 ("rf_abarbbar", 1),
