@@ -4,6 +4,8 @@ import numpy as np
 import qutip
 from onix.units import ureg
 
+USE_EU151 = False
+
 
 def rotation_matrix(alpha, beta, gamma):
     """Rotation matrix.
@@ -229,16 +231,28 @@ quadrupole_angles = {
 
 
 # Yano1991 and Yano1992. Sign comes from Cruzeiro2018.
-quadrupole_tensor_magnitudes_MHz = {
-    "7F0": {
-        "D": -32.0,
-        "E": -32.0 * 0.674 / 3,
-    },
-    "5D0": {
-        "D": 69.7,
-        "E": 69.7 * 0.660 / 3,
-    },
-}
+if not USE_EU151:
+    quadrupole_tensor_magnitudes_MHz = {
+        "7F0": {
+            "D": -32.0,
+            "E": -32.0 * 0.674 / 3,
+        },
+        "5D0": {
+            "D": 69.7,
+            "E": 69.7 * 0.660 / 3,
+        },
+    }
+else:
+    quadrupole_tensor_magnitudes_MHz = {
+        "7F0": {
+            "D": -12.4,
+            "E": -12.4 * 0.661 / 3,
+        },
+        "5D0": {
+            "D": 27.3,
+            "E": 27.3 * 0.644 / 3,
+        },
+    }
 
 
 quadrupole_tensor_D = {
@@ -273,8 +287,10 @@ Zeeman_angles = {
     },
 }
 
-
-_mu_ratio = 1.5324 / 3.4718 # https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html
+if USE_EU151:
+    _mu_ratio = 1
+else:
+    _mu_ratio = 1.5324 / 3.4718 # https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html
 # Cruzeiro2018, for 151Eu3+:YSO, scaled by the 153 / 151 nuclear magnetic dipole moment.
 Zeeman_tensor_magnitudes_MHz_per_T = {
     "7F0": {
