@@ -61,7 +61,7 @@ def get_normalized_transmission(data_number, fft_end_time_s = None, fft_average_
 
     else:
         detunings_MHz = header["detunings"].to("MHz").magnitude
-        if not header["params"]["detect"]["save_avg"]:
+        if "save_avg" not in header["params"]["detect"] or not header["params"]["detect"]["save_avg"]:
             if "1" in header["params"]["detect"]["cycles"] and "2" in header["params"]["detect"]["cycles"] and header["params"]["detect"]["cycles"]["1"] != header["params"]["detect"]["cycles"]["2"]:
                 del header["params"]["detect"]["cycles"]["1"]
             transmissions_avg, transmissions_err = group_and_average_data(data["transmissions_avg"], header["params"]["detect"]["cycles"], return_err=True)
