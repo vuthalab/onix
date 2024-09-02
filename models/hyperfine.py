@@ -100,22 +100,22 @@ class HyperfineStates:
         return -(self._Zeeman_tensor[2][0] * self._I_x + self._Zeeman_tensor[2][1] * self._I_y + self._Zeeman_tensor[2][2] * self._I_z) / self._mu_N
 
     def mu_Ix(self, eigenvector: qutip.Qobj):
-        return (eigenvector.dag() * self._mu_x * eigenvector).tr()
+        return np.abs((eigenvector.dag() * self._mu_x * eigenvector))
 
     def mu_Iy(self, eigenvector: qutip.Qobj):
-        return (eigenvector.dag() * self._mu_y * eigenvector).tr()
+        return np.abs((eigenvector.dag() * self._mu_y * eigenvector))
 
     def mu_Iz(self, eigenvector: qutip.Qobj):
-        return (eigenvector.dag() * self._mu_z * eigenvector).tr()
+        return np.abs((eigenvector.dag() * self._mu_z * eigenvector))
 
     def m_Ix(self, eigenvector: qutip.Qobj):
-        return (eigenvector.dag() * self._I_x * eigenvector).tr()
+        return np.abs((eigenvector.dag() * self._I_x * eigenvector))
 
     def m_Iy(self, eigenvector: qutip.Qobj):
-        return (eigenvector.dag() * self._I_y * eigenvector).tr()
+        return np.abs((eigenvector.dag() * self._I_y * eigenvector))
 
     def m_Iz(self, eigenvector: qutip.Qobj):
-        return (eigenvector.dag() * self._I_z * eigenvector).tr()
+        return np.abs((eigenvector.dag() * self._I_z * eigenvector))
 
     def magnetic_field_sensitivity(self, eigenvector: qutip.Qobj):
         """Magnetic field sensitivity on (D1, D2, b) axes in MHz / T."""

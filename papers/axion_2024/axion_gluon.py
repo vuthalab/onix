@@ -5,7 +5,7 @@ S_Flambaum = 3.7
 S_Sushkov = 0.1485
 S_geo_mean = np.sqrt(S_Flambaum * S_Sushkov)
 
-E_xtl = 3.1
+E_xtl = 1.5
 
 
 def theta_from_W_T(W_T, S, E_xtl, A=0.33e-17):

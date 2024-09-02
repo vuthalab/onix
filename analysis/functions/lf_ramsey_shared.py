@@ -116,10 +116,10 @@ ground = hyperfine.states["7F0"]
 ground._Hamiltonian = ground.H_total(magnetic_field)
 e_g, s_g = ground.energies_and_eigenstates()
 
-a_I_dot_n = (s_g[0].dag() * ground._I_x * s_g[0]).tr()
-abar_I_dot_n = (s_g[1].dag() * ground._I_x * s_g[1]).tr()
-b_I_dot_n = (s_g[2].dag() * ground._I_x * s_g[2]).tr()
-bbar_I_dot_n = (s_g[3].dag() * ground._I_x * s_g[3]).tr()
+a_I_dot_n = ground.m_Ix(s_g[0])
+abar_I_dot_n = ground.m_Ix(s_g[1])
+b_I_dot_n = ground.m_Ix(s_g[2])
+bbar_I_dot_n = ground.m_Ix(s_g[3])
 I_a = (abar_I_dot_n - a_I_dot_n) / 2
 I_b = (bbar_I_dot_n - b_I_dot_n) / 2
 
