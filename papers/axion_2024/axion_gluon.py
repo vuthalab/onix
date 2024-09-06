@@ -8,7 +8,7 @@ S_geo_mean = np.sqrt(S_Flambaum * S_Sushkov)
 E_xtl = 1.5
 
 
-def theta_from_W_T(W_T, S, E_xtl, A=0.33e-17):
+def theta_from_W_T(W_T, S, E_xtl, A=0.33e-17, absolute=True):
     """Converts W_T to theta.
 
     Args:
@@ -20,5 +20,8 @@ def theta_from_W_T(W_T, S, E_xtl, A=0.33e-17):
     d_atom = A * S * c.e / 100
     I_dot_n = 0.75
     I = np.sqrt(2.5 * 3.5)
-    theta = np.abs(W_T * c.h * I / (d_atom * (E_xtl * 1e11)))
+    if absolute:
+        theta = np.abs(W_T * c.h * I / (d_atom * (E_xtl * 1e11)))
+    else:
+        theta = W_T * c.h * I / (d_atom * (E_xtl * 1e11))
     return theta
