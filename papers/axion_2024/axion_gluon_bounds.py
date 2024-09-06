@@ -343,6 +343,11 @@ clocks_combined = [
     [101.92118462630194, 4.6415888336127535e-7],
 ]
 
+jedi = [
+    [119.997e3, 0.46e-4],
+    [121.457e3, 0.46e-4],
+]
+
 
 # theory bounds. x axis in mass (eV).
 bbn = [
@@ -379,6 +384,10 @@ worse_exp_bounds = {
     #"H/Si": (axion_frequency_to_mass(np.transpose(h_si)[0]), np.transpose(h_si)[1]),
     #"Yb$^+$ E3/E2": (axion_frequency_to_mass(np.transpose(yb_e3_e2)[0]), np.transpose(yb_e3_e2)[1]),
     "clocks": (axion_frequency_to_mass(np.transpose(clocks_combined)[0]), np.transpose(clocks_combined)[1]),
+}
+
+narrowband_exp_bounds = {
+    "JEDI": (axion_frequency_to_mass(np.transpose(jedi)[0]), np.transpose(jedi)[1]),
 }
 
 model_indep_theory_bounds = {
