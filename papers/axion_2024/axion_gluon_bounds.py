@@ -240,7 +240,15 @@ yb_e3_e2 = [  # data from  PHYS. REV. D 110, 015008 (2024)
     [0.0026529484644319, 1.7607603329053759e-12],
     [0.005150678076168122, 3.715562491384508e-12],
 ]
-clocks_combined = [
+clocks_combined = [  # lowest frequencies are from PHYS. REV. D 109, 015030 (2024), most data from Phys. Rev. D 110, 015008 (2024), Rb/Quartz from Phys. Rev. Lett. 130, 251002 (2022)
+    [2.795872918095966e-10, 8.260616265472365e-19],
+    [8.452747731553598e-10, 8.260616265472365e-19],
+    [1.574955103650523e-09, 9.442863991213009e-19],
+    [2.738472716256217e-09, 1.4105146244789557e-18],
+    [5.102449188889597e-09, 3.5976308402354794e-18],
+    [8.871946798655136e-09, 6.143017361596911e-18],
+    [1.6530622152247194e-08, 9.176046414544948e-18],
+    [2.682250959670492e-08, 1.566825917905439e-17],
     [4.95353520895918e-7, 1.6083783050149708e-16],
     [8.068255840302903e-7, 2.500543407896639e-16],
     [0.000001597312280060259, 4.930315288863898e-16],
@@ -348,6 +356,11 @@ jedi = [
     [121.457e3, 0.46e-4],
 ]
 
+casper_electric = [
+    [39.1e6, 9.5e-4 * 270],
+    [40.2e6, 9.5e-4 * 270],
+]
+
 
 # theory bounds. x axis in mass (eV).
 bbn = [
@@ -388,6 +401,7 @@ worse_exp_bounds = {
 
 narrowband_exp_bounds = {
     "JEDI": (axion_frequency_to_mass(np.transpose(jedi)[0]), np.transpose(jedi)[1]),
+    "CASPER-electric": (axion_frequency_to_mass(np.transpose(casper_electric)[0]), np.transpose(casper_electric)[1]),
 }
 
 model_indep_theory_bounds = {
