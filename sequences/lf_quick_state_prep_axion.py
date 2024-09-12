@@ -45,8 +45,8 @@ class LFQuickStatePrepAxion(Sequence):
         self._define_detect()
         self._define_rf()
         self._define_breaks()
-        self._define_lf()
         self._define_field_plate_trigger()
+        self._define_lf()
 
     def _define_chasm(self):
         ao_channel = get_channel_from_name(self._ao_parameters["name"])
