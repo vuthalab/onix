@@ -176,56 +176,52 @@ def lock_param_update():
     global offset_scan_direction
     if q.get_state() == 0:
         if initial_extreme_autorelock_state == 1:
-            avg_data_cavity_error = np.average(data_cavity_error)
-            dc_offset = q.get_dc_offset()
-            if np.abs(avg_data_cavity_error) > 0.01:
-                if avg_data_cavity_error < 0 and dc_offset < 10:
-                    q.set_dc_offset(dc_offset + 0.1)
-                if avg_data_cavity_error > 0 and dc_offset > -10:
-                    q.set_dc_offset(dc_offset - 0.1)
-            else:
-                wm_freq = wm.read_frequency(5)
-                wm_freq_diff = wm_freq - frequency_setpoint
+            wm_freq = wm.read_frequency(5)
+            wm_freq_diff = wm_freq - frequency_setpoint
 
-                if abs(wm_freq_diff) < 10:
-                    if abs(wm_freq_diff) > 0.1:
-                        scan.setValue(0.5)
+            if abs(wm_freq_diff) < 10:
+                if abs(wm_freq_diff) > 0.1:
+                    scan.setValue(0.5)
 
-                        step_size = max(0.2, abs(0.2*wm_freq_diff))
-                        if scan.value() > 1:
-                            scan.setValue(scan.value() + 0.1)
-                        if offset_scan_direction == 0:
-                            offset.setValue(offset.value() + step_size)
-                        elif offset_scan_direction == 1:
-                            offset.setValue(offset.value() - step_size)
+                    step_size = max(0.2, abs(0.2*wm_freq_diff))
 
-
-                        if wm_freq_diff > 0:
-                            offset_scan_direction = 1
-                        else:
-                            offset_scan_direction = 0
+                    if wm_freq_diff > 0:
+                        offset_scan_direction = 1
                     else:
-                        peak_xs, peak_ys = find_peaks(data_transmission, height = 0.005)
-                        peak_ys = peak_ys["peak_heights"]
-                        if len(peak_xs) > 0:
-                            peak_x = peak_xs[np.argmax(peak_ys)]
-                            if peak_x < 475:
-                                offset.setValue(offset.value() - 0.007)
-                            elif peak_x > 525:
-                                offset.setValue(offset.value() + 0.007)
-                            elif scan.value() > 0.1:
-                                step_size = max(scan.value()** 3, 0.05)
-                                scan.setValue(max(scan.value() - step_size, 0.1))
+                        offset_scan_direction = 0
+
+                    if offset_scan_direction == 0:
+                        offset.setValue(offset.value() + step_size)
+                    elif offset_scan_direction == 1:
+                        offset.setValue(offset.value() - step_size)
+
+                else:
+                    peak_xs, peak_ys = find_peaks(data_transmission, height = 0.005)
+                    peak_ys = peak_ys["peak_heights"]
+                    if len(peak_xs) > 0:
+                        peak_x = peak_xs[np.argmax(peak_ys)]
+                        if peak_x < 475:
+                            offset.setValue(offset.value() - 0.007)
+                        elif peak_x > 525:
+                            offset.setValue(offset.value() + 0.007)
+                        elif scan.value() > 0.1:
+                            step_size = max(scan.value()** 3, 0.05)
+                            scan.setValue(max(scan.value() - step_size, 0.1))
+                        else:
+                            avg_data_cavity_error = np.average(data_cavity_error)
+                            dc_offset = q.get_dc_offset()
+                            if np.abs(avg_data_cavity_error) > 0.01:
+                                if avg_data_cavity_error < 0 and dc_offset < 10:
+                                    q.set_dc_offset(dc_offset + 0.1)
+                                if avg_data_cavity_error > 0 and dc_offset > -10:
+                                    q.set_dc_offset(dc_offset - 0.1)
                             else:
                                 lock_state.setText("Quarto Autorelock On")
                                 lock_state.setStyleSheet("background-color: green; color: white;")
                                 with device_lock:
                                     q.set_state(2)
-                        else:
-                            scan.setValue(0.5)
-                else: 
-                    pass
-
+                    else:
+                        scan.setValue(0.5)
 
 lock_param_update_timer = QtCore.QTimer()
 lock_param_update_timer.timeout.connect(lock_param_update)
