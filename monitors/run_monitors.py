@@ -31,7 +31,7 @@ channels = c.channels
 ruuvi_g = RuuviGateway(ip='192.168.0.225', username='ruuvi1', password='password123')
 ruuvi_dont_save = ['mac', 'tx_power', 'data_format']
 
-pressure_gauge = FRG730()
+pressure_gauge = FRG730("/dev/ttyUSB1")
 
 high_freq_time = 1
 low_freq_time = 280

@@ -4,8 +4,35 @@ import numpy as np
 import qutip
 from onix.units import ureg
 
-USE_EU151 = False
-USE_MAGNETIC_INEQUIVALENT_SITE = False
+_USE_EU151 = False
+_USE_MAGNETIC_INEQUIVALENT_SITE = False
+
+
+def set_Eu151(use_eu_151: bool = False, verbose: bool = True):
+    global _USE_EU151
+    _USE_EU151 = bool(use_eu_151)
+    _get_quadrupole_D()
+    _get_Zeeman_D()
+    _get_states()
+    if verbose:
+        if _USE_EU151:
+            print("Eu-151 is used.")
+        else:
+            print("Eu-153 is used.")
+
+
+def set_magnetic_site(use_other_site: bool = False, verbose: bool = True):
+    global _USE_MAGNETIC_INEQUIVALENT_SITE
+    _USE_MAGNETIC_INEQUIVALENT_SITE = bool(use_other_site)
+    _get_quadrupole_D()
+    _get_Zeeman_D()
+    _get_states()
+    if verbose:
+        if _USE_MAGNETIC_INEQUIVALENT_SITE:
+            print("The b-axis reflection magnetic site is used.")
+        else:
+            print("The default magnetic site is used.")
+
 
 
 def rotation_matrix(alpha, beta, gamma):
@@ -215,7 +242,6 @@ dielectric_angles = {
     "gamma": -51,
 }
 
-
 # Cruzeiro2018, for 151Eu3+:YSO, relative to lab frame.
 quadrupole_angles = {
     "7F0": {
@@ -230,31 +256,6 @@ quadrupole_angles = {
     },
 }
 
-
-# Yano1991 and Yano1992. Sign comes from Cruzeiro2018.
-if not USE_EU151:
-    quadrupole_tensor_magnitudes_MHz = {
-        "7F0": {
-            "D": -32.0,
-            "E": -32.0 * 0.674 / 3,
-        },
-        "5D0": {
-            "D": 69.7,
-            "E": 69.7 * 0.660 / 3,
-        },
-    }
-else:
-    quadrupole_tensor_magnitudes_MHz = {
-        "7F0": {
-            "D": -12.4,
-            "E": -12.4 * 0.661 / 3,
-        },
-        "5D0": {
-            "D": 27.3,
-            "E": 27.3 * 0.644 / 3,
-        },
-    }
-
 pi_angle_around_b = {
     "alpha": 0,
     "beta": 0,
@@ -262,23 +263,53 @@ pi_angle_around_b = {
 }
 
 
-quadrupole_tensor_D = {
-    "7F0": rotate(
-        rotate(
-            quadrupole_tensor_own_frame(**quadrupole_tensor_magnitudes_MHz["7F0"]),
-            **quadrupole_angles["7F0"],
+def _get_quadrupole_D():
+    global quadrupole_tensor_D, _USE_EU151, _USE_MAGNETIC_INEQUIVALENT_SITE
+    # Yano1991 and Yano1992. Sign comes from Cruzeiro2018.
+    if not _USE_EU151:
+        quadrupole_tensor_magnitudes_MHz = {
+            "7F0": {
+                "D": -32.0,
+                "E": -32.0 * 0.674 / 3,
+            },
+            "5D0": {
+                "D": 69.7,
+                "E": 69.7 * 0.660 / 3,
+            },
+        }
+    else:
+        quadrupole_tensor_magnitudes_MHz = {
+            "7F0": {
+                "D": -12.4,
+                "E": -12.4 * 0.661 / 3,
+            },
+            "5D0": {
+                "D": 27.3,
+                "E": 27.3 * 0.644 / 3,
+            },
+        }
+    quadrupole_tensor_D = {
+        "7F0": rotate(
+            rotate(
+                quadrupole_tensor_own_frame(**quadrupole_tensor_magnitudes_MHz["7F0"]),
+                **quadrupole_angles["7F0"],
+            ),
+            **dielectric_angles,
         ),
-        **dielectric_angles,
-    ),
-    "5D0": rotate(
-        rotate(
-            quadrupole_tensor_own_frame(**quadrupole_tensor_magnitudes_MHz["5D0"]),
-            **quadrupole_angles["5D0"],
+        "5D0": rotate(
+            rotate(
+                quadrupole_tensor_own_frame(**quadrupole_tensor_magnitudes_MHz["5D0"]),
+                **quadrupole_angles["5D0"],
+            ),
+            **dielectric_angles,
         ),
-        **dielectric_angles,
-    ),
-}
+    }
+    if _USE_MAGNETIC_INEQUIVALENT_SITE:
+        quadrupole_tensor_D["7F0"] = rotate(quadrupole_tensor_D["7F0"], **pi_angle_around_b)
+        quadrupole_tensor_D["5D0"] = rotate(quadrupole_tensor_D["5D0"], **pi_angle_around_b)
 
+
+_get_quadrupole_D()
 
 # Cruzeiro2018, for 151Eu3+:YSO.
 Zeeman_angles = {
@@ -294,69 +325,74 @@ Zeeman_angles = {
     },
 }
 
-if USE_EU151:
-    _mu_ratio = 1
-else:
-    _mu_ratio = 1.5324 / 3.4718 # https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html
-# Cruzeiro2018, for 151Eu3+:YSO, scaled by the 153 / 151 nuclear magnetic dipole moment.
-Zeeman_tensor_magnitudes_MHz_per_T = {
-    "7F0": {
-        "g_1": 4.3 * _mu_ratio,
-        "g_2": 5.559 * _mu_ratio,
-        "g_3": -10.891 * _mu_ratio,
-    },
-    "5D0": {
-        "g_1": 9.11 * _mu_ratio,
-        "g_2": 9.158 * _mu_ratio,
-        "g_3": 9.069 * _mu_ratio,
-    },
-}
-
-
-Zeeman_tensor_D = {
-    "7F0": rotate(
-        rotate(
-            Zeeman_tensor_own_frame(**Zeeman_tensor_magnitudes_MHz_per_T["7F0"]),
-            **Zeeman_angles["7F0"],
+def _get_Zeeman_D():
+    global Zeeman_tensor_D, _USE_EU151, _USE_MAGNETIC_INEQUIVALENT_SITE
+    if _USE_EU151:
+        _mu_ratio = 1
+    else:
+        _mu_ratio = 1.5324 / 3.4718 # https://www-nds.iaea.org/relnsd/vcharthtml/VChartHTML.html
+    # Cruzeiro2018, for 151Eu3+:YSO, scaled by the 153 / 151 nuclear magnetic dipole moment.
+    Zeeman_tensor_magnitudes_MHz_per_T = {
+        "7F0": {
+            "g_1": 4.3 * _mu_ratio,
+            "g_2": 5.559 * _mu_ratio,
+            "g_3": -10.891 * _mu_ratio,
+        },
+        "5D0": {
+            "g_1": 9.11 * _mu_ratio,
+            "g_2": 9.158 * _mu_ratio,
+            "g_3": 9.069 * _mu_ratio,
+        },
+    }
+    Zeeman_tensor_D = {
+        "7F0": rotate(
+            rotate(
+                Zeeman_tensor_own_frame(**Zeeman_tensor_magnitudes_MHz_per_T["7F0"]),
+                **Zeeman_angles["7F0"],
+            ),
+            **dielectric_angles,
         ),
-        **dielectric_angles,
-    ),
-    "5D0": rotate(
-        rotate(
-            Zeeman_tensor_own_frame(**Zeeman_tensor_magnitudes_MHz_per_T["5D0"]),
-            **Zeeman_angles["5D0"],
+        "5D0": rotate(
+            rotate(
+                Zeeman_tensor_own_frame(**Zeeman_tensor_magnitudes_MHz_per_T["5D0"]),
+                **Zeeman_angles["5D0"],
+            ),
+            **dielectric_angles,
         ),
-        **dielectric_angles,
-    ),
-}
-if USE_MAGNETIC_INEQUIVALENT_SITE:
-    quadrupole_tensor_D["7F0"] = rotate(quadrupole_tensor_D["7F0"], **pi_angle_around_b)
-    quadrupole_tensor_D["5D0"] = rotate(quadrupole_tensor_D["5D0"], **pi_angle_around_b)
-    Zeeman_tensor_D["7F0"] = rotate(Zeeman_tensor_D["7F0"], **pi_angle_around_b)
-    Zeeman_tensor_D["5D0"] = rotate(Zeeman_tensor_D["5D0"], **pi_angle_around_b)
+    }
+    if _USE_MAGNETIC_INEQUIVALENT_SITE:
+        Zeeman_tensor_D["7F0"] = rotate(Zeeman_tensor_D["7F0"], **pi_angle_around_b)
+        Zeeman_tensor_D["5D0"] = rotate(Zeeman_tensor_D["5D0"], **pi_angle_around_b)
+
+_get_Zeeman_D()
 
 
-# Hyperfine and Zeeman states
-small_B_field = 1e-5
-# The Zeeman state labels for both electronic states.
 state_labels = {
     "7F0": ["a", "a'", "b", "b'", "c", "c'"],
     "5D0": ["c", "c'", "b", "b'", "a", "a'"],
 }
-states = {
-    "7F0": HyperfineStates(
-        state_labels["7F0"],
-        quadrupole_tensor_D["7F0"],
-        Zeeman_tensor_D["7F0"],
-        small_B_field,
-    ),
-    "5D0": HyperfineStates(
-        state_labels["5D0"],
-        quadrupole_tensor_D["5D0"],
-        Zeeman_tensor_D["5D0"],
-        small_B_field,
-    ),
-}
+
+def _get_states():
+    global states
+    # Hyperfine and Zeeman states
+    small_B_field = 1e-5
+    # The Zeeman state labels for both electronic states.
+    states = {
+        "7F0": HyperfineStates(
+            state_labels["7F0"],
+            quadrupole_tensor_D["7F0"],
+            Zeeman_tensor_D["7F0"],
+            small_B_field,
+        ),
+        "5D0": HyperfineStates(
+            state_labels["5D0"],
+            quadrupole_tensor_D["5D0"],
+            Zeeman_tensor_D["5D0"],
+            small_B_field,
+        ),
+    }
+
+_get_states()
 
 def get_optical_hyperfine_probabilities(B_field):
     states_7F0 = HyperfineStates(
