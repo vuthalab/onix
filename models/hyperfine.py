@@ -5,6 +5,7 @@ import qutip
 from onix.units import ureg
 
 USE_EU151 = False
+USE_MAGNETIC_INEQUIVALENT_SITE = False
 
 
 def rotation_matrix(alpha, beta, gamma):
@@ -254,6 +255,12 @@ else:
         },
     }
 
+pi_angle_around_b = {
+    "alpha": 0,
+    "beta": 0,
+    "gamma": 180,
+}
+
 
 quadrupole_tensor_D = {
     "7F0": rotate(
@@ -322,6 +329,11 @@ Zeeman_tensor_D = {
         **dielectric_angles,
     ),
 }
+if USE_MAGNETIC_INEQUIVALENT_SITE:
+    quadrupole_tensor_D["7F0"] = rotate(quadrupole_tensor_D["7F0"], **pi_angle_around_b)
+    quadrupole_tensor_D["5D0"] = rotate(quadrupole_tensor_D["5D0"], **pi_angle_around_b)
+    Zeeman_tensor_D["7F0"] = rotate(Zeeman_tensor_D["7F0"], **pi_angle_around_b)
+    Zeeman_tensor_D["5D0"] = rotate(Zeeman_tensor_D["5D0"], **pi_angle_around_b)
 
 
 # Hyperfine and Zeeman states
