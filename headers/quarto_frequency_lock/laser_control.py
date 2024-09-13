@@ -30,7 +30,7 @@ device_lock = threading.Lock()
 discriminator_slope = 4.2e-5 
 laser = LaserLinewidth(GET_CAVITY_DATA_LENGTH, 2e-6, discriminator_slope) 
 
-frequency_setpoint = 516847.177 # frequency we want to be near, for purposes of determining when we have mode hopped
+frequency_setpoint = 516847.147 # frequency we want to be near, for purposes of determining when we have mode hopped
 update_transmission_interval = 1000 # ms; interval in which transmission reading is updated
 update_rms_error_interval = 250 # ms; interval in which rms error is updated
 laser_linewidth_averages = 1000 # how many averages to use when calculating laser linewidth
@@ -183,7 +183,7 @@ def lock_param_update():
                 if abs(wm_freq_diff) > 0.1:
                     scan.setValue(0.5)
 
-                    step_size = max(0.2, abs(0.2*wm_freq_diff))
+                    step_size = max(0.01, abs(0.05*wm_freq_diff))
 
                     if wm_freq_diff > 0:
                         offset_scan_direction = 1
