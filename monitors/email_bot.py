@@ -17,8 +17,8 @@ https://simple-matrix-bot-lib.readthedocs.io/en/latest/quickstart.html
 https://influxdb-client.readthedocs.io/en/latest/api.html
 """
 
-#recipients = ["alek.radak@mail.utoronto.ca", "amar.vutha@utoronto.ca", "mingyufan212@gmail.com", "bassam.nima@mail.utoronto.ca", "shravankruthick.s@gmail.com"]
-recipients = ["alek.radak@mail.utoronto.ca"]
+recipients = ["alek.radak@mail.utoronto.ca", "mingyufan212@gmail.com", "bassam.nima@mail.utoronto.ca"]
+#recipients = ["alek.radak@mail.utoronto.ca"]
 
 high_transmission_level = 0.3 # V; what transmission level indicates the lock is on
 lock_check_time = 60 * 2 # s; the time interval over which we consider the lock state
@@ -82,6 +82,7 @@ def check_lock():
         return previous_lock_state
     
 previous_lock_state = check_lock()
+print("Bot started.")
 while True:
     lock_state = check_lock()
     
