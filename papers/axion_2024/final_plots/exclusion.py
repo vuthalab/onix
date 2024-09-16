@@ -52,7 +52,7 @@ ax1 = ax.twiny()
 ax1.set_xlabel("Oscillation frequency (Hz)")
 ax1.set_xscale("log")
 
-ax.set_ylim(0.5e-16, 5e-7)
+ax.set_ylim(0.8e-16, 1.5e-10)
 lower_mass_bound = 3e-22
 upper_mass_bound = 1.5e-15
 ax.set_xlim(lower_mass_bound, upper_mass_bound)
@@ -61,8 +61,8 @@ ax1.set_xlim(axion_mass_to_frequency(lower_mass_bound), axion_mass_to_frequency(
 ax.text(1e-17, 0.3e-15, "nEDM", color="C1", fontsize=12)
 ax.text(0.18e-15, 8e-14, "neutron\n  beam", color="C2", fontsize=12)
 ax.arrow(0.5e-15, 16e-13, 0, 2e-11, color="C2", width=1e-18, head_length=3e-11, head_width=1e-16, overhang=0.2)
-ax.fill_between([1e-19, 0.6e-18], 6e-12, 4.5e-11, zorder=150, color="white", linewidth=0.5, edgecolor="black")
-ax.text(1.27e-19, 1e-11, "ONIX", color="black", fontsize=12, zorder=200)
+ax.fill_between([1.1e-19, 7.5e-18], 7.5e-12 / 3, 2.5e-11 / 3, zorder=150, color="white", linewidth=0.5, edgecolor="black")
+ax.text(1.27e-19, 1e-11 / 3, "ONIX (this work)", color="black", fontsize=11, zorder=200)
 plt.tight_layout()
 plt.savefig("exclusion.pdf")
 plt.show()
