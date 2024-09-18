@@ -5,7 +5,8 @@ import qutip
 from onix.units import ureg
 
 _USE_EU151 = False
-_USE_MAGNETIC_INEQUIVALENT_SITE = False
+_SIGMA_POSITIVE = True
+_PI_POSITIVE = True
 
 
 def set_Eu151(use_eu_151: bool = False, verbose: bool = True):
@@ -21,17 +22,25 @@ def set_Eu151(use_eu_151: bool = False, verbose: bool = True):
             print("Eu-153 is used.")
 
 
-def set_magnetic_site(use_other_site: bool = False, verbose: bool = True):
-    global _USE_MAGNETIC_INEQUIVALENT_SITE
-    _USE_MAGNETIC_INEQUIVALENT_SITE = bool(use_other_site)
+def set_magnetic_site(sigma_positive: bool = True, pi_positive: bool = True, verbose: bool = True):
+    global _SIGMA_POSITIVE, _PI_POSITIVE
+    _SIGMA_POSITIVE = bool(sigma_positive)
+    _PI_POSITIVE = bool(pi_positive)
     _get_quadrupole_D()
     _get_Zeeman_D()
     _get_states()
     if verbose:
-        if _USE_MAGNETIC_INEQUIVALENT_SITE:
-            print("The b-axis reflection magnetic site is used.")
+        print_statement = "Sigma = "
+        if _SIGMA_POSITIVE:
+            print_statement += "+1"
         else:
-            print("The default magnetic site is used.")
+            print_statement += "-1"
+        print_statement += ", Pi = "
+        if _PI_POSITIVE:
+            print_statement += "+1"
+        else:
+            print_statement += "-1"
+        print(print_statement)
 
 
 
@@ -60,6 +69,11 @@ def rotate(operator, alpha, beta, gamma):
     return np.matmul(rot, np.matmul(operator, np.transpose(rot)))
 
 
+def inverse(operator):
+    parity_operator = np.diag([-1, -1, -1])
+    return np.matmul(parity_operator, np.matmul(operator, np.transpose(parity_operator)))
+
+
 def quadrupole_tensor_own_frame(D, E):
     return np.array([[-E, 0, 0], [0, E, 0], [0, 0, D]])
 
@@ -81,12 +95,16 @@ class HyperfineStates:
             If float, it specifies the magnetic field on the D1 axis. The magnetic field on
             the D2 and b axes is set to zero.
     """
-    def __init__(self, state_labels, quadrupole_tensor, Zeeman_tensor, B_field):
+    def __init__(self, state_labels, quadrupole_tensor, Zeeman_tensor, B_field, positive_sigma = True):
         self.I = 5/2
         self.states = state_labels
         self._I_x = qutip.jmat(self.I, "x")
         self._I_y = qutip.jmat(self.I, "y")
         self._I_z = qutip.jmat(self.I, "z")
+        if not positive_sigma:
+            rot_z = (-1j * np.pi * self._I_z).expm()
+            self._I_x = rot_z * self._I_x * rot_z.dag()
+            self._I_y = rot_z * self._I_y * rot_z.dag()
         self._mu_N = 7.6225932188  # MHz / T
         self._I_axes = [self._I_x, self._I_y, self._I_z]
         self._quadrupole_tensor = quadrupole_tensor
@@ -264,7 +282,7 @@ pi_angle_around_b = {
 
 
 def _get_quadrupole_D():
-    global quadrupole_tensor_D, _USE_EU151, _USE_MAGNETIC_INEQUIVALENT_SITE
+    global quadrupole_tensor_D, _USE_EU151, _SIGMA_POSITIVE, _PI_POSITIVE
     # Yano1991 and Yano1992. Sign comes from Cruzeiro2018.
     if not _USE_EU151:
         quadrupole_tensor_magnitudes_MHz = {
@@ -304,9 +322,14 @@ def _get_quadrupole_D():
             **dielectric_angles,
         ),
     }
-    if _USE_MAGNETIC_INEQUIVALENT_SITE:
+    if not _SIGMA_POSITIVE:
         quadrupole_tensor_D["7F0"] = rotate(quadrupole_tensor_D["7F0"], **pi_angle_around_b)
         quadrupole_tensor_D["5D0"] = rotate(quadrupole_tensor_D["5D0"], **pi_angle_around_b)
+        quadrupole_tensor_D["7F0"] = inverse(quadrupole_tensor_D["7F0"])
+        quadrupole_tensor_D["5D0"] = inverse(quadrupole_tensor_D["5D0"])
+    if not _PI_POSITIVE:
+        quadrupole_tensor_D["7F0"] = inverse(quadrupole_tensor_D["7F0"])
+        quadrupole_tensor_D["5D0"] = inverse(quadrupole_tensor_D["5D0"])
 
 
 _get_quadrupole_D()
@@ -326,7 +349,7 @@ Zeeman_angles = {
 }
 
 def _get_Zeeman_D():
-    global Zeeman_tensor_D, _USE_EU151, _USE_MAGNETIC_INEQUIVALENT_SITE
+    global Zeeman_tensor_D, _USE_EU151, _SIGMA_POSITIVE, _PI_POSITIVE
     if _USE_EU151:
         _mu_ratio = 1
     else:
@@ -360,9 +383,14 @@ def _get_Zeeman_D():
             **dielectric_angles,
         ),
     }
-    if _USE_MAGNETIC_INEQUIVALENT_SITE:
+    if not _SIGMA_POSITIVE:
         Zeeman_tensor_D["7F0"] = rotate(Zeeman_tensor_D["7F0"], **pi_angle_around_b)
         Zeeman_tensor_D["5D0"] = rotate(Zeeman_tensor_D["5D0"], **pi_angle_around_b)
+        Zeeman_tensor_D["7F0"] = inverse(Zeeman_tensor_D["7F0"])
+        Zeeman_tensor_D["5D0"] = inverse(Zeeman_tensor_D["5D0"])
+    if not _PI_POSITIVE:
+        Zeeman_tensor_D["7F0"] = inverse(Zeeman_tensor_D["7F0"])
+        Zeeman_tensor_D["5D0"] = inverse(Zeeman_tensor_D["5D0"])
 
 _get_Zeeman_D()
 
