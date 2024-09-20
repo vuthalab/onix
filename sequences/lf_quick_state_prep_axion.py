@@ -203,9 +203,10 @@ class LFQuickStatePrepAxion(Sequence):
 
         segment = Segment(f"lfpiov2")
         piov2_time = 0.02 * ureg.ms
+        piov2_freq = center_frequency + detuning
         pulse = AWGCompositePulse(
             [piov2_time * 119 / 90, piov2_time * 183 / 90, piov2_time * 211 / 90, piov2_time * 384 / 90, piov2_time * 211 / 90, piov2_time * 183 / 90, piov2_time * 119 / 90],
-            [140.08 * ureg.kHz] * 7,
+            [piov2_freq * ureg.kHz] * 7,
             [2500] * 7,
             [np.pi, 0, np.pi, 0, np.pi, 0, np.pi],
         )

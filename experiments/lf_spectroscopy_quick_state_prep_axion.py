@@ -100,11 +100,11 @@ default_params = {
         "offset": 30 * ureg.kHz,
     },
     "lf": {
-        "center_frequency": 137.8 * ureg.kHz,
+        "center_frequency": 139.8 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "amplitude": 100, #250
-        "piov2_time": 500 * ureg.us, #200
-        "wait_time": 0 * ureg.us, # 300
+        "amplitude": 250, #250 1000
+        "piov2_time": 200 * ureg.us, #200 50
+        "wait_time": 350 * ureg.us, # 300
         # "phase_diffs": np.linspace(0, 2 * np.pi, scan_count, endpoint=False),
         "phase_diffs": np.linspace(0, 1, 1, endpoint=False)
     },
@@ -183,9 +183,9 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
     #     coil_supply.set_current(1, coil_current / 2)
     #     coil_supply.set_current(2, coil_current / 2)
     freq_list = np.array([137.8, 142.36])
-    freq_list = np.linspace(132.5, 147.5, 50)
-    freq_list = np.linspace(136, 142, 50)
-    # freq_list = np.array([139.0])
+    freq_list = np.linspace(130, 150, 150)
+    # freq_list = np.linspace(136, 142, 50)
+    # freq_list = np.array([139.8])
     for kk in tqdm(range(repeats)):
         for ll in freq_list:
             params = default_params.copy()
