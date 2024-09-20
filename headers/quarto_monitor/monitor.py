@@ -61,6 +61,7 @@ except KeyboardInterrupt:
         "Ch2": np.array(ch2),
         "Ch3": np.array(ch3),
         "Ch4": np.array(ch4),
+        "t": np.array(t),
     }
 
     headers = {

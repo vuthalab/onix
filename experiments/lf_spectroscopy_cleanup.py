@@ -1,7 +1,7 @@
 import time
 
 import numpy as np
-from onix.sequences.lf_quick_state_prep_axion import LFQuickStatePrepAxion
+
 from onix.units import ureg
 from onix.experiments.shared import (
     m4i,
@@ -36,86 +36,108 @@ def get_sequence(params):
 
 
 ## parameters
-ac_pumps = 25 #250*2
-cb_pumps = 25 #250*2
-chasms = 10 #10#400*2
+ac_pumps = 25
+cb_pumps = 25
+chasms = 10
 cleanouts = 0
-detects = 512 #512
-scan_count = 1 #8
+detects = 128
+scan_count = 8
 
 default_params = {
-    "name": "Simple LF Spectroscopy Quick State Prep",
+    "name": "LF Spectroscopy",
     "sequence_repeats_per_transfer": 1,
     "data_transfer_repeats": 1,
     "ao": {
-        "center_frequency": 80 * ureg.MHz, #73.15 * ureg.MHz,
+        "center_frequency": 80 * ureg.MHz,
     },
     "optical": {
         "ao_amplitude_ac": 2000,
         "ao_amplitude_cb": 2000,
         "cb_detuning": -18 * ureg.MHz,
-        "use_mirror_cb": False,
+        "duration": 8 * ureg.ms,
     },
     "chasm": {
-        "scan": 8 * ureg.MHz, # 5 MHz
-        "durations": 8 * ureg.ms, # 10 ms
+        "scan": 8 * ureg.MHz,
+        "duration": 8 * ureg.ms,
         "ao_amplitude": 2000,
     },
     "detect": {
-        "transition": "ac",
-        "detunings": np.linspace(-3.5, 3.5, 35) * ureg.MHz,
-        "on_time": 5 * ureg.us,
-        "off_time": 1 * ureg.us,
-        "delay": 8 * ureg.us,
-        "ao_amplitude": 200,
-        "simultaneous": False,
-        "save_avg": True,
-        "fid": {
-            "use": False,
+        "method": "doa",  # "doa", "fid",
+        "doa": {
+            "transition": "ac",
+            "detunings": np.linspace(-3.5, 3.5, 35) * ureg.MHz,
+            "on_time": 5 * ureg.us,
+            "off_time": 1 * ureg.us,
+            "delay": 8 * ureg.us,
+            "ao_amplitude": 180,
             "save_avg": True,
-            "pump_amplitude": 733 * 2,
+        },
+        "fid": {
+            "transition": "ac",
+            "pump_amplitude": 1500,
             "pump_time": 5 * ureg.us,
-            "num_jumps": 40,
             "pump_scan": 0.2 * ureg.MHz,
-            "probe_detuning": 10 * ureg.MHz,
+            "num_jumps": 40,
             "probe_amplitude": 120,
             "probe_time": 15 * ureg.us,
+            "probe_detuning": 10 * ureg.MHz,
             "wait_time": 1 * ureg.us,
             "phase": 0,
+            "save_avg": True,
         }
     },
     "rf": {
-        "HSH": {
-            "use": True,
+        "method": "hsh",  # "hsh", "sweep",
+        "offset": 30 * ureg.kHz,
+        "detuning_ab": 55 * ureg.kHz,
+        "detuning_abarbbar": -60 * ureg.kHz,
+        "hsh": {
             "amplitude": 4000,
             "T_0": 0.3 * ureg.ms,
             "T_e": 0.15 * ureg.ms,
             "T_ch": 25 * ureg.ms,
-            "scan_range": 60 * ureg.kHz,
+            "half_sweep_range": 30 * ureg.kHz,
         },
-        "detuning_ab": 55 * ureg.kHz, # 53
-        "detuning_abarbbar": -60 * ureg.kHz, # -57
-        "amplitude": 5000,
-        "duration": 15 * ureg.ms,
-        "offset": 30 * ureg.kHz,
+        "sweep": {
+            "amplitude": 5000,
+            "duration": 15 * ureg.ms,
+            "half_sweep_range": 30 * ureg.kHz,
+        }
     },
     "lf": {
-        "center_frequency": 137.8 * ureg.kHz,
-        "detuning": 0 * ureg.kHz,
-        "amplitude": 100, #250
-        "piov2_time": 500 * ureg.us, #200
-        "wait_time": 0 * ureg.us, # 300
-        # "phase_diffs": np.linspace(0, 2 * np.pi, scan_count, endpoint=False),
-        "phase_diffs": np.linspace(0, 1, 1, endpoint=False)
+        "method": "ramsey",  # "ramsey", "rabi",
+        "center_frequency": 140.05 * ureg.kHz,  # change this iff the actual b-bbar center changes.
+        "b_axis_Zeeman_shift": 2.3 * ureg.kHz,  # change this iff the B field along b changes.
+        # carrier_frequency = center_frequency + b_axis_Zeeman_shift * Sigma + detuning.
+        "ramsey": {
+            "Sigma": 1,  # +1, 0, -1.
+            "detuning": 0 * ureg.kHz,
+            "amplitude": 250,
+            "piov2_time": 200 * ureg.us,
+            "wait_time": 300 * ureg.us,
+            "phase_diffs": np.linspace(0, 2 * np.pi, scan_count, endpoint=False),
+        },
+        "rabi": {
+            "Sigma": 0,  # +1, 0, -1.
+            "detuning": 0 * ureg.kHz,
+            "amplitude": 250,
+            "pulse_time": 200 * ureg.us,
+        }
     },
     "field_plate": {
-        "method": "ttl",
+        "method": "rigol",  # "awg", "rigol"
+        "during": "detect", # "prep", "detect"
         "relative_to_lf": "before",
-        "amplitude": 4500*2,
-        "stark_shift": 2.2*1.5 * ureg.MHz,
-        "ramp_time": 3 * ureg.ms,
-        "wait_time": None,
-        "use": True,
+        "amplitude": 2 * ureg.V,
+        "optical_shift_slope": 2 * ureg.MHz / ureg.V,
+        "Pi": 1,  # +1, 0, -1.
+        # V_output = amplitude * Pi
+        # electric field induced optical frequency shift = V_output * optical_shift_slope
+        "rigol": {
+            "trigger_time": 10 * ureg.us,
+            "ramp_up_time": 3 * ureg.ms,
+            "ramp_down_time": 3 * ureg.ms,
+        },
     },
     "digitizer": {
         "sample_rate": 25e6,
@@ -123,25 +145,21 @@ default_params = {
         "ch2_range": 2,
     },
     "sequence": {
-        "sequence": [
+        "steps": [
             ("optical_cb", cb_pumps),
             ("optical_ac", ac_pumps),
             ("break", 200),
             ("lfpiov2", 1),
             ("field_plate_trigger", 1),
             ("break", 300),
-            (f"detect_1", detects),
-            ("rf_ab", 1),
-            (f"lf_0", 1),
+            ("detect_1", detects),
+            ("rf_abarbbar", 1),
+            ("lf_0", 1),
             ("rf_abarbbar", 1),
             ("field_plate_trigger", 1),
             ("break", 300),
-            (f"detect_2", detects),
+            ("detect_2", detects),
         ]
-    },
-    "coil": {
-        "current": None,
-        "direction": False,
     },
     "sleep": 0 * ureg.s,
 }
@@ -182,10 +200,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
     #     print(f"{coil_current} A")
     #     coil_supply.set_current(1, coil_current / 2)
     #     coil_supply.set_current(2, coil_current / 2)
-    freq_list = np.array([137.8, 142.36])
-    freq_list = np.linspace(132.5, 147.5, 50)
-    freq_list = np.linspace(136, 142, 50)
-    # freq_list = np.array([139.0])
+    freq_list = np.array([137.8, 142.3])
     for kk in tqdm(range(repeats)):
         for ll in freq_list:
             params = default_params.copy()
@@ -201,13 +216,13 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
                     ("optical_cb", cb_pumps),
                     ("optical_ac", ac_pumps),
                     ("break", 200),
-                    ("detect_1", detects),
+                    (f"detect_1", detects),
 
                     ("lfpiov2", 1),
                     ("rf_abarbbar", 1),
                     (f"lf_{lf_index}", 1),
                     ("rf_abarbbar", 1),
-                    ("detect_2", detects),
+                    (f"detect_2", detects),
                 ]
                 sequence.setup_sequence()
                 m4i.setup_sequence_steps_only()

@@ -7,6 +7,7 @@ BYTES_PER_FLOAT = 4
 
 class Quarto:
     def __init__(self, location=find_quarto("digitizer"), num_channels = 4):
+        print(find_quarto("digitizer", True))
         self.address = location
         self.device = serial.Serial(
             self.address,
@@ -24,7 +25,8 @@ class Quarto:
         return response
     
     def adc_interval(self):
-        adc_interval = round(int(self._get_param("adc_interval")) * 1e-6, 6) # TODO: without the rounding it always returns self._get_param("adc_interval")
+        # TODO: without the rounding it always returns self._get_param("adc_interval")
+        adc_interval = round(int(self._get_param("adc_interval")) * 1e-6, 6)
         return adc_interval
     
     def data_time(self):
