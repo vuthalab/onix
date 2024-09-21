@@ -109,7 +109,7 @@ def get_results(data_identification, fitted_freq_offset = np.inf, fitted_amp_dif
     results = []
     for data_number in data_list:
         header, detunings, pop_other_state, total_pop = get_experiment_result(data_number)
-        stark_shift = header["params"]["field_plate"]["stark_shift"].magnitude
+        stark_shift = np.abs(header["params"]["field_plate"]["stark_shift"].magnitude)
         if len(detunings) > 2:
             fitter = get_double_gaussian_fitter(
                 detunings,

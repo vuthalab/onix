@@ -182,7 +182,7 @@ class LFTwoPeaks(Sequence):
             piov2_freq = center_frequencies[ll] + detuning
             pulse = AWGCompositePulse(
                 [piov2_time * 119 / 90, piov2_time * 183 / 90, piov2_time * 211 / 90, piov2_time * 384 / 90, piov2_time * 211 / 90, piov2_time * 183 / 90, piov2_time * 119 / 90],
-                [piov2_freq * ureg.kHz] * 7,
+                [piov2_freq] * 7,
                 [amplitudes[ll]] * 7,
                 [np.pi, 0, np.pi, 0, np.pi, 0, np.pi],
             )

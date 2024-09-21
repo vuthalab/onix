@@ -48,7 +48,7 @@ def get_phase_fitter(phases, heights, height_errs):
     fitter.fit()
     return fitter
 
-def plot_ramsey(data, get_results, do_average = True):
+def plot_ramsey(data, get_results, do_average = True, xaxis="phase_diffs"):
     """
     Plot Ramsey fringes given the data dictionary. 
     get_results will be specific to the detections we use (i.e. detect_1 - detect_2 vs detect_3 - detect_6)
@@ -65,7 +65,7 @@ def plot_ramsey(data, get_results, do_average = True):
                 if name.startswith("lf") and not name.endswith("piov2"):
                     index.append(int(name.split("_")[-1]))
                     break
-        xs = np.array([header["params"]["lf"]["phase_diffs"][index[kk]] for kk, header in enumerate(headers)])
+        xs = np.array([header["params"]["lf"][xaxis][index[kk]] for kk, header in enumerate(headers)])
         if results_temp.ndim == 1:
             ys = unumpy.nominal_values(results_temp)[1:]
             errs = unumpy.std_devs(results_temp)[1:]
@@ -73,6 +73,7 @@ def plot_ramsey(data, get_results, do_average = True):
         else:
             for kk in range(0, 2):
                 ys = unumpy.nominal_values(results_temp[:, kk])
+                print(ys)
                 errs = unumpy.std_devs(results_temp[:, kk])
                 if do_average:
                     xs_avg, ys_avg, errs_avg = averaging_ys(xs[mask], ys[mask])
@@ -82,10 +83,14 @@ def plot_ramsey(data, get_results, do_average = True):
                     lambda_label = ", $\\lambda = +1$"
                 else:
                     lambda_label = ", $\\lambda = -1$"
-                ax.scatter(xs_avg, ys_avg, label=label + lambda_label, marker='o', linestyle='')
+                #np.savez(f"phasesweep_{kk}.npz", xs=xs_avg, ys=ys_avg, errs=errs_avg)
+                ax.errorbar(xs_avg, ys_avg, errs_avg, label=label+lambda_label, marker='o', linestyle='')
+                print(errs_avg)
+                # ax.scatter(xs_avg, ys_avg, label=label + lambda_label, marker='o', linestyle='')
                 fitter = get_phase_fitter(xs_avg, ys_avg, None)
                 xs_fit = np.linspace(np.min(xs_avg), np.max(xs_avg), 100)
                 ys_fit = fitter.fitted_value(xs_fit)
+                #np.savez(f"phasesweep_fit_{kk}.npz", xs=xs_fit, ys=ys_fit)
                 ax.plot(xs_fit, ys_fit)
                 if kk == 0:
                     label_str = label + " $\\lambda = +1$ \n" + fitter.all_results_str()
@@ -108,20 +113,47 @@ def plot_ramsey(data, get_results, do_average = True):
     print(f"SNR with 9 phase points = {fitter.results['A']/fitter.errors['A']}")
     return fig, ax
 
-#############################################################################################################
-magnetic_field = 223e-4 # measured magnetic field, see https://electricatoms.wordpress.com/2024/06/26/improving-the-onix-magnetic-field-version-1/
 
-# compute nuclear spins for conversion from b, bbar or a, abar frequencies to W_T
-ground = hyperfine.states["7F0"]
-ground._Hamiltonian = ground.H_total(magnetic_field)
-e_g, s_g = ground.energies_and_eigenstates()
+def plot_ramsey_2(data, get_results, do_average = True):
+    """
+    Plot Ramsey fringes given the data dictionary. 
+    get_results will be specific to the detections we use (i.e. detect_1 - detect_2 vs detect_3 - detect_6)
+    get_results will be defined in the file specific functions file, so just pass get_results = get_results
+    """
+    index = []
+    fig, ax = plt.subplots(figsize = (10, 6), dpi = 120)
+    for ll, (label, data_range) in enumerate(data.items()):
+        headers, results_temp = get_results(data_range)
+        mask = np.ones(len(headers), dtype=bool)
+        xs = []
+        ys = []
+        errs = []
 
-a_I_dot_n = ground.m_Ix(s_g[0])
-abar_I_dot_n = ground.m_Ix(s_g[1])
-b_I_dot_n = ground.m_Ix(s_g[2])
-bbar_I_dot_n = ground.m_Ix(s_g[3])
-I_a = (abar_I_dot_n - a_I_dot_n) / 2
-I_b = (bbar_I_dot_n - b_I_dot_n) / 2
+        for kk, header in enumerate(headers):
+            xs.append(headers[kk]["params"]["lf"]["center_frequency"])
+            ys.append(unumpy.nominal_values(results_temp[kk]))
+            errs.append(unumpy.std_devs(results_temp[kk]))
+        ax.errorbar(xs, ys, errs, label=label, marker='o', linestyle='')
+        
+
+    ax.set_xlabel("Ramsey phase difference")
+    ax.set_ylabel("absorption - offset (arb. unit)")
+    ax.text(0.8,1.02,f"#{data_range[0]} - #{data_range[1]}" , transform = ax.transAxes)
+    ax.text(0.6,1.02, f"SNR = {round(fitter.results['A']/fitter.errors['A'],2)}", transform = ax.transAxes)
+    ax.legend()
+    ax.grid()
+    plt.tight_layout()
+    #plt.show()
+    print(f"SNR with 9 phase points = {fitter.results['A']/fitter.errors['A']}")
+    return fig, ax
+
+
+
+
+
+############################################################################################################
+I_a = 1.48
+I_b = 0.75
 
 def combine_polarization_data(results):
     def check_equal_and_append(check_from, check_name, append_to):
@@ -186,7 +218,7 @@ def combine_polarization_data(results):
         else:
             I = I_b
         data["W_T"].append((data["f+"][kk] - data["f-"][kk]) / 4 / I)
-
+        
     keys = list(data.keys())
     indices = list(range(len(keys)))
     col_indices = dict(zip(keys, indices))
@@ -198,6 +230,8 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
     Analyzes a collection of Ramsey phase scans. get_results depends on the specific sequence, so input get_results = get_results
     load_old determines if this will search for the processed data and load it
     save_new determines if this will save the processed data
+    
+    change max
     """
     points_per_scan = data_range[1] - data_range[0] + 1 
 
@@ -294,7 +328,7 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
             for header in headers:
                 sequence = header["params"]["sequence"]["sequence"]
                 for name, repeat in sequence:
-                    if name.startswith("lf") and not name.endswith("piov2"):
+                    if name.startswith("lf") and not "piov2" in name:
                         index.append(int(name.split("_")[-1]))
                         break
 
@@ -310,7 +344,7 @@ def analyze_data(data_range, max, get_results, ignore_data_numbers = [], load_ol
             stark_shift = headers[0]["params"]["field_plate"]["stark_shift"].to("MHz").magnitude
             detect_detuning = headers[0]["params"]["detect"]["detunings"].to("MHz").magnitude
             E_field = fp_amplitude > 0
-            phases = [header["params"]["lf"]["phase_diffs"][index[kk]] for kk, header in enumerate(headers)]
+            phases = [header["params"]["lf"]["phase_diffs"][index[kk] % len(header["params"]["lf"]["phase_diffs"])] for kk, header in enumerate(headers)]
             temp = np.nanmean([header["temp"] for header in headers])
             rf_amplitude = headers[0]["params"]["rf"]["amplitude"]
             rf_duration_ms = headers[0]["params"]["rf"]["HSH"]["T_ch"].to("ms").magnitude
