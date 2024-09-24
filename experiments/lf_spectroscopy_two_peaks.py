@@ -86,26 +86,28 @@ default_params = {
         },
         "detuning_ab": 55 * ureg.kHz, # 53
         "detuning_abarbbar": -60 * ureg.kHz, # -57
+        "amplitude": 5000,
+        "duration": 15 * ureg.ms,
         "offset": 30 * ureg.kHz,
     },
     "lf": {
-        "center_frequency_1": 139.8 * ureg.kHz,  # TODO
-        "center_frequency_2": 139.8 * ureg.kHz,  # TODO
+        "center_frequency_1": 145.9 * ureg.kHz,
+        "center_frequency_2": 136.4 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
-        "amplitude_1": 250,  # TODO
-        "amplitude_2": 250,  # TODO
-        "piov2_time": 200 * ureg.us,
+        "amplitude_1": 250,
+        "amplitude_2": 260,
+        "piov2_time": 175 * ureg.us,
         "wait_time": 350 * ureg.us,
         "phase_diffs": np.linspace(0, 2 * np.pi, scan_count, endpoint=False),
-        "equilibrate_piov2_time": 20 * ureg.us,
-        "equilibrate_amplitude_1": 2500,  # TODO
-        "equilibrate_amplitude_2": 2500,  # TODO
+        "equilibrate_piov2_time": 18.5 * ureg.us,
+        "equilibrate_amplitude_1": 2400,
+        "equilibrate_amplitude_2": 2500,
 
     },
     "field_plate": {
         "method": "ttl",
         "relative_to_lf": "before",
-        "amplitude": 4500*2,
+        "amplitude": -4500*2,
         "stark_shift": 2.2*1.5 * ureg.MHz,
         "ramp_time": 3 * ureg.ms,
         "wait_time": None,
@@ -121,7 +123,7 @@ default_params = {
             ("optical_cb", cb_pumps),
             ("optical_ac", ac_pumps),
             ("break", 200),
-            ("lfpiov2", 1),
+            ("lfpiov2_0", 1),
             ("field_plate_trigger", 1),
             ("break", 300),
             (f"detect_1", detects),
@@ -217,7 +219,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             except:
                 print(f"{first_data_id}")
 
-run_1_experiment(only_print_first_last=False, repeats = 1)
+run_1_experiment(only_print_first_last=False, repeats = 1000000)
 
 ###
 #run_1_experiment(repeats = 10)

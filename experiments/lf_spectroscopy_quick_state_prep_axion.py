@@ -41,7 +41,7 @@ cb_pumps = 25 #250*2
 chasms = 10 #10#400*2
 cleanouts = 0
 detects = 512 #512
-scan_count = 1 #8
+scan_count = 8 #8
 
 default_params = {
     "name": "Simple LF Spectroscopy Quick State Prep",
@@ -100,13 +100,13 @@ default_params = {
         "offset": 30 * ureg.kHz,
     },
     "lf": {
-        "center_frequency": 139.8 * ureg.kHz,
+        "center_frequency": 145.85 * ureg.kHz,#136.2 * ureg.kHz,
         "detuning": 0 * ureg.kHz,
         "amplitude": 250, #250 1000
-        "piov2_time": 200 * ureg.us, #200 50
+        "piov2_time": 175 * ureg.us, #200 50
         "wait_time": 350 * ureg.us, # 300
-        # "phase_diffs": np.linspace(0, 2 * np.pi, scan_count, endpoint=False),
-        "phase_diffs": np.linspace(0, 1, 1, endpoint=False)
+        "phase_diffs": np.linspace(0, 2 * np.pi, scan_count, endpoint=False),
+        # "phase_diffs": np.linspace(0, 1, 1, endpoint=False)
     },
     "field_plate": {
         "method": "ttl",
@@ -182,14 +182,16 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
     #     print(f"{coil_current} A")
     #     coil_supply.set_current(1, coil_current / 2)
     #     coil_supply.set_current(2, coil_current / 2)
-    freq_list = np.array([137.8, 142.36])
-    freq_list = np.linspace(130, 150, 150)
+    freq_list = np.array([136.20, 145.85])
+    # freq_list = np.linspace(130, 150, 150)
+    # time_list = np.linspace(0.1, 50, 20)
     # freq_list = np.linspace(136, 142, 50)
     # freq_list = np.array([139.8])
     for kk in tqdm(range(repeats)):
         for ll in freq_list:
             params = default_params.copy()
             params["lf"]["center_frequency"] = ll * ureg.kHz
+            # params["lf"]["piov2_time"] = ll * ureg.us
             sequence = get_sequence(params)
             sequence.setup_sequence()
             m4i.setup_sequence(sequence)
@@ -238,7 +240,7 @@ def run_1_experiment(only_print_first_last=False, repeats=50):
             except:
                 print(f"{first_data_id}")
 
-run_1_experiment(only_print_first_last=False, repeats = 1)
+run_1_experiment(only_print_first_last=False, repeats = 100)
 
 ###
 #run_1_experiment(repeats = 10)
