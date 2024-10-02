@@ -40,31 +40,31 @@ class opticalAnalysis:
         """
         Extract data from dictionary and return normalized, optical depth.
         """
-        detect_1_transmission_raw = self._data["transmission"][()]["detect_1"]
-        detect_1_monitor_raw = self._data["monitor"][()]["detect_1"]
-        detect_2_transmission_raw = self._data["transmission"][()]["detect_2"]
-        detect_2_monitor_raw = self._data["monitor"][()]["detect_1"]
-
-        detect_1_transmission_avg = np.average(detect_1_transmission_raw, axis=0)
-        detect_1_monitor_avg = np.average(detect_1_monitor_raw, axis=0)
-        detect_2_transmission_avg = np.average(detect_2_transmission_raw, axis=0)
-        detect_2_monitor_avg = np.average(detect_2_monitor_raw, axis=0)
-
-        N1 = np.shape(detect_1_transmission_raw[0])
-        N2 = np.shape(detect_2_transmission_raw[0])
+        normalized_detect_1 = self.get_raw_spectrum_average("detect_1")
+        normalized_detect_2 = self.get_raw_spectrum_average("detect_2")
         
-        detect_1_transmission_err = np.std(detect_1_transmission_raw, axis=0)/np.sqrt(N1)
-        detect_1_monitor_err = np.std(detect_1_monitor_raw, axis=0)/np.sqrt(N1)
-        detect_2_transmission_err = np.std(detect_2_transmission_raw, axis=0)/np.sqrt(N2)
-        detect_2_monitor_err = np.std(detect_2_monitor_raw, axis=0)/np.sqrt(N2)
-
-        detect_1_transmission = unumpy.uarray(detect_1_transmission_avg, detect_1_transmission_err)
-        detect_1_monitor = unumpy.uarray(detect_1_monitor_avg, detect_1_monitor_err)
-        detect_2_transmission = unumpy.uarray(detect_2_transmission_avg, detect_2_transmission_err)
-        detect_2_monitor = unumpy.uarray(detect_2_monitor_avg, detect_2_monitor_err)
-        
-        return -unumpy.log((detect_2_transmission/detect_2_monitor)/(detect_1_transmission/detect_1_monitor))
+        return -unumpy.log((normalized_detect_2)/(normalized_detect_1))
     
+    def get_raw_spectrum_average(self, detect_name):
+        """
+        Extract data from dictionary and average.
+        """
+        detect_transmission_raw = self._data["transmission"][()][detect_name]
+        detect_monitor_raw = self._data["monitor"][()][detect_name]
+
+        detect_transmission_avg = np.average(detect_transmission_raw, axis=0)
+        detect_monitor_avg = np.average(detect_monitor_raw, axis=0)
+
+        N = np.shape(detect_transmission_raw[0])
+
+        detect_transmission_err = np.std(detect_transmission_raw, axis=0)/np.sqrt(N)
+        detect_monitor_err = np.std(detect_monitor_raw, axis=0)/np.sqrt(N)
+
+        detect_transmission = unumpy.uarray(detect_transmission_avg, detect_transmission_err)
+        detect_monitor = unumpy.uarray(detect_monitor_avg, detect_monitor_err)
+        
+        return detect_transmission/detect_monitor
+
     def fit_optical_spectrum(self, p0user: dict = None):
         """
         Fit the optical spectrum to two gaussians.
@@ -123,6 +123,14 @@ class opticalAnalysis:
             ys_fit = fitter.fitted_value(xs_fit)
             ax.plot(xs_fit, ys_fit)
 
+        return ax
+
+    def plot_raw_optical_spectrum_data(self, ax, detect_name):
+        """
+        Plot optical depth vs optical detuning.
+        """
+        raw_optical_depths = -unumpy.log(self.get_raw_spectrum_average(detect_name))
+        ax.errorbar(self._detunings, unumpy.nominal_values(raw_optical_depths), unumpy.std_devs(raw_optical_depths), label=detect_name, ls="", fmt=".",)
         return ax
 
     def plot_optical_spectrum_params(self, ax):
