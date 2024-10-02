@@ -158,7 +158,7 @@ def chasm_segments(
     for kk, transition in enumerate(transitions):
         for Pi in Pi_values:
             this_segment_name = f"{kk}_{transition}_{Pi}"
-            E_field = field_plate_params["voltage_to_field"] * field_plate_params["high_voltage"]
+            E_field = field_plate_params["voltage_to_field"] * field_plate_params["high_voltage"] * field_plate_params["amplifier_voltage_gain"]
             abs_E_field_shift = abs(E_field * field_plate_params["dipole_moment"])
             E_field_shift = Pi * abs_E_field_shift
             center_detuning = detunings[kk] + E_field_shift
@@ -284,7 +284,7 @@ def detect_segments(
             (detunings_MHz.size * len(Pi_values),), dtype=detunings_MHz.dtype
         )
         for kk, Pi in enumerate(Pi_values):
-            E_field = field_plate_params["voltage_to_field"] * field_plate_params["high_voltage"]
+            E_field = field_plate_params["voltage_to_field"] * field_plate_params["high_voltage"] * field_plate_params["amplifier_voltage_gain"]
             abs_E_field_shift = abs(E_field * field_plate_params["dipole_moment"])
             E_field_shift = Pi * abs_E_field_shift
             all_detunings[kk::len(Pi_values)] = detunings_MHz + E_field_shift.to("MHz").magnitude

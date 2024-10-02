@@ -7,18 +7,15 @@ from onix.units import ureg
 
 parameters = {
     "field_plate": {
-        "low_voltage": -0.002 * ureg.V,  # AWG output before the HV amplifier
-        "high_voltage": 1.25 * ureg.V,  # compensates the dc offset.
-        "use": False,  # uses the field plate in the experiment.
-        "during": ["chasm", "detect"],
+        "use": True,
     },
     "chasm": {
         "transitions": "ac",  # only burns a chasm on a -> c'
         "detunings": 0 * ureg.MHz,
-        "scans": 4 * ureg.MHz,
+        "scans": 5 * ureg.MHz,
         "amplitudes": 0.15 * ureg.V,
         "durations": 1 * ureg.ms,
-        "repeats": 25,
+        "repeats": 50,
     },
     "antihole": {
         "transitions": ["ac", "cb"],
@@ -30,29 +27,19 @@ parameters = {
     "detect": {
         "mode": "abs",
         "abs": {
-            "detunings": np.linspace(-3.5, 3.5, 35) * ureg.MHz,
+            "detunings": np.linspace(-4.5, 4.5, 35) * ureg.MHz,
             "on_time": 5 * ureg.us,
             "off_time": 1 * ureg.us,
             "delay": 8 * ureg.us,
-            "amplitude": 15 * ureg.mV,
+            "amplitude": 17 * ureg.mV,
             "repeats": 512,
         },
     },
     "rf": {
-        "avg_center_frequency": 119.23 * ureg.MHz,
-        "sweep": {
-            "detuning_abar_to_bbar": -60 * ureg.kHz,
-            "detuning_a_to_b": 55 * ureg.kHz,
-            "amplitude": 0.3 * ureg.V,
-            "T_0": 0.3 * ureg.ms,
-            "T_e": 0.15 * ureg.ms,
-            "T_ch": 25 * ureg.ms,
-            "scan": 30 * ureg.kHz,
-        },
         "rabi": {
             "detuning": 0 * ureg.kHz,
-            "amplitude": 0.3 * ureg.V,
-            "duration": 10 * ureg.ms,
+            "amplitude": 0.6 * ureg.V,
+            "duration": 1 * ureg.ms,
         },
     },
 }
@@ -75,7 +62,7 @@ edc = ExpDefinitionCreator(
     exp_parameters,
 )
 # above ~24 scanned values it may crash.
-iterate_param_values = [(kk * ureg.kHz, ) for kk in np.linspace(-300, 300, 50)]
+iterate_param_values = [(kk * ureg.kHz, ) for kk in np.linspace(-300, 300, 60)]
 group_size = 20
 for kk in range(0, len(iterate_param_values), group_size):
     start = kk

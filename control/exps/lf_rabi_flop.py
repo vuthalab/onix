@@ -6,13 +6,30 @@ from onix.units import ureg
 
 
 parameters = {
+    "field_plate": {
+        "use": False,
+    },
     "antihole": {
         "repeats": 50,
     },
-    "detect": {
-        "abs": {
-            "delay": 8 * ureg.us,
-            "repeats": 512,
+    "lf": {
+        "channel_name": "rf_coil",
+        "equilibrate": {
+            "center_frequency": 140 * ureg.kHz,
+            "Sigma": 0,
+            "Zeeman_shift_along_b": 5 * ureg.kHz,
+            "piov2_amplitude": 250 * ureg.mV,
+            "piov2_duration": 17 * ureg.us,
+            "use_composite": True,
+            "composite_segments": 3,
+        },
+        "rabi": {
+            "center_frequency": 140 * ureg.kHz,
+            "Sigma": 0,  # 0, +1, -1.
+            "Zeeman_shift_along_b": 5 * ureg.kHz,
+            "detuning": 0 * ureg.kHz,
+            "amplitude": 250 * ureg.mV,
+            "duration": 5 * ureg.ms,
         },
     },
 }
@@ -35,10 +52,30 @@ edc = ExpDefinitionCreator(
     sequence,
     exp_parameters,
 )
-#edc.schedule()
 # above ~24 scanned values it may crash.
-for kk in range(10):
+
+## freq scan
+# iterate_param_values = [(kk * ureg.kHz, ) for kk in np.linspace(-7, 7, 150)]
+# group_size = 20
+# for kk in range(0, len(iterate_param_values), group_size):
+#     start = kk
+#     stop = kk + group_size
+#     if stop > len(iterate_param_values):
+#         stop = len(iterate_param_values)
+#     edc.iterate_parameters(
+#         [("lf", "rabi", "detuning")],
+#         iterate_param_values[start:stop],
+#     )
+
+## duration scan
+iterate_param_values = [(kk * ureg.us, ) for kk in np.linspace(0, 100, 40)]
+group_size = 20
+for kk in range(0, len(iterate_param_values), group_size):
+    start = kk
+    stop = kk + group_size
+    if stop > len(iterate_param_values):
+        stop = len(iterate_param_values)
     edc.iterate_parameters(
-        [("lf", "rabi", "detuning")],
-        [(kk, ) for kk in np.linspace(-10, 10, 10) * ureg.kHz],
+        [("lf", "rabi", "duration")],
+        iterate_param_values[start:stop],
     )

@@ -37,25 +37,26 @@ _shared_parameters = {
     },
     "field_plate": {
         "channel_name": "field_plate",
-        "low_voltage": -0.002 * ureg.V,  # AWG output before the HV amplifier
-        "high_voltage": 1.25 * ureg.V,  # compensates the dc offset.
-        "voltage_to_field": 1 / (0.8 * ureg.cm),
+        "low_voltage": -0.0013 * ureg.V,  # AWG output before the HV amplifier
+        "high_voltage": 1.75 * ureg.V,  # compensates the dc offset.
+        "amplifier_voltage_gain": 50,
+        "voltage_to_field": 1 / (0.87 * ureg.cm),
         "dipole_moment": 27.7 * ureg.kHz / (ureg.V / ureg.cm),
         "rise_ramp_time": 3 * ureg.ms,  # ramp time from low to high.
         "rise_delay_time": 2 * ureg.ms,  # wait time in the high state before voltage is stabilized.
         "fall_ramp_time": 0 * ureg.ms,  # ramp time from high to low.
         "fall_delay_time": 2 * ureg.ms,  # wait time in the low state before voltage is stabilized.
-        "use": True,  # uses the field plate in the experiment.
+        "use": False,  # uses the field plate in the experiment.
         "during": ["chasm", "detect"],
         "negative_Pi_first": True,  # if True, scans the Pi=-1 ions before the Pi=+1 ions.
     },
     "chasm": {
         "transitions": "ac",  # only burns a chasm on a -> c'
         "detunings": 0 * ureg.MHz,
-        "scans": 3 * ureg.MHz,  # scans +/-3 MHz in the optical frequency.
+        "scans": 5 * ureg.MHz,  # scans +/-5 MHz in the optical frequency.
         "amplitudes": 0.15 * ureg.V,
         "durations": 1 * ureg.ms,
-        "repeats": 25,
+        "repeats": 50,
     },
     "antihole": {
         "transitions": ["ac", "cb"],
@@ -72,15 +73,15 @@ _shared_parameters = {
             "on_time": 5 * ureg.us,
             "off_time": 1 * ureg.us,
             "delay": 8 * ureg.us,
-            "amplitude": 15 * ureg.mV,
+            "amplitude": 17 * ureg.mV,
             "repeats": 512,
         },
     },
     "rf": {
         "channel_name": "rf_coil",
-        "avg_center_frequency": 119.23 * ureg.MHz,
+        "avg_center_frequency": 119.225 * ureg.MHz,
         "sweep": {
-            "detuning_abar_to_bbar": -60 * ureg.kHz,
+            "detuning_abar_to_bbar": -55 * ureg.kHz,
             "detuning_a_to_b": 55 * ureg.kHz,
             "amplitude": 0.3 * ureg.V,
             "T_0": 0.3 * ureg.ms,

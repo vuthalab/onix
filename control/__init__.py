@@ -42,7 +42,10 @@ def save_edf(edf_dict: dict) -> int:
 
 def try_get_next_edf_to_run() -> tuple[int, Any]:
     # This function is not thread / process safe. If this function is called simultaneously an error may occur.
-    next_save_number = _get_next_save_edf_number()
+    try:
+        next_save_number = _get_next_save_edf_number()
+    except ValueError:
+        next_save_number = _get_next_save_edf_number()
     original_next_run_number = _get_next_run_edf_number()
     next_run_number = original_next_run_number
     edf_dict = None
