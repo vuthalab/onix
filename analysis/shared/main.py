@@ -36,34 +36,36 @@ class opticalAnalysis:
         self._detunings = self._data["detunings_MHz"]
         self._optical_depths = self.get_optical_spectrum()
         
-    def get_optical_spectrum(self):
+    def get_optical_spectrum(self, OD: bool = True):
         """
-        Extract data from dictionary and return normalized, optical depth.
+        Extract data from dictionary, average and return normalized, optical depth change.
         """
         normalized_detect_1 = self.get_raw_spectrum_average("detect_1")
         normalized_detect_2 = self.get_raw_spectrum_average("detect_2")
         
-        return -unumpy.log((normalized_detect_2)/(normalized_detect_1))
+        if OD:
+            return -unumpy.log(normalized_detect_2/normalized_detect_1)
+        else:
+            return normalized_detect_2/normalized_detect_1
     
-    def get_raw_spectrum_average(self, detect_name):
+    def get_raw_spectrum_average_normalized(self, detect_name):
+        """
+        Extract data from dictionary and average, normalized between monitor and transmission photodiodes..
+        """
+        detect_transmission = self.get_raw_spectrum_average(detect_name, "transmission")
+        detect_monitor = self.get_raw_spectrum_average(detect_name, "monitor")
+        
+        return detect_transmission/detect_monitor
+
+    def get_raw_spectrum_average(self, detect_name, photodiode):
         """
         Extract data from dictionary and average.
         """
-        detect_transmission_raw = self._data["transmission"][()][detect_name]
-        detect_monitor_raw = self._data["monitor"][()][detect_name]
-
-        detect_transmission_avg = np.average(detect_transmission_raw, axis=0)
-        detect_monitor_avg = np.average(detect_monitor_raw, axis=0)
-
-        N = np.shape(detect_transmission_raw[0])
-
-        detect_transmission_err = np.std(detect_transmission_raw, axis=0)/np.sqrt(N)
-        detect_monitor_err = np.std(detect_monitor_raw, axis=0)/np.sqrt(N)
-
-        detect_transmission = unumpy.uarray(detect_transmission_avg, detect_transmission_err)
-        detect_monitor = unumpy.uarray(detect_monitor_avg, detect_monitor_err)
-        
-        return detect_transmission/detect_monitor
+        detect_raw = self._data[photodiode][()][detect_name]
+        detect_avg = np.average(detect_raw, axis=0)
+        detect_err = np.std(detect_raw, axis=0)/np.sqrt(np.shape(detect_raw[0]))
+        detect = unumpy.uarray(detect_avg, detect_err)
+        return detect
 
     def fit_optical_spectrum(self, p0user: dict = None):
         """
@@ -209,6 +211,7 @@ class frequencyAnalysis:
         return np.array(xaxis) * unit
 
     def fit_phase_offset(self):
+        # TODO: fix.
         """
         Fit N datapoints to phase.
         """
