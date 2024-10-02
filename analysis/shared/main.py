@@ -276,7 +276,7 @@ class frequencyAnalysis:
     
 
     ### PLOTTING
-    def plot_sweep_data(self, ax, scan_list):
+    def plot_sweep_data(self, ax, scan_list, label="", **kwargs):
         """
         Plot the sweep from get_list_from_header() using arbitrary scanned 
         parameter defined in the scan_list.
@@ -291,12 +291,11 @@ class frequencyAnalysis:
         else:
             xaxis_units = "(dimensionless)"
 
-
-        ax.scatter(xaxis, self._a1s, label="$\\Pi = -1$")
-        ax.scatter(xaxis, self._a2s, label="$\\Pi = +1$")
+        ax.scatter(xaxis, self._a1s, label=f"{label} $\\Pi = -1$", **kwargs)
+        ax.scatter(xaxis, self._a2s, label=f"{label} $\\Pi = +1$", **kwargs)
 
         ax.set_xlabel(f"{xaxis_name} ({xaxis_units})")
-        ax.set_ylabel("Optical depth change")
+        ax.set_ylabel(r"Optical depth change, $\Delta$OD")
         ax.legend()
         return ax
     
