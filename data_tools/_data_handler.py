@@ -63,7 +63,7 @@ def _get_data(file_path: str) -> Tuple[Dict[Any, Any], Dict[Any, Any]]:
                 print(f"Cannot find class {__global_name} in {__module_name}. Skipping.")
                 return DummyClass
 
-    data = dict(np.load(file_path))
+    data = dict(np.load(file_path, allow_pickle=True))
     headers = SkipAttributeErrorUnpickler(io.BytesIO(data.pop("__headers__"))).load()
     return (data, headers)
 

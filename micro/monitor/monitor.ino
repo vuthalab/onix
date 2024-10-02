@@ -8,14 +8,14 @@ const uint8_t CHANNEL2 = 2;
 const uint8_t CHANNEL3 = 3;
 const uint8_t CHANNEL4 = 4;
 
-const uint16_t ADC_INTERVAL = 1E4; // set sampling rate
+const uint16_t ADC_INTERVAL = 20; // set sampling rate
 const uint16_t ADC1_DELAY = 0; // to avoid crashes when multiple channels attempt to take data at the same time, we have a 5 us delay between channels
 const uint16_t ADC2_DELAY = 5;
 const uint16_t ADC3_DELAY = 10;
 const uint16_t ADC4_DELAY = 15;
 const adc_scale_t ADC_SCALE = BIPOLAR_10V; // the Mag690-100 can output +-10 V
 
-const int DATA_TIME = 1E7; // save at maximum the last 10 s of data for each channel
+const int DATA_TIME = 1E3; // save at maximum the last 1 ms of data for each channel
 
 // Data saved in Quarto for computer readout
 const int MAX_DATA_LENGTH = DATA_TIME / ADC_INTERVAL;
