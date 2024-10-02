@@ -83,7 +83,7 @@ _shared_parameters = {
         "sweep": {
             "detuning_abar_to_bbar": -55 * ureg.kHz,
             "detuning_a_to_b": 55 * ureg.kHz,
-            "amplitude": 0.3 * ureg.V,
+            "amplitude": 0.25 * ureg.V,
             "T_0": 0.3 * ureg.ms,
             "T_e": 0.15 * ureg.ms,
             "T_ch": 25 * ureg.ms,

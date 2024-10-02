@@ -15,7 +15,7 @@ parameters = {
     "lf": {
         "channel_name": "rf_coil",
         "equilibrate": {
-            "center_frequency": 140 * ureg.kHz,
+            "center_frequency": 139 * ureg.kHz,
             "Sigma": 0,
             "Zeeman_shift_along_b": 5 * ureg.kHz,
             "piov2_amplitude": 250 * ureg.mV,
@@ -24,12 +24,24 @@ parameters = {
             "composite_segments": 3,
         },
         "rabi": {
-            "center_frequency": 140 * ureg.kHz,
+            "center_frequency": 139 * ureg.kHz,
             "Sigma": 0,  # 0, +1, -1.
             "Zeeman_shift_along_b": 5 * ureg.kHz,
             "detuning": 0 * ureg.kHz,
             "amplitude": 1 * ureg.mV,
             "duration": 5 * ureg.ms,
+        },
+    },
+    "rf": {
+        "avg_center_frequency": 119.225 * ureg.MHz,
+        "sweep": {
+            "detuning_abar_to_bbar": -55 * ureg.kHz,
+            "detuning_a_to_b": 55 * ureg.kHz,
+            "amplitude": 0.25 * ureg.V,
+            "T_0": 0.3 * ureg.ms,
+            "T_e": 0.15 * ureg.ms,
+            "T_ch": 25 * ureg.ms,
+            "scan": 30 * ureg.kHz,
         },
     },
 }
@@ -39,11 +51,10 @@ sequence = [
     "chasm",
     "antihole",
     "detect_1",
-    #"lf_equilibrate",
-    "rf_sweep_a_to_b",
+    "lf_equilibrate",
     "rf_sweep_abar_to_bbar",
-    #"lf_rabi",
-    #"rf_sweep_abar_to_bbar",
+    "lf_rabi",
+    "rf_sweep_abar_to_bbar",
     "detect_2",
 ]
 exp_parameters = update_parameters_from_shared(parameters)
@@ -56,7 +67,7 @@ edc = ExpDefinitionCreator(
 # above ~24 scanned values it may crash.
 
 ## freq scan
-iterate_param_values = [(kk * ureg.kHz, ) for kk in np.linspace(12, -12, 20)]
+iterate_param_values = [(kk * ureg.kHz, ) for kk in np.linspace(7, -7, 100)]
 group_size = 10
 for kk in range(0, len(iterate_param_values), group_size):
     start = kk

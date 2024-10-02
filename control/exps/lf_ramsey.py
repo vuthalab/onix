@@ -6,13 +6,29 @@ from onix.units import ureg
 
 
 parameters = {
-    "antihole": {
-        "repeats": 50,
+    "field_plate": {
+        "use": True,
     },
-    "detect": {
-        "abs": {
-            "delay": 8 * ureg.us,
-            "repeats": 512,
+    "lf": {
+        "equilibrate": {
+            "center_frequency": 139.85 * ureg.kHz,
+            "Sigma": 1,
+            "Zeeman_shift_along_b": 4.15 * ureg.kHz,
+            "detuning": 0 * ureg.kHz,
+            "piov2_amplitude": 250 * ureg.mV,
+            "piov2_duration": 19 * ureg.us,
+            "use_composite": True,
+            "composite_segments": 3,
+        },
+        "ramsey": {
+            "center_frequency": 139.85 * ureg.kHz,
+            "Sigma": 1,
+            "Zeeman_shift_along_b": 4.15 * ureg.kHz,
+            "detuning": 0 * ureg.kHz,
+            "amplitude": 23 * ureg.mV,
+            "piov2_time": 200 * ureg.us,
+            "wait_time": 500 * ureg.us,
+            "phase": 0,
         },
     },
 }
@@ -23,9 +39,9 @@ sequence = [
     "antihole",
     "detect_1",
     "lf_equilibrate",
-    "rf_sweep_abar_to_bbar",
+    "rf_sweep_a_to_b",
     "lf_ramsey",
-    "rf_sweep_abar_to_bbar",
+    "rf_sweep_a_to_b",
     "detect_2",
 ]
 exp_parameters = update_parameters_from_shared(parameters)
@@ -49,4 +65,5 @@ edc.iterate_parameters(
         ("lf", "equilibrate", "Sigma")
     ],
     iterate_param_values,
+    repeats=5,
 )

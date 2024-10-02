@@ -88,7 +88,7 @@ class ExpSequence:
                         overlap_parameter_index = self._parameters_to_iterate.index(overlap_parameter)
                         this_iteration_overlap_parameter_values.append(parameter_values[overlap_parameter_index])
                     this_iteration_overlap_parameter_values = tuple(this_iteration_overlap_parameter_values)
-                    if this_iteration_overlap_parameter_values not in overlap_parameter_values:
+                    if this_iteration_overlap_parameter_values not in overlap_parameter_values.values():
                         overlap_parameter_values[kk] = this_iteration_overlap_parameter_values
                         # build and add sequence
                         segments_to_iterate_over[name][kk], _ = self._build_segments(
@@ -96,7 +96,7 @@ class ExpSequence:
                         )
                         segments_to_iterate_over[name][kk] = [ll for (ll, _) in segments_to_iterate_over[name][kk]]
                     else:
-                        index = overlap_parameter_values.index(this_iteration_overlap_parameter_values)
+                        index = list(overlap_parameter_values.values()).index(this_iteration_overlap_parameter_values)
                         segments_to_iterate_over[name][kk] = segments_to_iterate_over[name][index]
 
         segment_steps = []
@@ -122,15 +122,18 @@ class ExpSequence:
         segments_to_replace = []
         segments_to_loop_over = [[] for kk in range(len(self._iterate_parameter_values))]
         for name in segments_to_iterate_over:
-            segments_to_replace.append(name)
+            segments_to_replace.extend([seg.name for seg, steps in self._segment_and_steps[name]])
             for iter_index in segments_to_iterate_over[name]:
                 for seg in segments_to_iterate_over[name][iter_index]:
                     self._all_board_segments.add_segment(seg)
                     segments_to_loop_over[iter_index].append(seg.name)
-        segments_to_replace = tuple(segments_to_replace + [None])
-        segments_to_loop_over = [tuple(kk + [None]) for kk in segments_to_loop_over]
+        segments_to_replace = tuple(segments_to_replace)
+        segments_to_loop_over = [tuple(kk) for kk in segments_to_loop_over]
     
         if len(self._iterate_parameter_values) > 0:
+            if len(segments_to_replace) == 0:
+                segments_to_replace = (None, )
+                segments_to_loop_over = [(None, ) for kk in range(len(self._iterate_parameter_values))]
             self._all_board_segments.setup_loops(
                 segments_to_replace, segments_to_loop_over,
             )
