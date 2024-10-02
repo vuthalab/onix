@@ -104,7 +104,7 @@ class ExpSequence:
         rise_times = []
         fall_times = []
         last_segment_on = False
-        for name in self._segment_and_steps:
+        for name in self._exp_sequence:
             for seg, steps in self._segment_and_steps[name]:
                 self._all_board_segments.add_segment(seg)
                 segment_steps.append((seg.name, steps))
