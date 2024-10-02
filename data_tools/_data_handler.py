@@ -59,7 +59,7 @@ def _get_data(file_path: str) -> Tuple[Dict[Any, Any], Dict[Any, Any]]:
         def find_class(self, __module_name: str, __global_name: str) -> Any:
             try:
                 return super().find_class(__module_name, __global_name)
-            except AttributeError:
+            except (AttributeError, ModuleNotFoundError):
                 print(f"Cannot find class {__global_name} in {__module_name}. Skipping.")
                 return DummyClass
 

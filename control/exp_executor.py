@@ -119,7 +119,6 @@ class ExpSequence:
                 time_now += seg.actual_duration * steps
         self.E_field_rise_and_fall_times = zip(rise_times, fall_times)
 
-        has_iteration = False
         segments_to_replace = []
         segments_to_loop_over = [[] for kk in range(len(self._iterate_parameter_values))]
         for name in segments_to_iterate_over:
@@ -128,11 +127,10 @@ class ExpSequence:
                 for seg in segments_to_iterate_over[name][iter_index]:
                     self._all_board_segments.add_segment(seg)
                     segments_to_loop_over[iter_index].append(seg.name)
-                    has_iteration = True
-        segments_to_replace = tuple(segments_to_replace)
-        segments_to_loop_over = [tuple(kk) for kk in segments_to_loop_over]
-
-        if has_iteration:
+        segments_to_replace = tuple(segments_to_replace + [None])
+        segments_to_loop_over = [tuple(kk + [None]) for kk in segments_to_loop_over]
+    
+        if len(self._iterate_parameter_values) > 0:
             self._all_board_segments.setup_loops(
                 segments_to_replace, segments_to_loop_over,
             )

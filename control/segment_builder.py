@@ -1,6 +1,7 @@
 """AWG implementation of the experiment sequence steps."""
 from typing import Any, Optional
 
+from matplotlib import pyplot as plt
 import numpy as np
 
 from onix.control.awg_maps import (
@@ -429,11 +430,12 @@ def lf_equilibrate_segments(
     center_frequency = lf_params["center_frequency"]
     Sigma = lf_params["Sigma"]
     Zeeman_shift_along_b = lf_params["Zeeman_shift_along_b"]
+    detuning = lf_params["detuning"]
     amplitude = voltage_to_awg_amplitude(lf_params["piov2_amplitude"])
     duration = lf_params["piov2_duration"]
     use_composite = lf_params["use_composite"]
     composite_segments = lf_params["composite_segments"]
-    lf_pulse_freq = center_frequency + Zeeman_shift_along_b * Sigma
+    lf_pulse_freq = center_frequency + Zeeman_shift_along_b * Sigma + detuning
 
     lf_channel = get_awg_channel_from_name(parameters["lf"]["channel_name"])
     segment = Segment(sequence_step_name)
@@ -445,8 +447,8 @@ def lf_equilibrate_segments(
     else:
         # Malcolm H. Levitt, Composite Pulses
         if composite_segments == 3:
-            durations = np.array([385, 320, 25]) / 90 * duration
-            phases = np.deg2rad([0, 180, 0])
+            durations = np.array([385.0, 320.0, 25.0]) / 90 * duration
+            phases = np.deg2rad([0.0, 180.0, 0.0])
         else:
             raise NotImplementedError(f"Composite pulse segments of {composite_segments} is not implemented.")
         segment.add_awg_function(
@@ -475,6 +477,7 @@ def lf_equilibrate_segments(
         ("lf", "equilibrate", "center_frequency"),
         ("lf", "equilibrate", "Zeeman_shift_along_b"),
         ("lf", "equilibrate", "Sigma"),
+        ("lf", "equilibrate", "detuning"),
         ("lf", "equilibrate", "piov2_amplitude"),
         ("lf", "equilibrate", "piov2_duration"),
     ]

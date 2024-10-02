@@ -15,7 +15,7 @@ DATA_2_NOMINAL_NAME = "normalized_avg_2"
 DATA_2_ERROR_NAME = "normalized_err_2"
 
 
-class opticalAnalysis:
+class OpticalAnalysis:
     """
     Everything optical spectrum related.
     Args:
@@ -73,26 +73,32 @@ class opticalAnalysis:
         # initial fit guess
         field_plate = self._headers["params"]["field_plate"]
         stark_shift = (field_plate["high_voltage"]*field_plate["amplifier_voltage_gain"]*field_plate["voltage_to_field"]*field_plate["dipole_moment"]).to("MHz").magnitude
-        p0 = {"f1": -stark_shift, 
-                  "f2": stark_shift, 
-                  "a1": -0.01,
-                  "a2": -0.01,
-                  "sigma1": 1, 
-                  "sigma2": 1,
-                  "b": 0,
-                  "c": 0}
+        p0 = {
+            "f1": -stark_shift, 
+            "f2": stark_shift, 
+            "a1": -0.01,
+            "a2": -0.01,
+            "sigma1": 1, 
+            "sigma2": 1,
+            "b": 0,
+            "c": 0,
+        }
         
         # overwrite initial guess with user's guess
         if p0user is not None:
             p0.update(p0user)
 
-        bounds = {"f1": [-15, 0],
-                  "f2": [0, 15],
-                  "a1": [-1, 1],
-                  "a2": [-1, 1],
-                  "sigma1": [0, 5],
-                  "sigma2": [0, 5],
-                  "c": [-1, 1]}
+        min_detuning = min(self._detunings)
+        max_detuning = max(self._detunings)
+        bounds = {
+            "f1": [min_detuning, 0],
+            "f2": [0, max_detuning],
+            "a1": [-np.inf, np.inf],
+            "a2": [-np.inf, np.inf],
+            "sigma1": [0, (max_detuning - min_detuning)],
+            "sigma2": [0, (max_detuning - min_detuning)],
+            "c": [-np.inf, np.inf],
+        }
 
         fitter = get_fitter(
             two_peak_gaussian, 
@@ -143,7 +149,7 @@ class opticalAnalysis:
 
         return ax
 
-class frequencyAnalysis:
+class FrequencyAnalysis:
     def __init__(self, data_numbers: list | np.ndarray | tuple, data_packet_size: int = 8):
 
         if isinstance(data_numbers, list):
@@ -171,7 +177,7 @@ class frequencyAnalysis:
         headers = []
         
         for data_number in tqdm(self._data_numbers):
-            optical_data = opticalAnalysis(data_number)
+            optical_data = OpticalAnalysis(data_number)
             a1, a2 = optical_data.get_fit_peaks()
             a1s.append(a1)
             a2s.append(a2)

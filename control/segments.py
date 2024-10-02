@@ -280,7 +280,7 @@ class SingleBoardSegments:
         for kk in segments_to_loop_over:
             all_names += list(kk)
         for name in all_names:
-            if name not in self._segments and f"__empty_{name}" not in self._segments:
+            if name is not None and name not in self._segments and f"__empty_{name}" not in self._segments:
                 raise ValueError(f"Segment {name} is not defined.")
         self._loop = (segments_to_replace, segments_to_loop_over)
 
