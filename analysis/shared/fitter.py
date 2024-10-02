@@ -1,10 +1,9 @@
 from functools import wraps as _wraps
-
 import numpy as _np
 from scipy._lib._util import getfullargspec_no_self as _getfullargspec
 from scipy.optimize import curve_fit as _curve_fit
-
 from onix.helpers import present_float
+from typing import Union, Iterable, Callable, Tuple, Annotated, Any, Dict, List
 
 __all__ = ["Fitter"]
 
@@ -298,3 +297,81 @@ class Fitter:
         if deg_of_freedom == 0:
             raise Exception("Degree of freedom is 0. Cannot calculate reduced chi square.")
         return _np.sum(_np.power(studentized_residuals, 2)) / deg_of_freedom
+    
+def get_fitter(function: Callable, xs: _np.ndarray, ys: _np.ndarray, 
+               errs: _np.ndarray = None, p0: Iterable = None, 
+               bounds: Iterable = None, maxfev: int = 10000, set_absolute_sigma: bool = False):
+    """
+    Args:
+        function: function to fit to
+        xs: np array for x
+        ys: np array for y
+        errs: np array for errs
+        p0: initial guess {"a": 1.1, "b": 2.2, ...}
+        bounds: bounds on parameters {"a": [0, 1], "b": [-2, 2], ...}
+        maxfev: maximum iterations for fitter
+        set_absolute_sigma: 
+    """
+    fitter = Fitter(function)
+    fitter.set_absolute_sigma(set_absolute_sigma)
+    fitter.set_data(xs, ys, errs)
+    if p0 is not None:
+        fitter.set_p0(p0)
+    if bounds is not None:
+        for bound_var, bound in bounds.items():
+            fitter.set_bounds(bound_var, bound[0], bound[1])
+    fitter.fit(maxfev=maxfev)
+    return fitter
+
+def linear(x: Union[float, _np.ndarray], a: float, b: float):
+    return x * a + b
+
+def gaussian0(f: Union[float, _np.ndarray], f0: float, a: float, sigma: float) -> Union[float, _np.ndarray]:
+    """
+    Gaussian.
+    """
+    return a * _np.exp(-(f - f0) ** 2 / (2 * sigma ** 2))
+
+def gaussianC(f: Union[float, _np.ndarray], f0: float, a: float, sigma: float, c: float) -> Union[float, _np.ndarray]:
+    """
+    Gaussian with constant.
+    """
+    return a * _np.exp(-(f - f0) ** 2 / (2 * sigma ** 2)) + c
+
+def gaussianL(f: Union[float, _np.ndarray], f0: float, a: float, sigma: float, b: float, c: float) -> Union[float, _np.ndarray]:
+    """
+    Gaussian with line.
+    """
+    return gaussian0(f, f0, a, sigma, c) + b * f + c
+
+def two_peak_gaussian(f: Union[float, _np.ndarray], f1: float, f2: float, a1: float, a2: float,
+                      sigma1: float, sigma2: float, b: float, c: float) -> Union[float, _np.ndarray]:
+    """
+    Two Gaussians with linear background.
+    """
+    return gaussian0(f, f1, a1, sigma1) + gaussian0(f, f2, a2, sigma2) + c + b * f
+
+def four_peak_gaussian(f: Union[float, _np.ndarray], f1: float, f2: float, f3: float, f4: float, a1: float, a2: float, a3: float, a4: float,
+                       sigma1: float, sigma2: float, sigma3: float, sigma4: float, c: float) -> Union[float, _np.ndarray]:
+    """
+    Four Gaussians with linear background.
+    """
+    return gaussian0(f, f1, a1, sigma1) + gaussian0(f, f2, a2, sigma2) + gaussian0(f, f3, a3, sigma3) + gaussian0(f, f4, a4, sigma4) + c
+
+def exp_decay(t: Union[float, _np.ndarray], tau: float, a: float) -> Union[float, _np.ndarray]:
+    """
+    Exponential decay.
+    """
+    return a * (_np.exp(-t / tau) - 1)
+
+def power_law(x: Union[float, _np.ndarray], p: float, a: float) -> Union[float, _np.ndarray]:
+    """
+    Power law with factor.
+    """
+    return a * x**p
+
+def cosx(x: Union[float, _np.ndarray], a: float, x0: float, b: float, c: float) -> Union[float, _np.ndarray]:
+    """
+    Power law with factor.
+    """
+    return a * _np.cos(x - x0) + b * x + c

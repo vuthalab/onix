@@ -7,6 +7,7 @@ from uncertainties import ufloat, unumpy
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+interval = 8
 
 def h5_file_checker_getter(data, save_directory):
     indices = data.index
@@ -75,5 +76,3 @@ def save_processed_data(data, save_directory):
             update.to_hdf(file, mode="w", key='data')
         except:
             new_data_in_this_file.to_hdf(file, mode="w", key='data')
-            
-                
