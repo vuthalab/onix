@@ -37,6 +37,7 @@ _shared_parameters = {
     },
     "field_plate": {
         "channel_name": "field_plate",
+        "polarity": 1,
         "low_voltage": -0.0013 * ureg.V,  # AWG output before the HV amplifier
         "high_voltage": 1.75 * ureg.V,  # compensates the dc offset.
         "amplifier_voltage_gain": 50,

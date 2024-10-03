@@ -133,7 +133,7 @@ class OpticalAnalysis:
         """
         Plot optical depth vs optical detuning.
         """
-        raw_optical_depths = -unumpy.log(self.get_raw_spectrum_average(detect_name))
+        raw_optical_depths = -unumpy.log(self.get_raw_spectrum_average_normalized(detect_name))
         ax.errorbar(self._detunings, unumpy.nominal_values(raw_optical_depths), unumpy.std_devs(raw_optical_depths), label=detect_name, ls="", fmt=".",)
         return ax
 

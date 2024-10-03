@@ -9,7 +9,19 @@ parameters = {
     "field_plate": {
         "use": True,
     },
+    "chasm": {
+        "transitions": "ac",  # only burns a chasm on a -> c'
+        "detunings": 0 * ureg.MHz,
+        "scans": 5 * ureg.MHz,  # scans +/-5 MHz in the optical frequency.
+        "amplitudes": 0.15 * ureg.V,
+        "durations": 1 * ureg.ms,
+        "repeats": 50,
+    },
     "antihole": {
+        "transitions": ["ac", "cb"],
+        "detunings": 0 * ureg.MHz,
+        "amplitudes": 0.15 * ureg.V,
+        "durations": 1 * ureg.ms,
         "repeats": 50,
     },
     "lf": {

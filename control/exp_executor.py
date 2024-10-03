@@ -232,7 +232,7 @@ class SingleExpExecutor:
     def setup_quarto_amplitudes(self):
         field_plate_params = self._exp_sequence._parameters["field_plate"]
         quarto_e_field.V_low(field_plate_params["low_voltage"])
-        quarto_e_field.V_high(field_plate_params["high_voltage"])
+        quarto_e_field.V_high(field_plate_params["polarity"]*field_plate_params["high_voltage"])
 
     def run(self):
         self._digitizer.start_capture()
@@ -240,6 +240,8 @@ class SingleExpExecutor:
         DIGITIZER_ENABLE_TRIGGER_TIME = 0.01
         time.sleep(DIGITIZER_ENABLE_TRIGGER_TIME)
         self._awg.start_sequence(self._run_first_card_only)
+        # TODO: use a time.sleep for the segment duration, and then wait for complete.
+        # this will allow the code to switch to other threads without blocked by the C code.
         self._awg.wait_for_sequence_complete(self._stop_first_card_only)
         self._awg.stop_sequence(self._stop_first_card_only)
 
@@ -275,6 +277,7 @@ class SingleExpExecutor:
             raise NotImplementedError(f"Detect mode {mode} is not defined.")
 
     def save_data(self):
+        # TODO: move this function to a thread so experiment data taking can happen at the same time.
         headers = {
             "exp_sequence": self._exp_sequence._exp_sequence,
             "params": self._exp_sequence._parameters,
@@ -305,6 +308,7 @@ class ExpExecutor:
             time.sleep(0.01)
             edf_index, edf = try_get_next_edf_to_run()
             if edf is not None:
+                # TODO: build the exp_sequence in another thread to save time.
                 exp_sequence = ExpSequence(
                     edf["exp_sequence"],
                     edf["parameters"],
