@@ -2,16 +2,22 @@
 import numpy as np
 from uncertainties import unumpy
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from onix.units import ureg, Q_
 from onix.data_tools import get_experiment_data
 from onix.analysis.shared.fitter import get_fitter, two_peak_gaussian, cosx
+from onix.helpers import present_float
 
 # RAW DATA DICTIONARY KEYS
 DATA_1_DEFAULT_NAME = "detect_1"
 DATA_2_DEFAULT_NAME = "detect_2"
 PHOTODIODE_1_DEFAULT_NAME = "transmission"
 PHOTODIODE_2_DEFAULT_NAME = "monitor"
+
+# I \cdot x for a and b state
+I_DOT_X_A = 1.48
+I_DOT_X_B = 0.75
 
 class OpticalAnalysis:
     """
@@ -144,7 +150,6 @@ class OpticalAnalysis:
         ax.set_xlabel(r"Optical detuning, $\nu_\mathrm{opt}$ (MHz)")
         ax.set_ylabel(r"Optical depth change, $\Delta$OD")
         ax.grid(alpha=.1)
-
         return ax
 
 class ScanAnalysis:
@@ -265,7 +270,7 @@ class ScanAnalysis:
         phi_pi_m1, phi_pi_p1 = self.fit_phase_scan()
         f_pi_m1 = self.phase_to_frequency(phi_pi_m1, ramsey_time, probe_freq)
         f_pi_p1 = self.phase_to_frequency(phi_pi_p1, ramsey_time, probe_freq)
-        return f_pi_m1.to("kHz").magnitude, f_pi_p1.to("kHz").magnitude, self._headers[0]
+        return f_pi_m1.to("Hz").magnitude, f_pi_p1.to("Hz").magnitude, self._headers[0]
 
     ### PLOTTING GENERIC SWEEP
     def plot_sweep_data(self, ax, scan_list, label="", **kwargs):
@@ -307,6 +312,7 @@ class ScanAnalysis:
 class TimeSeriesAnalysis:
     def __init__(self, data_numbers: list | np.ndarray | tuple, data_packet_size: int = 8):
         """
+        Compute time series phase fits, then plot time series center frequencies and perform T-violation calculation (computing Z, W).
         """
         if isinstance(data_numbers, list):
             data_numbers = np.array(data_numbers)
@@ -322,15 +328,26 @@ class TimeSeriesAnalysis:
 
         # break down data numbers into groups of data packets with size data_packet_size
         self._data_numbers_list = [data_numbers[i:i+data_packet_size] for i in range(0, len(self._data_numbers), data_packet_size)]
-        
-        self._f_pi_m1_sigma_m1, self._f_pi_p1_sigma_m1, self._f_pi_m1_sigma_p1, self._f_pi_p1_sigma_p1, self._headers = self.get_scanned_data()
+                        
 
+        self._fs_pi_sigma, self._headers = self.get_scanned_data()
+        self._sigmas = [key for key in self._fs_pi_sigma.keys() if self._fs_pi_sigma[key]["+1"].size > 0]
+        self._pis = ["+1", "-1"]
+
+        self._Zs_sigma = self.get_Z()
+        self._Ws_sigma = self.get_W()
+        
     def get_scanned_data(self):
+        """
+        Get time domain data using the frequency center analysis from ScanAnalysis with phase scans.
+        """
         f_pi_m1_sigma_m1 = []
         f_pi_p1_sigma_m1 = []
         f_pi_m1_sigma_p1 = []
         f_pi_p1_sigma_p1 = []
-        headers = []
+        electric_fields = []
+        headers_sigma_p1 = []
+        headers_sigma_m1 = []
 
         for data_numbers_packet in tqdm(self._data_numbers_list):
             scan_analysis = ScanAnalysis(data_numbers_packet)
@@ -339,44 +356,182 @@ class TimeSeriesAnalysis:
             if sigma <= 0:
                 f_pi_m1_sigma_m1.append(f_pi_m1)
                 f_pi_p1_sigma_m1.append(f_pi_p1)
+                headers_sigma_m1.append(header)
             else:
                 f_pi_m1_sigma_p1.append(f_pi_m1)
                 f_pi_p1_sigma_p1.append(f_pi_p1)
-            headers.append(header)
+                headers_sigma_p1.append(header)
         
-        f_pi_m1_sigma_m1 = np.array(f_pi_m1_sigma_m1)
-        f_pi_p1_sigma_m1 = np.array(f_pi_p1_sigma_m1)
-        f_pi_m1_sigma_p1 = np.array(f_pi_m1_sigma_p1)
-        f_pi_p1_sigma_p1 = np.array(f_pi_p1_sigma_p1)
-        headers = np.array(headers)
+        # first label: pi, second label: sigma (alphabetical)
+        fs_pi_sigma = {
+            # sigma = +/- 1
+            "-1": { # pi = +/- 1
+                "-1": np.array(f_pi_m1_sigma_m1),
+                "+1": np.array(f_pi_p1_sigma_m1)
+            },
+            "+1": { # pi = +/- 1
+                "-1": np.array(f_pi_m1_sigma_p1),
+                "+1": np.array(f_pi_p1_sigma_p1)
+            }
+        }
+        headers = {
+            "-1": np.array(headers_sigma_m1),
+            "+1": np.array(headers_sigma_p1),
+        }
 
-        return f_pi_m1_sigma_m1, f_pi_p1_sigma_m1, f_pi_m1_sigma_p1, f_pi_p1_sigma_p1, headers
+        return fs_pi_sigma, headers
 
-    # def plot_time_series(self, ax):
-    #     f_pi_p1_sigma_p1, f_pi_m1_sigma_p1, f_pi_p1_sigma_m1, f_pi_m1_sigma_m1 = self.get_center_frequencies()
+    def get_Z(self):
+        """
+        Get Z for Sigma = +1 and Sigma = -1 individually.
+        """
+        Zs_sigma = {
+            "-1": [],
+            "+1": [],
+        }
 
-    #     ax.plot(f_pi_p1_sigma_p1, label="$\\Pi = +1, \\Sigma = +1$", ls="", marker=".")
-    #     ax.plot(f_pi_m1_sigma_p1, label="$\\Pi = -1, \\Sigma = +1$", ls="", marker=".")
-    #     ax.plot(f_pi_p1_sigma_m1, label="$\\Pi = +1, \\Sigma = -1$", ls="", marker=".")
-    #     ax.plot(f_pi_m1_sigma_m1, label="$\\Pi = -1, \\Sigma = -1$", ls="", marker=".")
+        for Sigma in self._sigmas:
+            Zs_sigma[Sigma] = (self._fs_pi_sigma[Sigma]["+1"] + self._fs_pi_sigma[Sigma]["-1"])/4
 
-    #     # print(f"f(Pi = +1, Sigma = +1) = {np.average(f_pi_p1_sigma_p1)} +/- {np.std(f_pi_p1_sigma_p1)/np.sqrt(len(f_pi_p1_sigma_p1))}")
-    #     # print(f"f(Pi = -1, Sigma = +1) = {np.average(f_pi_m1_sigma_p1)} +/- {np.std(f_pi_m1_sigma_p1)/np.sqrt(len(f_pi_m1_sigma_p1))}")
-    #     # print(f"f(Pi = +1, Sigma = -1) = {np.average(f_pi_p1_sigma_m1)} +/- {np.std(f_pi_p1_sigma_m1)/np.sqrt(len(f_pi_p1_sigma_m1))}")
-    #     # print(f"f(Pi = -1, Sigma = -1) = {np.average(f_pi_m1_sigma_m1)} +/- {np.std(f_pi_m1_sigma_m1)/np.sqrt(len(f_pi_m1_sigma_m1))}")
+        return Zs_sigma
+        
+    def get_W(self, state: str = "b"):
+        """
+        Get W for Sigma = +1 and Sigma = -1 individually.
+        """
+        if state == "a":
+            I_dot_x = I_DOT_X_B
+        elif state == "b":
+            I_dot_x = I_DOT_X_B
+        else:
+            raise ValueError("No such state.")
+        
+        Ws_sigma = {
+            "-1": [],
+            "+1": [],
+        }
 
-    #     # print("---")
+        for Sigma in self._sigmas:
+            polarities = np.array([header["params"]["field_plate"]["polarity"] for header in self._headers[Sigma]])
+            Ws_sigma[Sigma] = polarities*(self._fs_pi_sigma[Sigma]["+1"] - self._fs_pi_sigma[Sigma]["-1"])/(4 * I_dot_x)
 
-    #     # print(f"Δf(Sigma = +1)= {np.average(f_pi_p1_sigma_p1-f_pi_m1_sigma_p1)} +/- {np.std(f_pi_p1_sigma_p1-f_pi_m1_sigma_p1)/np.sqrt(len(f_pi_p1_sigma_p1))}")
-    #     # print(f"Δf(Sigma = -1)= {np.average(f_pi_p1_sigma_m1-f_pi_m1_sigma_m1)} +/- {np.std(f_pi_p1_sigma_m1-f_pi_m1_sigma_m1)/np.sqrt(len(f_pi_p1_sigma_m1))}")
-    #     return ax
+        return Ws_sigma
     
-    # def plot_time_series_params(self, ax):
-    #     """
-    #     Plot axes, grid, misc, etc.
-    #     """
-    #     ax.set_xlabel("Iteration")
-    #     ax.set_ylabel("Frequency (kHz)")
-    #     ax.grid(alpha=.1)
-    #     plt.legend() #TODO: replace with ax legend
-    #     return ax
+    def subplots(self):
+        sn = len(self._sigmas)
+        fig, ax = plt.subplots(figsize=(12, 9), 
+                               nrows=2 + sn, 
+                               ncols=2, 
+                               gridspec_kw=
+                               {
+                                   "width_ratios":[4, 1], 
+                                   "hspace": 0, 
+                                   "wspace": 0
+                               }, 
+                               sharex="col", 
+                               sharey="row")
+        
+        # time axis
+        times = {}
+        for Sigma in self._sigmas:
+            times[Sigma] = np.array([header["data_info"]["save_epoch_time"] for header in self._headers[Sigma]])
+        min_time = min([times[Sigma][0] for Sigma in self._sigmas])
+        for Sigma in self._sigmas:
+            times[Sigma] = times[Sigma] - min_time
+
+        # ok bin size
+        bins = int(np.sqrt(len(times[self._sigmas[0]])))
+
+        colors_12 = ["C0", "C1"]
+        colors_34 = ["C2", "C3"]
+        for i, Sigma in enumerate(self._sigmas):
+
+            # frequency center plot
+            for j, Pi in enumerate(self._pis):
+                ax[i, 0].scatter(times[Sigma], self._fs_pi_sigma[Sigma][Pi], label=f"$\Pi$ = {Pi}", color=colors_12[j])
+                ax[i, 1].hist(self._fs_pi_sigma[Sigma][Pi], bins=bins, orientation="horizontal", alpha=0.5, color=colors_12[j])
+
+            # Z plot
+            ax[sn, 0].scatter(times[Sigma], self._Zs_sigma[Sigma], label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
+            ax[sn, 1].hist(self._Zs_sigma[Sigma], bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
+
+            # W plot
+            ax[sn+1, 0].scatter(times[Sigma], self._Ws_sigma[Sigma], label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
+            ax[sn+1, 1].hist(self._Ws_sigma[Sigma], bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
+        
+            ax[i, 0].set_ylabel(f"$f(\Pi=\pm 1, \Sigma = {Sigma})$")
+
+
+        if len(self._sigmas) > 1:
+            sigmas_str = "$\pm 1$"
+        else:
+            sigmas_str = self._sigmas[0]
+        ax[sn  , 0].set_ylabel("$\mathcal{Z}(\Sigma = $" + f"{sigmas_str}" +"$)$")
+        ax[sn+1, 0].set_ylabel("$\mathcal{W}(\Sigma = $" + f"{sigmas_str}" +"$)$")
+        ax[sn+1, 0].set_xlabel("Time from start (s)")
+
+        for row in range(sn+2):
+            ax[row, 0].legend()
+            ax[row, 1].spines['top'].set_visible(False)
+            ax[row, 1].spines['right'].set_visible(False)
+            ax[row, 1].spines['bottom'].set_visible(False)
+            # ax[row, 1].spines['left'].set_visible(False)
+            ax[row, 1].get_xaxis().set_ticks([])
+            # ax[row, 1].get_yaxis().set_ticks([])
+            ax[row, 1].ticklabel_format(useOffset=False)
+
+        return fig, ax
+    
+    def get_info_pi_sigma(self, Pi, Sigma):
+        fs = self._fs_pi_sigma[Sigma][Pi]
+        info = {
+            "fs_avg" : np.average(fs),
+            "fs_ste" : np.std(fs)/np.sqrt(len(fs)),
+        }
+        return info
+    
+    def get_info_sigma(self, Sigma):
+        Ws = self._Ws_sigma[Sigma]
+        Zs = self._Zs_sigma[Sigma]
+        info = {
+            "W_avg" : np.average(Ws),
+            "W_ste" : np.std(Ws)/np.sqrt(len(Ws)),
+            "Z_avg" : np.average(Zs),
+            "Z_ste" : np.std(Zs)/np.sqrt(len(Zs)),
+        }
+        return info
+    
+    def get_info_generic(self):
+        info = {
+            "Date" : self._headers[self._sigmas[0]][0]["data_info"]["save_time"],
+            "Total experiment time" : self._headers[self._sigmas[0]][-1]["data_info"]["save_epoch_time"] - self._headers[self._sigmas[0]][0]["data_info"]["save_epoch_time"],
+            "First data number" : self._data_numbers_list[0][0],
+            "Last data number" : self._data_numbers_list[-1][-1],
+            "Packet size" : self._data_packet_size,
+        }
+        return info
+    
+    def print_info(self):
+        separator = "-="*20
+
+        print(separator)
+
+        info_generic = self.get_info_generic()
+        for key, value in info_generic.items():
+            print(key, ": ", value)
+        
+        print(separator)
+
+        for Sigma in self._sigmas:
+            for Pi in self._pis:
+                info_pi_sigma = self.get_info_pi_sigma(Pi, Sigma)
+                print(f"f(Π = {Pi}, Σ = {Sigma}) = {present_float(info_pi_sigma['fs_avg'], info_pi_sigma['fs_ste'], digits=2)} Hz")
+
+        print(separator)
+
+        for Sigma in self._sigmas:
+            info_sigma = self.get_info_sigma(Sigma)
+            print(f"Z(Σ = {Sigma}) = {present_float(info_sigma['Z_avg'], info_sigma['Z_ste'], digits=2)} Hz")
+            print(f"W(Σ = {Sigma}) = {present_float(info_sigma['W_avg'], info_sigma['W_ste'], digits=2)} Hz")
+
+        print(separator)
