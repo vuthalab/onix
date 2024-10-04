@@ -15,9 +15,26 @@ DATA_2_DEFAULT_NAME = "detect_2"
 PHOTODIODE_1_DEFAULT_NAME = "transmission"
 PHOTODIODE_2_DEFAULT_NAME = "monitor"
 
-# I \cdot x for a and b state
+# I \cdot X
 I_DOT_X_A = 1.48
 I_DOT_X_B = 0.75
+I_DOT_X_C = 0.05
+
+# VALUES TO SAVE IN ANALYSIS FILES (ALSO USED FOR MASKS)
+HEADER_LOC = {
+    # LF RAMSEY
+    "center_frequency" : ["params", "lf", "ramsey", "center_frequency"],
+    "Sigma"            : ["params", "lf", "ramsey", "Sigma"],
+    "piov2_time"       : ["params", "lf", "ramsey", "piov2_time"],
+    "wait_time"        : ["params", "lf", "ramsey", "wait_time"],
+    
+    # FIELD PLATE
+    "polarity"         : ["params", "field_plate", "polarity"],
+
+    # MISC
+    "data_number"      : ["data_info", "data_number"],
+    "save_epoch_time"        : ["data_info", "save_epoch_time"],
+}
 
 class OpticalAnalysis:
     """
@@ -137,7 +154,7 @@ class OpticalAnalysis:
 
     def plot_raw_optical_spectrum_data(self, ax, detect_name):
         """
-        Plot optical depth vs optical detuning.
+        Plot raw optical depth vs optical detuning.
         """
         raw_optical_depths = -unumpy.log(self.get_raw_spectrum_average_normalized(detect_name))
         ax.errorbar(self._detunings, unumpy.nominal_values(raw_optical_depths), unumpy.std_devs(raw_optical_depths), label=detect_name, ls="", fmt=".",)
@@ -310,6 +327,8 @@ class ScanAnalysis:
         return ax
     
 class TimeSeriesAnalysis:
+    # TODO: get_scanned_data output compatible with saving/loading data sets
+    # TODO: 
     def __init__(self, data_numbers: list | np.ndarray | tuple, data_packet_size: int = 8):
         """
         Compute time series phase fits, then plot time series center frequencies and perform T-violation calculation (computing Z, W).
@@ -319,108 +338,119 @@ class TimeSeriesAnalysis:
         elif isinstance(data_numbers, np.ndarray):
             pass
         elif isinstance(data_numbers, tuple) and len(data_numbers) == 2:
+            if data_numbers[1] < data_numbers[0]:
+                raise ValueError("First data number exceeds second data number in range.")
             data_numbers = np.array(list(range(data_numbers[0], data_numbers[1]+1)))
         else:
-            raise NotImplementedError("Must be list or ndarray or tuple with 2 values.")
+            raise NotImplementedError("Input data_numbers must be one of type: list, ndarray, or 2-tuple with start and end value.")
         
+        # Strip end of data numbers to make integer multiple of data_packet_size
         self._data_numbers = data_numbers[0:len(data_numbers) - len(data_numbers) % data_packet_size]
         self._data_packet_size = data_packet_size
 
-        # break down data numbers into groups of data packets with size data_packet_size
+        # Break down data numbers into groups of data packets with size data_packet_size
         self._data_numbers_list = [data_numbers[i:i+data_packet_size] for i in range(0, len(self._data_numbers), data_packet_size)]
-                        
 
-        self._fs_pi_sigma, self._headers = self.get_scanned_data()
-        self._sigmas = [key for key in self._fs_pi_sigma.keys() if self._fs_pi_sigma[key]["+1"].size > 0]
-        self._pis = ["+1", "-1"]
+        self._pis =  ["+1", "-1"]
 
-        self._Zs_sigma = self.get_Z()
-        self._Ws_sigma = self.get_W()
-        
+        # Get data and compute Z, W.
+        self._data = self.get_scanned_data()
+        self._append_Z()
+        self._append_W()
+
+        # Unique scans
+        self._unique_scan = self.get_unique_scan()
+
+    def _get_nested_dict_val(self, scan_dict, scan_list):
+        """
+        Get value in nested dictionary using the nested keys in scan_list.
+        """
+        for step in scan_list:
+            scan_dict = scan_dict[step]
+        return scan_dict
+
+    def get_unique_scan(self):
+        unique_scan = {}
+        header_loc = HEADER_LOC
+        for name in header_loc.keys():
+            unique_scan[name] = np.unique(self._data[name])
+        return unique_scan
+
     def get_scanned_data(self):
         """
         Get time domain data using the frequency center analysis from ScanAnalysis with phase scans.
         """
-        f_pi_m1_sigma_m1 = []
-        f_pi_p1_sigma_m1 = []
-        f_pi_m1_sigma_p1 = []
-        f_pi_p1_sigma_p1 = []
-        electric_fields = []
-        headers_sigma_p1 = []
-        headers_sigma_m1 = []
 
+        # Prepare dictionary to save data
+        header_loc = HEADER_LOC
+        data = {
+            "f": {"+1": [], "-1": []}
+        }
+        units = {}
+        for name in header_loc.keys():
+            data[name] = []
+            units[name] = 1
+
+        # Append values from ScanAnalysis to dictionary for each data packet of size data_packet_size
         for data_numbers_packet in tqdm(self._data_numbers_list):
+
+            # Get frequency centers and headers for each phase scan of a data packet
             scan_analysis = ScanAnalysis(data_numbers_packet)
             f_pi_m1, f_pi_p1, header = scan_analysis.get_frequency_center()
-            sigma = header["params"]["lf"]["ramsey"]["Sigma"]
-            if sigma <= 0:
-                f_pi_m1_sigma_m1.append(f_pi_m1)
-                f_pi_p1_sigma_m1.append(f_pi_p1)
-                headers_sigma_m1.append(header)
-            else:
-                f_pi_m1_sigma_p1.append(f_pi_m1)
-                f_pi_p1_sigma_p1.append(f_pi_p1)
-                headers_sigma_p1.append(header)
-        
-        # first label: pi, second label: sigma (alphabetical)
-        fs_pi_sigma = {
-            # sigma = +/- 1
-            "-1": { # pi = +/- 1
-                "-1": np.array(f_pi_m1_sigma_m1),
-                "+1": np.array(f_pi_p1_sigma_m1)
-            },
-            "+1": { # pi = +/- 1
-                "-1": np.array(f_pi_m1_sigma_p1),
-                "+1": np.array(f_pi_p1_sigma_p1)
-            }
-        }
-        headers = {
-            "-1": np.array(headers_sigma_m1),
-            "+1": np.array(headers_sigma_p1),
-        }
 
-        return fs_pi_sigma, headers
+            # Append Pi+ and Pi- frequency centers to data dictionary
+            data["f"]["+1"].append(f_pi_p1)
+            data["f"]["-1"].append(f_pi_m1)
 
-    def get_Z(self):
+            # Go through each value in HEADER_LOC and save values
+            for name, location_list in header_loc.items():
+                # Get value, strip units, append to data dictionary
+                quantity_from_header = self._get_nested_dict_val(header, location_list)
+                if isinstance(quantity_from_header, Q_):
+                    unit = quantity_from_header.units
+                    quantity_from_header = quantity_from_header.magnitude
+                    units[name] = unit
+                data[name].append(quantity_from_header)
+
+        # Convert to ndarray and add units back
+        for Pi in self._pis:
+            data["f"][Pi] = np.array(data["f"][Pi])
+        for name in header_loc.keys():
+            data[name] = np.array(data[name]) #* units[name] (leaving units off for now)
+
+        return data
+
+    def _append_Z(self):
         """
-        Get Z for Sigma = +1 and Sigma = -1 individually.
+        Append Z to self._data
         """
-        Zs_sigma = {
-            "-1": [],
-            "+1": [],
-        }
-
-        for Sigma in self._sigmas:
-            Zs_sigma[Sigma] = (self._fs_pi_sigma[Sigma]["+1"] + self._fs_pi_sigma[Sigma]["-1"])/4
-
-        return Zs_sigma
-        
-    def get_W(self, state: str = "b"):
+        self._data["Z"] = (self._data["f"]["+1"] + self._data["f"]["-1"])/4
+    
+    def _append_W(self, state: str = "b"):
         """
-        Get W for Sigma = +1 and Sigma = -1 individually.
+        Append W to self._data
         """
         if state == "a":
-            I_dot_x = I_DOT_X_B
+            I_dot_x = I_DOT_X_A
         elif state == "b":
             I_dot_x = I_DOT_X_B
+        elif state == "c": 
+            I_dot_x = I_DOT_X_C
         else:
-            raise ValueError("No such state.")
-        
-        Ws_sigma = {
-            "-1": [],
-            "+1": [],
-        }
-
-        for Sigma in self._sigmas:
-            polarities = np.array([header["params"]["field_plate"]["polarity"] for header in self._headers[Sigma]])
-            Ws_sigma[Sigma] = polarities*(self._fs_pi_sigma[Sigma]["+1"] - self._fs_pi_sigma[Sigma]["-1"])/(4 * I_dot_x)
-
-        return Ws_sigma
+            raise ValueError("State does not exist.")
+        self._data["W"] = self._data["polarity"]*(self._data["f"]["+1"] - self._data["f"]["-1"])/(4 * I_dot_x)
     
-    def subplots(self):
-        sn = len(self._sigmas)
+
+    def subplots(self, filter=None):
+        """
+        Plot with a filter.
+        """
+
+        Sigmas = self._unique_scan["Sigma"] # ["+1"] or ["-1"] or ["+1", "-1"]
+        sn = len(Sigmas) # 1 or 2
+
         fig, ax = plt.subplots(figsize=(12, 9), 
-                               nrows=2 + sn, 
+                               nrows=2+sn, 
                                ncols=2, 
                                gridspec_kw=
                                {
@@ -430,46 +460,49 @@ class TimeSeriesAnalysis:
                                }, 
                                sharex="col", 
                                sharey="row")
-        
-        # time axis
-        times = {}
-        for Sigma in self._sigmas:
-            times[Sigma] = np.array([header["data_info"]["save_epoch_time"] for header in self._headers[Sigma]])
-        min_time = min([times[Sigma][0] for Sigma in self._sigmas])
-        for Sigma in self._sigmas:
-            times[Sigma] = times[Sigma] - min_time
 
-        # ok bin size
-        bins = int(np.sqrt(len(times[self._sigmas[0]])))
+        # Histogram bin size
+        bins = int(np.sqrt(len(self._data["f"]["+1"])))
 
+        # Plot colors for Pi = +/- 1
         colors_12 = ["C0", "C1"]
+
+        # Plot colors for Sigma = +/- 1
         colors_34 = ["C2", "C3"]
-        for i, Sigma in enumerate(self._sigmas):
+
+        for i, Sigma in enumerate(Sigmas):
+            # times
+            ts = self._data["save_epoch_time"][self._data["Sigma"] == Sigma] - self._data["save_epoch_time"][0]
 
             # frequency center plot
             for j, Pi in enumerate(self._pis):
-                ax[i, 0].scatter(times[Sigma], self._fs_pi_sigma[Sigma][Pi], label=f"$\Pi$ = {Pi}", color=colors_12[j])
-                ax[i, 1].hist(self._fs_pi_sigma[Sigma][Pi], bins=bins, orientation="horizontal", alpha=0.5, color=colors_12[j])
+                fs = self._data["f"][Pi][self._data["Sigma"] == Sigma]
+                ax[i, 0].scatter(ts, fs, label=f"$\Pi$ = {Pi}", color=colors_12[j])
+                ax[i, 1].hist(fs, bins=bins, orientation="horizontal", alpha=0.5, color=colors_12[j])
 
             # Z plot
-            ax[sn, 0].scatter(times[Sigma], self._Zs_sigma[Sigma], label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
-            ax[sn, 1].hist(self._Zs_sigma[Sigma], bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
+            Zs = self._data["Z"][self._data["Sigma"] == Sigma]
+            ax[sn, 0].scatter(ts, Zs, label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
+            ax[sn, 1].hist(Zs, bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
 
             # W plot
-            ax[sn+1, 0].scatter(times[Sigma], self._Ws_sigma[Sigma], label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
-            ax[sn+1, 1].hist(self._Ws_sigma[Sigma], bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
-        
+            Ws = self._data["W"][self._data["Sigma"] == Sigma]
+            ax[sn+1, 0].scatter(ts, Ws, label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
+            ax[sn+1, 1].hist(Ws, bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
+
             ax[i, 0].set_ylabel(f"$f(\Pi=\pm 1, \Sigma = {Sigma})$")
 
-
-        if len(self._sigmas) > 1:
+        # Change y-axis label depending on # unique Sigmas
+        if len(Sigmas) > 1:
             sigmas_str = "$\pm 1$"
         else:
-            sigmas_str = self._sigmas[0]
+            sigmas_str = Sigmas[0]
         ax[sn  , 0].set_ylabel("$\mathcal{Z}(\Sigma = $" + f"{sigmas_str}" +"$)$")
         ax[sn+1, 0].set_ylabel("$\mathcal{W}(\Sigma = $" + f"{sigmas_str}" +"$)$")
+
         ax[sn+1, 0].set_xlabel("Time from start (s)")
 
+        # Settings for each row
         for row in range(sn+2):
             ax[row, 0].legend()
             ax[row, 1].spines['top'].set_visible(False)

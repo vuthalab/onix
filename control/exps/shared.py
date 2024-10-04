@@ -127,6 +127,7 @@ _shared_parameters = {
             "phase": 0,
         },
     },
+    "delay_time": 0 * ureg.s,
 }
 
 def update_parameters_from_shared(parameters: dict, shared_parameters=None):

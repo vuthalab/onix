@@ -1,6 +1,7 @@
 from typing import Literal, Optional, Union
 
 import numpy as np
+
 import onix.headers.awg.pyspcm as pyspcm
 
 from onix.headers.awg.spcm_tools import pvAllocMemPageAligned

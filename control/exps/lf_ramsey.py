@@ -20,22 +20,34 @@ parameters = {
         "fall_delay_time": 2 * ureg.ms,  # wait time in the low state before voltage is stabilized.
         "use": True,
         "during": ["chasm", "detect"],
-        "negative_Pi_first": True,  # if True, scans the Pi=-1 ions before the Pi=+1 ions.
+        "negative_Pi_first": False,  # if True, scans the Pi=-1 ions before the Pi=+1 ions.
     },
     "chasm": {
         "transitions": "ac",  # only burns a chasm on a -> c'
         "detunings": 0 * ureg.MHz,
-        "scans": 5 * ureg.MHz,  # scans +/-5 MHz in the optical frequency.
+        "scans": 4 * ureg.MHz,  # scans +/-5 MHz in the optical frequency.
         "amplitudes": 0.15 * ureg.V,
         "durations": 1 * ureg.ms,
-        "repeats": 50,
+        "repeats": 100,
     },
     "antihole": {
         "transitions": ["ac", "cb"],
         "detunings": 0 * ureg.MHz,
         "amplitudes": 0.15 * ureg.V,
         "durations": 1 * ureg.ms,
-        "repeats": 50,
+        "repeats": 100,
+    },
+    "detect": {
+        "mode": "abs",
+        "abs": {
+            "transition": "ac",
+            "detunings": np.linspace(-3.5, 3.5, 20) * ureg.MHz,
+            "on_time": 5 * ureg.us,
+            "off_time": 1 * ureg.us,
+            "delay": 8 * ureg.us,
+            "amplitude": 17 * ureg.mV,
+            "repeats": 512,
+        },
     },
     "lf": {
         "equilibrate": {
@@ -53,12 +65,13 @@ parameters = {
             "Sigma": 1,
             "Zeeman_shift_along_b": 4.15 * ureg.kHz,
             "detuning": 0 * ureg.kHz,
-            "amplitude": 23 * ureg.mV,
-            "piov2_time": 200 * ureg.us,
-            "wait_time": 500 * ureg.us,
+            "amplitude": 120 * ureg.mV,
+            "piov2_time": 50 * ureg.us,
+            "wait_time": 1000 * ureg.us,
             "phase": 0,
         },
     },
+    "delay_time": 1 * ureg.s,
 }
 
 
@@ -76,44 +89,55 @@ exp_parameters = update_parameters_from_shared(parameters)
 
 
 ## scan overnight
-# phases = np.linspace(0, 2 * np.pi, 8, endpoint=False)
-# Sigmas = [-1, 1]
-# polarities = [-1, 1]
-# for kk in range(7):
-#     for polarity in polarities:
-#         exp_parameters["field_plate"]["polarity"] = polarity
-#         edc = ExpDefinitionCreator(
-#             "LF Ramsey",
-#             sequence,
-#             exp_parameters,
-#         )
-#         iterate_param_values = []
-#         for Sigma in Sigmas:
-#             for phase in phases:
-#                 iterate_param_values.append((phase, Sigma, Sigma, polarity))
-#
-#         edc.iterate_parameters(
-#             [
-#                 ("lf", "ramsey", "phase"),
-#                 ("lf", "ramsey", "Sigma"),
-#                 ("lf", "equilibrate", "Sigma"),
-#             ],
-#             iterate_param_values,
-#             repeats=200,
-#         )
-##
 phases = np.linspace(0, 2 * np.pi, 8, endpoint=False)
-Sigmas = [-1, 1]
-iterate_param_values = []
-for Sigma in Sigmas:
-    for phase in phases:
-        iterate_param_values.append((phase, Sigma, Sigma))
-edc.iterate_parameters(
-    [
-        ("lf", "ramsey", "phase"),
-        ("lf", "ramsey", "Sigma"),
-        ("lf", "equilibrate", "Sigma")
-    ],
-    iterate_param_values,
-    repeats=50,
-)
+detunings = [-0.95 * ureg.kHz, -1.1 * ureg.kHz]
+Sigmas = [1, -1]
+# polarities = [-1, 1]
+delay_times = [0, 4]
+for kk in range(7):
+    for delay_time in delay_times:
+        # exp_parameters["field_plate"]["polarity"] = polarity
+        exp_parameters["delay_time"] = delay_time * ureg.s
+        edc = ExpDefinitionCreator(
+            "LF Ramsey",
+            sequence,
+            exp_parameters,
+        )
+        iterate_param_values = []
+        for detuning, Sigma in zip(detunings, Sigmas):
+            for phase in phases:
+                iterate_param_values.append((detuning, phase, Sigma, Sigma))
+
+        edc.iterate_parameters(
+            [
+                ("lf", "ramsey", "detuning"),
+                ("lf", "ramsey", "phase"),
+                ("lf", "ramsey", "Sigma"),
+                ("lf", "equilibrate", "Sigma"),
+            ],
+            iterate_param_values,
+            repeats=300,
+        )
+##
+# phases = np.linspace(0, 2 * np.pi, 8, endpoint=False)
+# Sigmas = [1, -1]
+# detunings = [-0.95 * ureg.kHz, -1.1 * ureg.kHz]
+# iterate_param_values = []
+# edc = ExpDefinitionCreator(
+#     "LF Ramsey",
+#     sequence,
+#     exp_parameters,
+# )
+# for detuning, Sigma in zip(detunings, Sigmas):
+#     for phase in phases:
+#         iterate_param_values.append((detuning, phase, Sigma, Sigma))
+# edc.iterate_parameters(
+#     [
+#         ("lf", "ramsey", "detuning"),
+#         ("lf", "ramsey", "phase"),
+#         ("lf", "ramsey", "Sigma"),
+#         ("lf", "equilibrate", "Sigma")
+#     ],
+#     iterate_param_values,
+#     repeats=100,
+# )

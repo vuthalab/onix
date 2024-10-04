@@ -1,4 +1,5 @@
 import traceback
+
 from onix.headers.awg.m4i6622 import M4i6622
 from onix.headers.digitizer.digitizer import Digitizer
 from onix.headers.quarto_e_field import Quarto
@@ -14,6 +15,7 @@ except Exception:
         m4i = None
         print("m4i is not defined with error:")
         print(traceback.format_exc())
+
 
 try:
     dg  # type: ignore

@@ -1,3 +1,5 @@
+print("WAIT")
+
 import copy
 import time
 from typing import Any
@@ -304,6 +306,7 @@ class ExpExecutor:
         self.loop()
 
     def loop(self):
+        print("READY")
         while True:
             time.sleep(0.01)
             edf_index, edf = try_get_next_edf_to_run()
@@ -327,7 +330,7 @@ class ExpExecutor:
                     edf["stop_first_card_only"],
                 )
                 print(f"EDF #{edf_index} finished, data #{single_exe.data_id}.")
-
+                time.sleep(edf["parameters"]["delay_time"].to("s").magnitude)
 
 if __name__ == "__main__":
     executor = ExpExecutor(m4i, quarto_e_field, dg)
