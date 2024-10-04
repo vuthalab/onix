@@ -3,6 +3,8 @@ import numpy as np
 from uncertainties import unumpy
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from copy import deepcopy
+import datetime
 
 from onix.units import ureg, Q_
 from onix.data_tools import get_experiment_data
@@ -22,19 +24,41 @@ I_DOT_X_C = 0.05
 
 # VALUES TO SAVE IN ANALYSIS FILES (ALSO USED FOR MASKS)
 HEADER_LOC = {
+    # FORMAT:
+    # STRING NAME       : LIST OF NESTED KEYS IN HEADERS
+
+    # CHASM
+    "chasm_amplitude"   : ["params", "chasm", "amplitudes"],
+    "chasm_duration"    : ["params", "chasm", "durations"],
+    "chasm_repeats"     : ["params", "chasm", "repeats"],
+
+    # ANTIHOLE
+    "antihole_amplitude": ["params", "antihole", "amplitudes"],
+    "antihole_duration" : ["params", "antihole", "durations"],
+    "antihole_repeats"  : ["params", "antihole", "repeats"],
+
     # LF RAMSEY
-    "center_frequency" : ["params", "lf", "ramsey", "center_frequency"],
-    "Sigma"            : ["params", "lf", "ramsey", "Sigma"],
-    "piov2_time"       : ["params", "lf", "ramsey", "piov2_time"],
-    "wait_time"        : ["params", "lf", "ramsey", "wait_time"],
-    
+    "center_frequency"  : ["params", "lf", "ramsey", "center_frequency"],
+    "Sigma"             : ["params", "lf", "ramsey", "Sigma"],
+    "piov2_time"        : ["params", "lf", "ramsey", "piov2_time"],
+    "wait_time"         : ["params", "lf", "ramsey", "wait_time"],
+
     # FIELD PLATE
-    "polarity"         : ["params", "field_plate", "polarity"],
+    "polarity"          : ["params", "field_plate", "polarity"],
+
+    # DETECT
+    "detect_amplitude"  : ["params", "detect", "abs", "amplitude"],
+    "detect_repeats"    : ["params", "detect", "abs", "repeats"],
 
     # MISC
-    "data_number"      : ["data_info", "data_number"],
-    "save_epoch_time"        : ["data_info", "save_epoch_time"],
+    "delay_time"        : ["params", "delay_time"],
+    "data_number"       : ["data_info", "data_number"],
+    "save_epoch_time"   : ["data_info", "save_epoch_time"],
 }
+
+
+
+
 
 class OpticalAnalysis:
     """
@@ -168,6 +192,10 @@ class OpticalAnalysis:
         ax.set_ylabel(r"Optical depth change, $\Delta$OD")
         ax.grid(alpha=.1)
         return ax
+
+
+
+
 
 class ScanAnalysis:
     # TODO: change name; not necessarily "frequency" related
@@ -326,6 +354,10 @@ class ScanAnalysis:
         ax.legend()
         return ax
     
+
+
+
+
 class TimeSeriesAnalysis:
     # TODO: get_scanned_data output compatible with saving/loading data sets
     # TODO: 
@@ -373,7 +405,8 @@ class TimeSeriesAnalysis:
         unique_scan = {}
         header_loc = HEADER_LOC
         for name in header_loc.keys():
-            unique_scan[name] = np.unique(self._data[name])
+            if name not in ["data_number", "save_time", "save_epoch_time"]:
+                unique_scan[name] = np.unique(self._data[name])
         return unique_scan
 
     def get_scanned_data(self):
@@ -383,9 +416,7 @@ class TimeSeriesAnalysis:
 
         # Prepare dictionary to save data
         header_loc = HEADER_LOC
-        data = {
-            "f": {"+1": [], "-1": []}
-        }
+        data = {"f": {"+1": [], "-1": []}}
         units = {}
         for name in header_loc.keys():
             data[name] = []
@@ -440,13 +471,28 @@ class TimeSeriesAnalysis:
             raise ValueError("State does not exist.")
         self._data["W"] = self._data["polarity"]*(self._data["f"]["+1"] - self._data["f"]["-1"])/(4 * I_dot_x)
     
-
+    def get_filtered_data(self, filter=None):
+        data = deepcopy(self._data)
+        if filter is not None:
+            if np.all(filter == False):
+                    raise ValueError("Invalid filter applied. All elements are False.")
+            for name in data.keys():
+                if name != "f":
+                    data[name] = data[name][filter]
+                else:
+                    # exception is "f" stored in data["f"]["+1"] and data["f"]["-1"]
+                    for Pi in self._pis:
+                        data[name][Pi] = data[name][Pi][filter]
+        return data
+    
     def subplots(self, filter=None):
         """
         Plot with a filter.
         """
-
-        Sigmas = self._unique_scan["Sigma"] # ["+1"] or ["-1"] or ["+1", "-1"]
+        # If filter applied then replace data dictionary with filtere dictionary.
+        data = self.get_filtered_data(filter)
+        
+        Sigmas = np.unique(data["Sigma"]) # ["+1"] or ["-1"] or ["+1", "-1"]
         sn = len(Sigmas) # 1 or 2
 
         fig, ax = plt.subplots(figsize=(12, 9), 
@@ -462,7 +508,7 @@ class TimeSeriesAnalysis:
                                sharey="row")
 
         # Histogram bin size
-        bins = int(np.sqrt(len(self._data["f"]["+1"])))
+        bins = int(np.sqrt(len(data["f"]["+1"])))
 
         # Plot colors for Pi = +/- 1
         colors_12 = ["C0", "C1"]
@@ -472,21 +518,21 @@ class TimeSeriesAnalysis:
 
         for i, Sigma in enumerate(Sigmas):
             # times
-            ts = self._data["save_epoch_time"][self._data["Sigma"] == Sigma] - self._data["save_epoch_time"][0]
+            ts = data["save_epoch_time"][data["Sigma"] == Sigma] - data["save_epoch_time"][0]
 
             # frequency center plot
             for j, Pi in enumerate(self._pis):
-                fs = self._data["f"][Pi][self._data["Sigma"] == Sigma]
+                fs = data["f"][Pi][data["Sigma"] == Sigma]
                 ax[i, 0].scatter(ts, fs, label=f"$\Pi$ = {Pi}", color=colors_12[j])
                 ax[i, 1].hist(fs, bins=bins, orientation="horizontal", alpha=0.5, color=colors_12[j])
 
             # Z plot
-            Zs = self._data["Z"][self._data["Sigma"] == Sigma]
+            Zs = data["Z"][data["Sigma"] == Sigma]
             ax[sn, 0].scatter(ts, Zs, label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
             ax[sn, 1].hist(Zs, bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
 
             # W plot
-            Ws = self._data["W"][self._data["Sigma"] == Sigma]
+            Ws = data["W"][data["Sigma"] == Sigma]
             ax[sn+1, 0].scatter(ts, Ws, label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
             ax[sn+1, 1].hist(Ws, bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
 
@@ -515,17 +561,21 @@ class TimeSeriesAnalysis:
 
         return fig, ax
     
-    def get_info_pi_sigma(self, Pi, Sigma):
-        fs = self._fs_pi_sigma[Sigma][Pi]
+    def get_info_pi_sigma(self, data, Pi, Sigma):
+        fs = data["f"][Pi][data["Sigma"] == Sigma]
         info = {
             "fs_avg" : np.average(fs),
             "fs_ste" : np.std(fs)/np.sqrt(len(fs)),
         }
         return info
     
-    def get_info_sigma(self, Sigma):
-        Ws = self._Ws_sigma[Sigma]
-        Zs = self._Zs_sigma[Sigma]
+    def get_info_sigma(self, data, Sigma):
+        if Sigma is not None:
+            Ws = data["W"][data["Sigma"] == Sigma]
+            Zs = data["Z"][data["Sigma"] == Sigma]
+        else:
+            Ws = data["W"]
+            Zs = data["Z"]
         info = {
             "W_avg" : np.average(Ws),
             "W_ste" : np.std(Ws)/np.sqrt(len(Ws)),
@@ -534,37 +584,106 @@ class TimeSeriesAnalysis:
         }
         return info
     
-    def get_info_generic(self):
+    def get_info_generic(self, data):
+        exp_time = data["save_epoch_time"][-1]- data["save_epoch_time"][0]
+        if exp_time < 60:
+            new_exp_time = exp_time
+            units = "sec"
+        elif exp_time >= 60 and exp_time < 3600:
+            new_exp_time = exp_time/60
+            units = "min"
+        elif exp_time >= 3600:
+            new_exp_time = exp_time/3600
+            units = "h"
         info = {
-            "Date" : self._headers[self._sigmas[0]][0]["data_info"]["save_time"],
-            "Total experiment time" : self._headers[self._sigmas[0]][-1]["data_info"]["save_epoch_time"] - self._headers[self._sigmas[0]][0]["data_info"]["save_epoch_time"],
-            "First data number" : self._data_numbers_list[0][0],
-            "Last data number" : self._data_numbers_list[-1][-1],
+            "Date" : datetime.datetime.fromtimestamp(data["save_epoch_time"][0]).strftime('%c'),
+            "Total experiment time" : f"{new_exp_time:.2f} {units}",
+            "First data number" : data["data_number"][0],
+            "Last data number" : data["data_number"][-1] + self._data_packet_size - 1,
             "Packet size" : self._data_packet_size,
         }
         return info
     
-    def print_info(self):
-        separator = "-="*20
+    def print_info(self, filter=None):
+        data = self.get_filtered_data(filter)
+        info_generic = self.get_info_generic(data)
+
+        separator = "\n"+"-="*30+"\n"
 
         print(separator)
 
-        info_generic = self.get_info_generic()
         for key, value in info_generic.items():
-            print(key, ": ", value)
+            print(key.ljust(25), " : ", value)
         
         print(separator)
 
-        for Sigma in self._sigmas:
+        for Sigma in np.unique(data["Sigma"]):
             for Pi in self._pis:
-                info_pi_sigma = self.get_info_pi_sigma(Pi, Sigma)
-                print(f"f(Π = {Pi}, Σ = {Sigma}) = {present_float(info_pi_sigma['fs_avg'], info_pi_sigma['fs_ste'], digits=2)} Hz")
+                info_pi_sigma = self.get_info_pi_sigma(data, Pi, Sigma)
+                print(f"f(Π = {Pi}, Σ = {Sigma})", f" = {present_float(info_pi_sigma['fs_avg'], info_pi_sigma['fs_ste'], digits=2)} Hz")
 
         print(separator)
 
-        for Sigma in self._sigmas:
-            info_sigma = self.get_info_sigma(Sigma)
+        for Sigma in np.unique(data["Sigma"]):
+            info_sigma = self.get_info_sigma(data, Sigma)
             print(f"Z(Σ = {Sigma}) = {present_float(info_sigma['Z_avg'], info_sigma['Z_ste'], digits=2)} Hz")
             print(f"W(Σ = {Sigma}) = {present_float(info_sigma['W_avg'], info_sigma['W_ste'], digits=2)} Hz")
 
         print(separator)
+
+        exp_time = data["save_epoch_time"][-1]- data["save_epoch_time"][0]
+        info_sigma = self.get_info_sigma(data, None)
+        print(f"Z = {present_float(info_sigma['Z_avg'], info_sigma['Z_ste'], digits=2)} Hz")
+        print(f"W = {present_float(info_sigma['W_avg'], info_sigma['W_ste'], digits=2)} Hz")
+        print(f"S = {info_sigma['W_ste']*np.sqrt(exp_time/3600)*1e3:.1f} mHz rt-hr")
+
+        print(separator)
+
+        # def allen_deviation(self, ax):
+        #     ts = self._data["s"]
+        #     times = results[:, col_indices["start_time"]].astype(float)
+        #     taus = np.logspace(0, np.log10(len(times)) * 3, 500)
+        #     total_time = times[-1] - times[0]
+
+        #     allan_variables = [
+        #         ("$f_b (D=+1)$", unumpy.nominal_values(results[:, col_indices["f+"]])),
+        #         ("$f_b (D=-1)$", unumpy.nominal_values(results[:, col_indices["f-"]])),
+        #         ("$f_b (D=+1, E=+1)$", unumpy.nominal_values(results[results[:, col_indices["E"]] == True, col_indices["f+"]])),
+        #         ("$f_b (D=-1, E=+1)$", unumpy.nominal_values(results[results[:, col_indices["E"]] == True, col_indices["f-"]])),
+        #         ("$f_b (D=+1, E=-1)$", unumpy.nominal_values(results[results[:, col_indices["E"]] == False, col_indices["f+"]])),
+        #         ("$f_b (D=-1, E=-1)$", unumpy.nominal_values(results[results[:, col_indices["E"]] == False, col_indices["f-"]])),
+        #         (
+        #             "$\\Delta f_b (D=\\pm1, E=+1)$",
+        #             unumpy.nominal_values(
+        #                 results[results[:, col_indices["E"]] == True, col_indices["f+"]]
+        #                 - results[results[:, col_indices["E"]] == True, col_indices["f-"]]
+        #             )
+        #         ),
+        #         (
+        #             "$\\Delta f_b (D=\\pm1, E=-1)$",
+        #             unumpy.nominal_values(
+        #                 results[results[:, col_indices["E"]] == False, col_indices["f+"]]
+        #                 - results[results[:, col_indices["E"]] == False, col_indices["f-"]]
+        #             )
+        #         ),
+        #         ("$W_T$", unumpy.nominal_values(results[:, col_indices["W_T"]])),
+        #     ]
+        #     step_sizes = [total_time / len(kk[1]) for kk in allan_variables]
+
+        #     fig, ax = plt.subplots(figsize=(10, 6))
+        #     for kk, (label, variable) in enumerate(allan_variables):
+        #         try:
+        #             real_taus, allan, allan_err, _ = mdev(variable, data_type="freq", taus=taus)
+        #             real_taus *= step_sizes[kk]
+        #             ax.errorbar(real_taus, allan, allan_err, label=label, ls="none", fmt="o")
+        #         except:
+        #             print("Cannot plot ", label)
+        #             continue
+        #     ax.set_xscale("log")
+        #     ax.set_yscale("log")
+        #     ax.grid()
+        #     ax.legend()
+        #     ax.set_xlabel("Averaging time (s)")
+        #     ax.set_ylabel("Allan deviation (Hz)")
+        #     ax.text(0,1.02, f"#{data_range[0]} - #{max}", transform = ax.transAxes)
+        #     plt.show()
