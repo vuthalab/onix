@@ -93,7 +93,7 @@ phases = np.linspace(0, 2 * np.pi, 8, endpoint=False)
 detunings = [-0.95 * ureg.kHz, -1.1 * ureg.kHz]
 Sigmas = [1, -1]
 # polarities = [-1, 1]
-delay_times = [0, 4]
+delay_times = [0]
 for kk in range(7):
     for delay_time in delay_times:
         # exp_parameters["field_plate"]["polarity"] = polarity
@@ -116,7 +116,7 @@ for kk in range(7):
                 ("lf", "equilibrate", "Sigma"),
             ],
             iterate_param_values,
-            repeats=300,
+            repeats=100,
         )
 ##
 # phases = np.linspace(0, 2 * np.pi, 8, endpoint=False)
