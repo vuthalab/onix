@@ -4,6 +4,7 @@ from ._data_handler import (
     open_analysis_folder,
     get_analysis_file_path,
     get_experiment_data,
+    get_experiment_data_from_edf,
     get_persistent_data,
 )
 from ._data_path import get_last_expts_data_number, data_folder

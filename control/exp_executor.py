@@ -180,6 +180,7 @@ class SingleExpExecutor:
         quarto: Quarto,
         digitizer: Digitizer,
         name: str,
+        edf_number: int,
         exp_sequence: ExpSequence,
         skip_awg_programming: bool = False,
         skip_digitizer_programming: bool = False,
@@ -190,6 +191,7 @@ class SingleExpExecutor:
         self._quarto = quarto
         self._digitizer = digitizer
         self._name = name
+        self._edf_number = edf_number
         self._exp_sequence = exp_sequence
         self._run_first_card_only = run_first_card_only
         self._stop_first_card_only = stop_first_card_only
@@ -288,6 +290,7 @@ class SingleExpExecutor:
             self._name,
             self._data,
             headers,
+            self._edf_number,
         )
 
 
@@ -323,6 +326,7 @@ class ExpExecutor:
                     self._quarto,
                     self._digitizer,
                     edf["name"],
+                    edf_index,
                     exp_sequence,
                     edf["skip_awg_programming"],
                     edf["skip_digitizer_programming"],

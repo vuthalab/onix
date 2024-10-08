@@ -1,7 +1,7 @@
 import os
 import os.path as op
 from datetime import datetime
-from typing import List, Tuple
+from typing import Any, Optional
 
 try:
     data_folder = os.environ["DATAFOLDER"]
@@ -15,7 +15,7 @@ pert_rjust = 9
 anly_rjust = 9
 
 
-def _get_current_date_directory() -> List[str]:
+def _get_current_date_directory() -> list[str]:
     """Gets ("yyyy-mm", "dd") tuple for organizing experiment data."""
     now = datetime.now()
     year = str(now.year)
@@ -54,8 +54,8 @@ def _increment_last_data_number(folder: str) -> int:
     return last_dnum
 
 
-def _locate_expt_data_number(data_number: int) -> Tuple[str, str]:
-    """Try to find the symlink, otherwise walks through all subfolders to find an experiment file path."""
+def _locate_expt_data_number(data_number: int) -> tuple[str, str]:
+    """Try to find the symlink, otherwise raise an exception."""
     link_folder_name = str(data_number // 100000).rjust(expt_rjust - 5, "0")
     folder = op.join(expt_folder, "links", link_folder_name)
     file = str(data_number)
@@ -76,7 +76,17 @@ def _locate_expt_data_number(data_number: int) -> Tuple[str, str]:
     raise ValueError(f"Experiment data number {data_number} is not found.")
 
 
-def _locate_anly_data_number(data_number: int) -> Tuple[str, str]:
+def _locate_expt_edf_number(edf_number: int) -> tuple[str, str]:
+    """Try to find the symlink, otherwise raises an exception."""
+    link_folder_name = str(edf_number // 100000).rjust(expt_rjust - 5, "0")
+    folder = op.join(expt_folder, "edf_links", link_folder_name)
+    file = str(edf_number)
+    if op.exists(op.join(folder, file)):
+        return (folder, file)
+    raise ValueError(f"EDF number {edf_number} is not found.")
+
+
+def _locate_anly_data_number(data_number: int) -> tuple[str, str]:
     """Walks through all subfolders to find an analysis folder path."""
     start_str = str(data_number).rjust(anly_rjust, "0") + " - "
     for path, dirs, files in os.walk(anly_folder):
@@ -86,10 +96,11 @@ def _locate_anly_data_number(data_number: int) -> Tuple[str, str]:
     raise ValueError(f"Analysis data number {data_number} is not found.")
 
 
-def get_new_experiment_path(data_name: str) -> Tuple[int, str]:
+def get_new_experiment_path(data_name: str, edf_number: Optional[int] = None) -> tuple[int, str]:
     """Gets the data number and file path for new experiment data.
     
     Also creates a symlink pointing to the file.
+    Update 2024-10-08: Also creates a symlink pointing the EDF number to the data file.
     """
     year_month, day = _get_current_date_directory()
     data_number = _increment_last_data_number(expt_folder)
@@ -101,10 +112,15 @@ def get_new_experiment_path(data_name: str) -> Tuple[int, str]:
     link_folder = op.join(expt_folder, "links", link_folder_name)
     os.makedirs(link_folder, exist_ok=True)
     os.symlink(op.join(folder, file_name), op.join(link_folder, str(data_number)))
+
+    edf_link_folder_name = str(edf_number // 100000).rjust(expt_rjust - 5, "0")
+    edf_link_folder = op.join(expt_folder, "edf_links", edf_link_folder_name)
+    os.makedirs(edf_link_folder, exist_ok=True)
+    os.symlink(op.join(folder, file_name), op.join(edf_link_folder, str(edf_number)))
     return (data_number, op.join(folder, file_name))
 
 
-def get_new_persistent_path(data_name: str) -> Tuple[int, str]:
+def get_new_persistent_path(data_name: str) -> tuple[int, str]:
     """Gets the data number and file path for new persistent data."""
     folder = op.join(pert_folder, data_name)
     data_number = _increment_last_data_number(folder)
@@ -112,7 +128,7 @@ def get_new_persistent_path(data_name: str) -> Tuple[int, str]:
     return (data_number, op.join(folder, file_name))
 
 
-def get_new_analysis_folder(data_name: str) -> Tuple[int, str]:
+def get_new_analysis_folder(data_name: str) -> tuple[int, str]:
     """Creates and returns a new folder for storing analysis files."""
     year_month, day = _get_current_date_directory()
     data_number = _increment_last_data_number(anly_folder)
@@ -125,6 +141,12 @@ def get_new_analysis_folder(data_name: str) -> Tuple[int, str]:
 def get_exist_experiment_path(data_number: int) -> str:
     """Gets the file path for existing experiment data."""
     parent, file_name = _locate_expt_data_number(data_number)
+    return op.join(parent, file_name)
+
+
+def get_exist_experiment_path_from_edf(edf_number: int) -> str:
+    """Gets the file path for existing experiment data."""
+    parent, file_name = _locate_expt_edf_number(edf_number)
     return op.join(parent, file_name)
 
 

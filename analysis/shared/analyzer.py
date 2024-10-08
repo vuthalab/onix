@@ -7,7 +7,7 @@ from copy import deepcopy
 import datetime
 
 from onix.units import ureg, Q_
-from onix.data_tools import get_experiment_data
+from onix.data_tools import get_experiment_data_from_edf, get_experiment_data
 from onix.analysis.shared.fitter import get_fitter, two_peak_gaussian, cosx
 from onix.helpers import present_float
 
@@ -53,6 +53,7 @@ HEADER_LOC = {
     # MISC
     "delay_time"        : ["params", "delay_time"],
     "data_number"       : ["data_info", "data_number"],
+    "edf_number"        : ["data_info", "edf_number"],
     "save_epoch_time"   : ["data_info", "save_epoch_time"],
 }
 
@@ -64,19 +65,23 @@ class OpticalAnalysis:
     """
     Everything optical spectrum related.
     Args:
-        data_number: the data number
+        edf_number: the experiment definition file number
         normalized: if true normalizes the transmission with monitors photodiode data; output is a single array
         optical_depth: if true returns -log(transmission)
+        use_data_number: if true uses the edf_number as the data number.
         TODO: fix bugs when optical_depth false.
         TODO: implement when electric field off.
     """
-    def __init__(self, data_number: int, normalized: bool = True, optical_depth: bool = True):
+    def __init__(self, edf_number: int, normalized: bool = True, optical_depth: bool = True, use_data_number: bool = False):
         if optical_depth == False:
             raise NotImplementedError("optical depth = False not implemented")
 
-        self._data_number = data_number
+        self._edf_number = edf_number
         self._optical_depth = optical_depth
-        self._data, self._headers = get_experiment_data(self._data_number)
+        if not use_data_number:
+            self._data, self._headers = get_experiment_data_from_edf(self._edf_number)
+        else:
+            self._data, self._headers = get_experiment_data(self._edf_number)
         self._detunings = self._data["detunings_MHz"]
         self._optical_depths = self.get_optical_spectrum()
         
@@ -199,36 +204,37 @@ class OpticalAnalysis:
 
 class ScanAnalysis:
     # TODO: change name; not necessarily "frequency" related
-    def __init__(self, data_numbers: list | np.ndarray | tuple):
+    def __init__(self, edf_numbers: list | np.ndarray | tuple, use_data_number: bool = False):
         """
-        Takes list, array or tuple of data_numbers. If two valued tuple, considers entire range between two values.
+        Takes list, array or tuple of edf_numbers. If two valued tuple, considers entire range between two values.
         Data_
         """
-        if isinstance(data_numbers, list):
-            data_numbers = np.array(data_numbers)
-        elif isinstance(data_numbers, np.ndarray):
+        if isinstance(edf_numbers, list):
+            edf_numbers = np.array(edf_numbers)
+        elif isinstance(edf_numbers, np.ndarray):
             pass
-        elif isinstance(data_numbers, tuple) and len(data_numbers) == 2:
-            data_numbers = np.array(list(range(data_numbers[0], data_numbers[1]+1)))
+        elif isinstance(edf_numbers, tuple) and len(edf_numbers) == 2:
+            edf_numbers = np.array(list(range(edf_numbers[0], edf_numbers[1]+1)))
         else:
             raise NotImplementedError("Must be list or ndarray or tuple with 2 values.")
 
-        # shave down data_numbers to acceptable range (0 to len-len%packet_size)
-        self._data_numbers = data_numbers #[0:len(data_numbers) - len(data_numbers) % data_packet_size]
-
+        # shave down edf_numbers to acceptable range (0 to len-len%packet_size)
+        self._edf_numbers = edf_numbers #[0:len(data_numbers) - len(data_numbers) % data_packet_size]
+        self._use_data_number = use_data_number
+ 
         self._optical_depths_pi_m1, self._optical_depths_pi_p1, self._headers = self.get_fits()
 
     def get_fits(self):
         """
-        Obtain optical depth fits of data_numbers list. Returns optical depths for + and -.
+        Obtain optical depth fits of edf_numbers list. Returns optical depths for + and -.
         Note a1 corresponds to freq < 0, a2 corresponds to freq > 0.
         """
         a1s = []
         a2s = []
         headers = []
         
-        for data_number in self._data_numbers:
-            optical_data = OpticalAnalysis(data_number)
+        for edf_number in self._edf_numbers:
+            optical_data = OpticalAnalysis(edf_number, use_data_number=self._use_data_number)
             a1, a2 = optical_data.get_fit_peaks()
             a1s.append(a1)
             a2s.append(a2)
@@ -249,9 +255,9 @@ class ScanAnalysis:
 
     def get_list_from_header(self, scan_list):
         """
-        Get a list of scanned values from headers of the data_numbers using the scan_list to define a parameter key.
+        Get a list of scanned values from headers of the edf_numbers using the scan_list to define a parameter key.
         """
-        # check very first data_number's scanned object; must be an object that is a single quant.
+        # check very first edf_number's scanned object; must be an object that is a single quant.
         first_scanned_val = self._get_nested_dict_val(self._headers[0]["params"], scan_list)
         if isinstance(first_scanned_val, (list, np.ndarray)):
             raise NotImplementedError("Scan single quantities.")
@@ -361,27 +367,28 @@ class ScanAnalysis:
 class TimeSeriesAnalysis:
     # TODO: get_scanned_data output compatible with saving/loading data sets
     # TODO: 
-    def __init__(self, data_numbers: list | np.ndarray | tuple, data_packet_size: int = 8):
+    def __init__(self, edf_numbers: list | np.ndarray | tuple, data_packet_size: int = 8, use_data_number: bool = False):
         """
         Compute time series phase fits, then plot time series center frequencies and perform T-violation calculation (computing Z, W).
         """
-        if isinstance(data_numbers, list):
-            data_numbers = np.array(data_numbers)
-        elif isinstance(data_numbers, np.ndarray):
+        if isinstance(edf_numbers, list):
+            edf_numbers = np.array(edf_numbers)
+        elif isinstance(edf_numbers, np.ndarray):
             pass
-        elif isinstance(data_numbers, tuple) and len(data_numbers) == 2:
-            if data_numbers[1] < data_numbers[0]:
+        elif isinstance(edf_numbers, tuple) and len(edf_numbers) == 2:
+            if edf_numbers[1] < edf_numbers[0]:
                 raise ValueError("First data number exceeds second data number in range.")
-            data_numbers = np.array(list(range(data_numbers[0], data_numbers[1]+1)))
+            edf_numbers = np.array(list(range(edf_numbers[0], edf_numbers[1]+1)))
         else:
-            raise NotImplementedError("Input data_numbers must be one of type: list, ndarray, or 2-tuple with start and end value.")
+            raise NotImplementedError("Input edf_numbers must be one of type: list, ndarray, or 2-tuple with start and end value.")
         
         # Strip end of data numbers to make integer multiple of data_packet_size
-        self._data_numbers = data_numbers[0:len(data_numbers) - len(data_numbers) % data_packet_size]
+        self._edf_numbers = edf_numbers[0:len(edf_numbers) - len(edf_numbers) % data_packet_size]
         self._data_packet_size = data_packet_size
+        self._use_data_number = use_data_number
 
         # Break down data numbers into groups of data packets with size data_packet_size
-        self._data_numbers_list = [data_numbers[i:i+data_packet_size] for i in range(0, len(self._data_numbers), data_packet_size)]
+        self._edf_numbers_list = [edf_numbers[i:i+data_packet_size] for i in range(0, len(self._edf_numbers), data_packet_size)]
 
         self._pis =  ["+1", "-1"]
 
@@ -405,7 +412,7 @@ class TimeSeriesAnalysis:
         unique_scan = {}
         header_loc = HEADER_LOC
         for name in header_loc.keys():
-            if name not in ["data_number", "save_time", "save_epoch_time"]:
+            if name not in ["data_number", "edf_number", "save_time", "save_epoch_time"]:
                 unique_scan[name] = np.unique(self._data[name])
         return unique_scan
 
@@ -423,10 +430,10 @@ class TimeSeriesAnalysis:
             units[name] = 1
 
         # Append values from ScanAnalysis to dictionary for each data packet of size data_packet_size
-        for data_numbers_packet in tqdm(self._data_numbers_list):
+        for edf_numbers_packet in tqdm(self._edf_numbers_list):
 
             # Get frequency centers and headers for each phase scan of a data packet
-            scan_analysis = ScanAnalysis(data_numbers_packet)
+            scan_analysis = ScanAnalysis(edf_numbers_packet, self._use_data_number)
             f_pi_m1, f_pi_p1, header = scan_analysis.get_frequency_center()
 
             # Append Pi+ and Pi- frequency centers to data dictionary
@@ -523,28 +530,28 @@ class TimeSeriesAnalysis:
             # frequency center plot
             for j, Pi in enumerate(self._pis):
                 fs = data["f"][Pi][data["Sigma"] == Sigma]
-                ax[i, 0].scatter(ts, fs, label=f"$\Pi$ = {Pi}", color=colors_12[j])
+                ax[i, 0].scatter(ts, fs, label=f"$\\Pi$ = {Pi}", color=colors_12[j])
                 ax[i, 1].hist(fs, bins=bins, orientation="horizontal", alpha=0.5, color=colors_12[j])
 
             # Z plot
             Zs = data["Z"][data["Sigma"] == Sigma]
-            ax[sn, 0].scatter(ts, Zs, label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
+            ax[sn, 0].scatter(ts, Zs, label=f"$\\Sigma$ = {Sigma}", color=colors_34[i])
             ax[sn, 1].hist(Zs, bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
 
             # W plot
             Ws = data["W"][data["Sigma"] == Sigma]
-            ax[sn+1, 0].scatter(ts, Ws, label=f"$\Sigma$ = {Sigma}", color=colors_34[i])
+            ax[sn+1, 0].scatter(ts, Ws, label=f"$\\Sigma$ = {Sigma}", color=colors_34[i])
             ax[sn+1, 1].hist(Ws, bins=bins, orientation="horizontal", alpha=0.5, color=colors_34[i])
 
-            ax[i, 0].set_ylabel(f"$f(\Pi=\pm 1, \Sigma = {Sigma})$")
+            ax[i, 0].set_ylabel(f"$f(\\Pi=\\pm 1, \\Sigma = {Sigma})$")
 
         # Change y-axis label depending on # unique Sigmas
         if len(Sigmas) > 1:
-            sigmas_str = "$\pm 1$"
+            sigmas_str = "$\\pm 1$"
         else:
             sigmas_str = Sigmas[0]
-        ax[sn  , 0].set_ylabel("$\mathcal{Z}(\Sigma = $" + f"{sigmas_str}" +"$)$")
-        ax[sn+1, 0].set_ylabel("$\mathcal{W}(\Sigma = $" + f"{sigmas_str}" +"$)$")
+        ax[sn  , 0].set_ylabel("$\\mathcal{Z}(\\Sigma = $" + f"{sigmas_str}" +"$)$")
+        ax[sn+1, 0].set_ylabel("$\\mathcal{W}(\\Sigma = $" + f"{sigmas_str}" +"$)$")
 
         ax[sn+1, 0].set_xlabel("Time from start (s)")
 
@@ -598,10 +605,15 @@ class TimeSeriesAnalysis:
         info = {
             "Date" : datetime.datetime.fromtimestamp(data["save_epoch_time"][0]).strftime('%c'),
             "Total experiment time" : f"{new_exp_time:.2f} {units}",
-            "First data number" : data["data_number"][0],
-            "Last data number" : data["data_number"][-1] + self._data_packet_size - 1,
             "Packet size" : self._data_packet_size,
         }
+        if "edf_number" in data:
+            info.update(
+                {
+                    "First EDF number" : data["edf_number"][0],
+                    "Last EDF number" : data["edf_number"][-1] + self._data_packet_size - 1,
+                }
+            )
         return info
     
     def print_info(self, filter=None):
