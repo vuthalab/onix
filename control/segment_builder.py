@@ -564,6 +564,20 @@ def lf_ramsey_segments(
     return segments_and_steps, parameters_iterate_this_segment
 
 
+def delay_segments(
+    sequence_step_name: str,
+    parameters: dict[str, Any],
+) -> tuple[list[tuple[Segment, int]], list[tuple[str]]]:
+    time_ms = int(sequence_step_name.split("_")[-1])
+
+    segment = Segment("delay_1ms", duration=1 * ureg.ms)
+    segments_and_steps: list[tuple[Segment, int]] = [
+        (segment, time_ms),
+    ]
+    parameters_iterate_this_segment = []
+    return segments_and_steps, parameters_iterate_this_segment
+
+
 name_to_segment_builder = {
     "chasm": chasm_segments,
     "antihole": antihole_segments,
@@ -573,4 +587,5 @@ name_to_segment_builder = {
     "lf_equilibrate": lf_equilibrate_segments,
     "lf_rabi": lf_rabi_segments,
     "lf_ramsey": lf_ramsey_segments,
+    "delay": delay_segments,
 }

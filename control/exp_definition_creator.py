@@ -37,6 +37,7 @@ class ExpDefinitionCreator:
             skip_awg_programming = False
             skip_digitizer_programming = False
             run_first_card_only = False
+            stop_first_card_only = False
         else:
             parameters = self._get_parameter_after_iteration(
                 parameters_to_iterate,

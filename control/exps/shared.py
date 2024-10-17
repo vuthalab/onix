@@ -38,9 +38,9 @@ _shared_parameters = {
     "field_plate": {
         "channel_name": "field_plate",
         "polarity": 1,
-        "low_voltage": -0.0013 * ureg.V,  # AWG output before the HV amplifier
+        "low_voltage": -0.0037 * ureg.V,  # AWG output before the HV amplifier
         "high_voltage": 1.75 * ureg.V,  # compensates the dc offset.
-        "amplifier_voltage_gain": 50,
+        "amplifier_voltage_gain": 100,
         "voltage_to_field": 1 / (0.87 * ureg.cm),
         "dipole_moment": 27.7 * ureg.kHz / (ureg.V / ureg.cm),
         "rise_ramp_time": 3 * ureg.ms,  # ramp time from low to high.
