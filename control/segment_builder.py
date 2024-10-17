@@ -410,10 +410,19 @@ def rf_rabi_segments(
         AWGSinePulse(center_frequency + detuning, amplitude)
     )
 
-    segments_and_steps: list[tuple[Segment, int]] = [
-        (segment, 1),
-        (_delay_segment(parameters), 1),
-    ]
+    field_plate_params = parameters["field_plate"]
+    field_on = field_plate_params["use"] and "rf_rabi" in field_plate_params["during"]
+
+    segments_and_steps: list[tuple[Segment, int]] = []
+    if field_on:
+        # the E field needs to be turned on.
+        segments_and_steps.append(_electric_field_rise_segment_and_steps(parameters, shutter_on=True))
+    segments_and_steps.append((segment, 1))
+    if field_on:
+        # the E field needs to be turned off.
+        segments_and_steps.append(_electric_field_fall_segment_and_steps(parameters, shutter_on=True))
+    segments_and_steps.append((_delay_segment(parameters), 1))
+
     parameters_iterate_this_segment = [
         ("rf", "rabi", "detuning"),
         ("rf", "rabi", "amplitude"),
