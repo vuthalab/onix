@@ -113,10 +113,11 @@ def get_new_experiment_path(data_name: str, edf_number: Optional[int] = None) ->
     os.makedirs(link_folder, exist_ok=True)
     os.symlink(op.join(folder, file_name), op.join(link_folder, str(data_number)))
 
-    edf_link_folder_name = str(edf_number // 100000).rjust(expt_rjust - 5, "0")
-    edf_link_folder = op.join(expt_folder, "edf_links", edf_link_folder_name)
-    os.makedirs(edf_link_folder, exist_ok=True)
-    os.symlink(op.join(folder, file_name), op.join(edf_link_folder, str(edf_number)))
+    if edf_number is not None:
+        edf_link_folder_name = str(edf_number // 100000).rjust(expt_rjust - 5, "0")
+        edf_link_folder = op.join(expt_folder, "edf_links", edf_link_folder_name)
+        os.makedirs(edf_link_folder, exist_ok=True)
+        os.symlink(op.join(folder, file_name), op.join(edf_link_folder, str(edf_number)))
     return (data_number, op.join(folder, file_name))
 
 

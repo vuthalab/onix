@@ -267,7 +267,8 @@ def detect_segments(
     segment.add_ttl_function(trigger_channel, ttl_function)
 
     field_plate_params = parameters["field_plate"]
-    if not field_plate_params["use"]:
+    field_on = field_plate_params["use"] and "detect" in field_plate_params["during"]
+    if not field_on:
         Pi_values = [0]
     else:
         if field_plate_params["negative_Pi_first"]:
@@ -333,7 +334,6 @@ def detect_segments(
     else:
         raise NotImplementedError(f"Mode {mode} is not defined.")
 
-    field_on = field_plate_params["use"] and "detect" in field_plate_params["during"]
     if field_on:
         segment.set_electric_field(True)
 

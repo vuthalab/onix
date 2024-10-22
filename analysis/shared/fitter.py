@@ -342,7 +342,7 @@ def gaussianL(f: Union[float, _np.ndarray], f0: float, a: float, sigma: float, b
     """
     Gaussian with line.
     """
-    return gaussian0(f, f0, a, sigma, c) + b * f + c
+    return gaussian0(f, f0, a, sigma) + b * f + c
 
 def two_peak_gaussian(f: Union[float, _np.ndarray], f1: float, f2: float, a1: float, a2: float,
                       sigma1: float, sigma2: float, b: float, c: float) -> Union[float, _np.ndarray]:
